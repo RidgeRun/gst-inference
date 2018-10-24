@@ -264,7 +264,9 @@ echo
 AC_MSG_NOTICE([Checking libraries for plugins in ext/])
 echo
 
-AM_CONDITIONAL(USE_R2INFERENCE, true)
+AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun's Inference Framework], gstinference, [
+  AG_GST_PKG_CHECK_MODULES(R2INFERENCE, r2inference-0.0)
+])
 
 else
 
