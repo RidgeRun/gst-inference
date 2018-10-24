@@ -20,8 +20,3 @@
  */
 
 void init (void);
-
-void
-init ()
-{
-}
