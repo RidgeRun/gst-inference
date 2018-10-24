@@ -13,6 +13,17 @@ libtool
 ltmain.sh
 missing
 stamp-h1
+depcomp
+
+# Build outputs
+.deps/
+.libs/
+*.la
+*.lo
+*.o
+
+# GtkDoc
+docs/version.entities
 
 # Test framework
 test-driver
