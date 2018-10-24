@@ -1,10 +1,11 @@
 DISTCHECK_CONFIGURE_FLAGS=--enable-gtk-doc
 
-ALWAYS_SUBDIRS =		\
-	ext 				\
-	tests				\
-	common				\
-	docs				\
+ALWAYS_SUBDIRS =	\
+	gst-libs	\
+	ext 		\
+	tests		\
+	common		\
+	docs		\
 	m4
 
 SUBDIRS = $(ALWAYS_SUBDIRS)

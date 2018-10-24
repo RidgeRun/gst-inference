@@ -348,6 +348,9 @@ common/m4/Makefile
 docs/Makefile
 docs/version.entities
 docs/plugins/Makefile
+gst-libs/Makefile
+gst-libs/gst/Makefile
+gst-libs/gst/r2inference/Makefile
 m4/Makefile
 ext/Makefile
 ext/r2inference/Makefile
