@@ -1,0 +1,23 @@
+# Autotools ignore files
+INSTALL
+Makefile
+Makefile.in
+*.m4
+autom4te.cache/
+autoregen.sh
+compile
+config.*
+configure
+install-sh
+libtool
+ltmain.sh
+missing
+stamp-h1
+
+# Test framework
+test-driver
+tests/check/test-suite.log
+
+# Editor backup
+*~
+

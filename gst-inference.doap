@@ -1,0 +1,45 @@
+<Project
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+  xmlns="http://usefulinc.com/ns/doap#"
+  xmlns:foaf="http://xmlns.com/foaf/0.1/"
+  xmlns:admin="http://webns.net/mvcb/">
+
+ <name>GStreamer Deep Learning Inference Framework</name>
+ <shortname>gst-inference</shortname>
+ <homepage rdf:resource="https://github.com/RidgeRun/gst-inference" />
+ <created>2018-10-22</created>
+ <shortdesc xml:lang="en">
+GStreamer Inference Framework
+</shortdesc>
+ <description xml:lang="en">
+GstInference is a GStreamer based deep learning inference framework. It provides
+base clases, elements and utilities to easlily and efficiently execute deep-learning
+models to detect or classify objects in a scene.
+</description>
+ <category></category>
+ <bug-database rdf:resource="https://github.com/RidgeRun/gst-inference/issues" />
+ <screenshots></screenshots>
+ <mailing-list></mailing-list>
+ <programming-language>C</programming-language>
+
+ <repository>
+   <GitRepository>
+     <location rdf:resource="https://github.com/RidgeRun/gst-inference"/>
+     <browse rdf:resource="https://github.com/RidgeRun/gst-inference"/>
+   </GitRepository>
+ </repository> 
+
+ <maintainer>
+  <foaf:Person>
+     <foaf:name>Carlos Rodriguez</foaf:name>
+  </foaf:Person>
+  <foaf:Person>
+     <foaf:name>Jose Jimenez</foaf:name>
+  </foaf:Person>
+  <foaf:Person>
+     <foaf:name>Michael Gruner</foaf:name>
+  </foaf:Person>
+ </maintainer>
+
+</Project>

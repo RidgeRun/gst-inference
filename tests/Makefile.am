@@ -1,0 +1,16 @@
+if HAVE_GST_CHECK
+SUBDIRS_CHECK = check files
+else
+SUBDIRS_CHECK =
+endif
+
+#if BUILD_EXAMPLES
+#SUBDIR_EXAMPLES = examples
+#else
+#SUBDIR_EXAMPLES =
+#endif
+
+SUBDIRS = $(SUBDIRS_CHECK) $(SUBDIR_EXAMPLES)
+
+DIST_SUBDIRS = check files
+
