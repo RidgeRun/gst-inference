@@ -78,6 +78,12 @@ static GstFlowReturn gst_video_inference_collected (GstCollectPads *pads,
     gpointer user_data);
 static GstFlowReturn gst_video_inference_forward_buffer (GstVideoInference *self,
     GstVideoInferencePrivate *priv, GstCollectData *data, GstPad *pad);
+static gboolean gst_video_inference_sink_event (GstCollectPads *pads, GstCollectData *pad,
+    GstEvent *event, gpointer user_data);
+static gboolean gst_video_inference_src_event (GstPad *pad, GstObject *parent,
+    GstEvent *event);
+static GstPad * gst_video_inference_get_src_pad (GstVideoInference *self,
+    GstVideoInferencePrivate *priv, GstPad *pad);
 
 static void
 gst_video_inference_class_init (GstVideoInferenceClass * klass)
@@ -113,7 +119,8 @@ gst_video_inference_init (GstVideoInference * self)
   priv->cpads = gst_collect_pads_new ();
   gst_collect_pads_set_function (priv->cpads, gst_video_inference_collected,
       (gpointer) (self));
-
+  gst_collect_pads_set_event_function (priv->cpads, gst_video_inference_sink_event,
+      (gpointer) (self));
 }
 
 static gboolean
@@ -121,6 +128,8 @@ gst_video_inference_start (GstVideoInference *self)
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   gboolean ret = TRUE;
+
+  GST_INFO_OBJECT (self, "Starting video inference");
 
   if (klass->start != NULL) {
     ret = klass->start (self);
@@ -134,6 +143,8 @@ gst_video_inference_stop (GstVideoInference *self)
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   gboolean ret = TRUE;
+
+  GST_INFO_OBJECT (self, "Stopping video inference");
 
   if (klass->stop != NULL) {
     ret = klass->stop (self);
@@ -209,6 +220,8 @@ gst_video_inference_create_pad (GstVideoInference * self,
       GST_ERROR_OBJECT (self, "Unable to add pad %s to collect pads", name);
       goto free_pad;
     }
+  } else {
+    gst_pad_set_event_function (pad, gst_video_inference_src_event);
   }
 
   if (FALSE == gst_element_add_pad (element, pad)) {
@@ -258,7 +271,7 @@ gst_video_inference_request_new_pad (GstElement *element,
     *pad = gst_video_inference_create_pad (self, templ, name, data);
   } else {
     GST_ERROR_OBJECT (self, "Pad %s already exists", name);
-    pad = NULL;
+    return NULL;
   }
 
   return *pad;
@@ -289,9 +302,9 @@ gst_video_inference_release_pad (GstElement *element, GstPad *pad)
   }
 
   GST_INFO_OBJECT (self, "Removing %s:%s", GST_DEBUG_PAD_NAME (pad));
-  *data = NULL;
 
   if (GST_PAD_IS_SINK (pad)) {
+    *data = NULL;
     gst_collect_pads_remove_pad (priv->cpads, pad);
   }
 
@@ -357,6 +370,58 @@ gst_video_inference_collected (GstCollectPads *pads,
 
  out:
   return ret;
+}
+
+static GstPad *
+gst_video_inference_get_src_pad (GstVideoInference *self, GstVideoInferencePrivate *priv, GstPad *sinkpad)
+{
+  GstPad *pad;
+
+  if (sinkpad == priv->sink_model) {
+    pad = priv->src_model;
+  } else if (sinkpad == priv->sink_bypass) {
+    pad = priv->src_bypass;
+  } else {
+    g_return_val_if_reached (NULL);
+  }
+
+  return pad;
+}
+
+static gboolean
+gst_video_inference_sink_event (GstCollectPads *pads, GstCollectData *pad,
+    GstEvent *event, gpointer user_data)
+{
+  GstVideoInference *self = GST_VIDEO_INFERENCE (user_data);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+  gboolean ret = FALSE;
+  GstPad *srcpad;
+
+  srcpad = gst_video_inference_get_src_pad (self, priv, pad->pad);
+
+  /* Collect pads will decrease the refcount of the event when we return */
+  gst_event_ref (event);
+
+  if (FALSE == gst_pad_push_event (srcpad, event)) {
+    GST_ERROR_OBJECT (self, "Event %s failed in %s:%s", GST_EVENT_TYPE_NAME (event),
+        GST_DEBUG_PAD_NAME (srcpad));
+    goto out;
+  }
+
+  ret = gst_collect_pads_event_default (priv->cpads, pad, event, FALSE);
+
+ out:
+  return ret;
+}
+
+static gboolean
+gst_video_inference_src_event (GstPad *pad, GstObject *parent,
+    GstEvent *event)
+{
+  GstVideoInference *self = GST_VIDEO_INFERENCE (parent);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  return gst_collect_pads_src_event_default (priv->cpads, pad, event);
 }
 
 static void
