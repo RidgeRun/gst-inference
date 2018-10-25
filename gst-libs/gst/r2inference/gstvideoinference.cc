@@ -56,8 +56,16 @@ G_DEFINE_TYPE_WITH_CODE (GstVideoInference, gst_video_inference, GST_TYPE_ELEMEN
 #define GST_VIDEO_INFERENCE_PRIVATE(self) \
   (GstVideoInferencePrivate *)(gst_video_inference_get_instance_private (self))
 
-
+/* GObject methods */
 static void gst_video_inference_dispose (GObject * object);
+
+/* GstElement methods */
+static GstStateChangeReturn gst_video_inference_change_state (GstElement *element,
+    GstStateChange transition);
+
+/* GstVideoInference methods */
+static gboolean gst_video_inference_start (GstVideoInference *self);
+static gboolean gst_video_inference_stop (GstVideoInference *self);
 
 static void
 gst_video_inference_class_init (GstVideoInferenceClass * klass)
@@ -67,8 +75,12 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
 
   oclass->dispose = gst_video_inference_dispose;
 
+  eclass->change_state = GST_DEBUG_FUNCPTR (gst_video_inference_change_state);
   gst_element_class_add_static_pad_template (eclass, &sink_bypass_factory);
   gst_element_class_add_static_pad_template (eclass, &src_bypass_factory);
+
+  klass->start = NULL;
+  klass->stop = NULL;
 }
 
 static void
@@ -81,6 +93,79 @@ gst_video_inference_init (GstVideoInference * self)
   priv->src_bypass = NULL;
   priv->sink_model = NULL;
   priv->src_model = NULL;
+}
+
+static gboolean
+gst_video_inference_start (GstVideoInference *self)
+{
+  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
+  gboolean ret = TRUE;
+
+  if (klass->start != NULL) {
+    ret = klass->start (self);
+  }
+
+  return ret;
+}
+
+static gboolean
+gst_video_inference_stop (GstVideoInference *self)
+{
+  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
+  gboolean ret = TRUE;
+
+  if (klass->stop != NULL) {
+    ret = klass->stop (self);
+  }
+
+  return ret;
+}
+
+static GstStateChangeReturn
+gst_video_inference_change_state (GstElement *element, GstStateChange transition)
+{
+  GstStateChangeReturn ret;
+  GstVideoInference *self = GST_VIDEO_INFERENCE (element);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+ switch (transition) {
+ case GST_STATE_CHANGE_READY_TO_PAUSED:
+   gst_collect_pads_start (priv->cpads);
+
+   if (FALSE == gst_video_inference_start (self)) {
+     GST_ERROR_OBJECT (self, "Subclass failed to start");
+     ret = GST_STATE_CHANGE_FAILURE;
+     goto out;
+   }
+   break;
+ case GST_STATE_CHANGE_PAUSED_TO_READY:
+   gst_collect_pads_stop (priv->cpads);
+   break;
+ default:
+   break;
+ }
+
+ ret = GST_ELEMENT_CLASS (gst_video_inference_parent_class)->change_state (element,
+    transition);
+ if (GST_STATE_CHANGE_FAILURE == ret) {
+   GST_ERROR_OBJECT (self, "Parent failed to change state");
+   goto out;
+ }
+
+ switch (transition) {
+ case GST_STATE_CHANGE_PAUSED_TO_READY:
+   if (FALSE == gst_video_inference_stop (self)) {
+     GST_ERROR_OBJECT (self, "Subclass failed to stop");
+     ret = GST_STATE_CHANGE_FAILURE;
+     goto out;
+   }
+   break;
+ default:
+   break;
+ }
+
+ out:
+ return ret;
 }
 
 static void

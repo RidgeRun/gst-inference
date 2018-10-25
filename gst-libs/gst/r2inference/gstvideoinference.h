@@ -32,6 +32,9 @@ G_DECLARE_DERIVABLE_TYPE(GstVideoInference, gst_video_inference, GST, VIDEO_INFE
 struct _GstVideoInferenceClass
 {
   GstElementClass parent_class;
+
+  gboolean (* start) (GstVideoInference *self);
+  gboolean (* stop) (GstVideoInference *self);
 };
 
 G_END_DECLS
