@@ -30,7 +30,7 @@ static GstStaticPadTemplate sink_bypass_factory = GST_STATIC_PAD_TEMPLATE ("sink
   );
 
 static GstStaticPadTemplate src_bypass_factory = GST_STATIC_PAD_TEMPLATE ("src_bypass",
-    GST_PAD_SINK,
+    GST_PAD_SRC,
     GST_PAD_REQUEST,
     GST_STATIC_CAPS ("ANY")
   );
@@ -74,6 +74,10 @@ static gboolean gst_video_inference_start (GstVideoInference *self);
 static gboolean gst_video_inference_stop (GstVideoInference *self);
 static GstPad * gst_video_inference_create_pad (GstVideoInference * self,
     GstPadTemplate *templ, const gchar* name, GstCollectData **data);
+static GstFlowReturn gst_video_inference_collected (GstCollectPads *pads,
+    gpointer user_data);
+static GstFlowReturn gst_video_inference_forward_buffer (GstVideoInference *self,
+    GstVideoInferencePrivate *priv, GstCollectData *data, GstPad *pad);
 
 static void
 gst_video_inference_class_init (GstVideoInferenceClass * klass)
@@ -98,7 +102,6 @@ gst_video_inference_init (GstVideoInference * self)
 {
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
 
-  priv->cpads = gst_collect_pads_new ();
   priv->sink_bypass_data = NULL;
   priv->sink_model_data = NULL;
 
@@ -106,6 +109,11 @@ gst_video_inference_init (GstVideoInference * self)
   priv->src_bypass = NULL;
   priv->sink_model = NULL;
   priv->src_model = NULL;
+
+  priv->cpads = gst_collect_pads_new ();
+  gst_collect_pads_set_function (priv->cpads, gst_video_inference_collected,
+      (gpointer) (self));
+
 }
 
 static gboolean
@@ -225,35 +233,35 @@ gst_video_inference_request_new_pad (GstElement *element,
   GstVideoInference *self = GST_VIDEO_INFERENCE (element);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   const gchar *tname;
-  GstPad *pad;
+  GstPad **pad;
   GstCollectData **data;
 
   tname = GST_PAD_TEMPLATE_NAME_TEMPLATE (templ);
 
   if (0 == g_strcmp0 (tname, "sink_bypass")) {
-    pad = priv->sink_bypass;
+    pad = &priv->sink_bypass;
     data = &priv->sink_bypass_data;
   } else if (0 == g_strcmp0 (tname, "sink_model")) {
-    pad = priv->sink_model;
+    pad = &priv->sink_model;
     data = &priv->sink_model_data;
   } else if (0 == g_strcmp0 (tname, "src_bypass")) {
-    pad = priv->src_bypass;
+    pad = &priv->src_bypass;
     data = NULL;
   } else if (0 == g_strcmp0 (tname, "src_model")) {
-    pad = priv->src_model;
+    pad = &priv->src_model;
     data = NULL;
   } else {
     g_return_val_if_reached (NULL);
   }
 
-  if (NULL == pad) {
-    pad = gst_video_inference_create_pad (self, templ, name, data);
+  if (NULL == *pad) {
+    *pad = gst_video_inference_create_pad (self, templ, name, data);
   } else {
     GST_ERROR_OBJECT (self, "Pad %s already exists", name);
     pad = NULL;
   }
 
-  return pad;
+  return *pad;
 }
 
 static void
@@ -288,6 +296,67 @@ gst_video_inference_release_pad (GstElement *element, GstPad *pad)
   }
 
   g_clear_object (ourpad);
+}
+
+static GstFlowReturn
+gst_video_inference_forward_buffer (GstVideoInference *self, GstVideoInferencePrivate *priv,
+    GstCollectData *data, GstPad *pad)
+{
+  GstBuffer *buffer = NULL;
+  GstFlowReturn ret = GST_FLOW_OK;
+
+  /* User didn't request this pad */
+  if (NULL == data) {
+    goto out;
+  }
+
+  buffer = gst_collect_pads_pop (priv->cpads, data);
+  if (NULL == buffer) {
+    GST_INFO_OBJECT (self, "EOS requested on %s:%s", GST_DEBUG_PAD_NAME (data->pad));
+    ret = GST_FLOW_EOS;
+    goto out;
+  }
+
+  if (NULL != pad) {
+    GST_LOG_OBJECT (self, "Forwarding buffer to %s:%s", GST_DEBUG_PAD_NAME (pad));
+    ret = gst_pad_push (pad, buffer);
+  } else {
+    GST_LOG_OBJECT (self, "Dropping buffer from %s:%s", GST_DEBUG_PAD_NAME (data->pad));
+    gst_buffer_unref (buffer);
+    goto out;
+  }
+
+  if (GST_FLOW_OK != ret) {
+    GST_ERROR_OBJECT (self, "Pad %s:%s returned: (%d) %s", GST_DEBUG_PAD_NAME (pad), ret,
+        gst_flow_get_name (ret));
+  }
+
+ out:
+  return ret;
+}
+
+static GstFlowReturn
+gst_video_inference_collected (GstCollectPads *pads,
+    gpointer user_data)
+{
+  GstVideoInference *self = GST_VIDEO_INFERENCE (user_data);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+  GstFlowReturn ret;
+
+  ret = gst_video_inference_forward_buffer(self, priv, priv->sink_bypass_data,
+      priv->src_bypass);
+  if (GST_FLOW_OK != ret) {
+    goto out;
+  }
+
+  ret = gst_video_inference_forward_buffer(self, priv, priv->sink_model_data,
+      priv->src_model);
+  if (GST_FLOW_OK != ret) {
+    goto out;
+  }
+
+ out:
+  return ret;
 }
 
 static void
