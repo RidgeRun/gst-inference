@@ -1,19 +1,32 @@
-# Autotools ignore files
-INSTALL
-Makefile
-Makefile.in
-*.m4
+# Editor backup
+*~
+*.bak
+\#*
+*.orig
+
+# Autotools cruft
+aclocal.m4
 autom4te.cache/
-autoregen.sh
 compile
-config.*
+config.guess
+config.h
+config.h.in
+config.status
+config.sub
 configure
 install-sh
+missing
+Makefile
+Makefile.in
+depcomp
 libtool
 ltmain.sh
-missing
-stamp-h1
-depcomp
+m4/
+.deps/
+.libs/
+stamp-h*
+autoregen.sh
+gstinference-*.pc
 
 # Build outputs
 .deps/
@@ -22,13 +35,22 @@ depcomp
 *.lo
 *.o
 
+# Git conflict files
+.merge_file_*
+
 # GtkDoc
 docs/version.entities
 
-# Test framework
+# Tests 
 test-driver
-tests/check/test-suite.log
+*.xml
+*.log
+*.trs
 
-# Editor backup
-*~
+# 3rd party tools
+.clang_complete
+cscope.files
+cscope.out
+
+# Examples
 
