@@ -28,6 +28,6 @@ plugin_init (GstPlugin * plugin)
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
-    gstinference,
-    "Infers a GoogLeNet trained model on incomming image frames",
+    inference,
+    "Infer pre-trained model on incomming image frames on a variety of architectures and different backends",
     plugin_init, VERSION, "LGPL", PACKAGE_NAME, GST_PACKAGE_ORIGIN)

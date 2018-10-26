@@ -13,31 +13,12 @@
 #ifndef _GST_GOOGLENET_H_
 #define _GST_GOOGLENET_H_
 
-#include <gst/base/gstbasetransform.h>
+#include <gst/r2inference/gstvideoinference.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_GOOGLENET   (gst_googlenet_get_type())
-#define GST_GOOGLENET(obj)   (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_GOOGLENET,GstGooglenet))
-#define GST_GOOGLENET_CLASS(klass)   (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_GOOGLENET,GstGooglenetClass))
-#define GST_IS_GOOGLENET(obj)   (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_GOOGLENET))
-#define GST_IS_GOOGLENET_CLASS(obj)   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_GOOGLENET))
-
-typedef struct _GstGooglenet GstGooglenet;
-typedef struct _GstGooglenetClass GstGooglenetClass;
-
-struct _GstGooglenet
-{
-  GstBaseTransform base_googlenet;
-
-};
-
-struct _GstGooglenetClass
-{
-  GstBaseTransformClass base_googlenet_class;
-};
-
-GType gst_googlenet_get_type (void);
+#define GST_TYPE_GOOGLENET gst_googlenet_get_type ()
+G_DECLARE_FINAL_TYPE (GstGooglenet, gst_googlenet, GST, GOOGLENET, GstVideoInference)
 
 G_END_DECLS
 
