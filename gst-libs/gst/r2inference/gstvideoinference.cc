@@ -22,18 +22,23 @@
 #include "gstvideoinference.h"
 
 #include <gst/base/gstcollectpads.h>
+#include <memory>
 
-static GstStaticPadTemplate sink_bypass_factory = GST_STATIC_PAD_TEMPLATE ("sink_bypass",
+#include "gstncsdk.h"
+
+static GstStaticPadTemplate sink_bypass_factory =
+GST_STATIC_PAD_TEMPLATE ("sink_bypass",
     GST_PAD_SINK,
     GST_PAD_REQUEST,
     GST_STATIC_CAPS ("ANY")
-  );
+    );
 
-static GstStaticPadTemplate src_bypass_factory = GST_STATIC_PAD_TEMPLATE ("src_bypass",
+static GstStaticPadTemplate src_bypass_factory =
+GST_STATIC_PAD_TEMPLATE ("src_bypass",
     GST_PAD_SRC,
     GST_PAD_REQUEST,
     GST_STATIC_CAPS ("ANY")
-  );
+    );
 
 GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define GST_CAT_DEFAULT gst_video_inference_debug_category
@@ -41,49 +46,68 @@ GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 typedef struct _GstVideoInferencePrivate GstVideoInferencePrivate;
 struct _GstVideoInferencePrivate
 {
-  GstCollectPads * cpads;
-  GstCollectData * sink_bypass_data;
-  GstCollectData * sink_model_data;
+  GstCollectPads *cpads;
+  GstCollectData *sink_bypass_data;
+  GstCollectData *sink_model_data;
 
-  GstPad * sink_bypass;
-  GstPad * src_bypass;
-  GstPad * sink_model;
-  GstPad * src_model;
+  GstPad *sink_bypass;
+  GstPad *src_bypass;
+  GstPad *sink_model;
+  GstPad *src_model;
+
+  GstBackend *backend;
+
+  std::shared_ptr<r2i::IEngine> engine;
+  std::shared_ptr<r2i::ILoader> loader;
+  std::shared_ptr<r2i::IModel> model;
 };
 
-G_DEFINE_TYPE_WITH_CODE (GstVideoInference, gst_video_inference, GST_TYPE_ELEMENT,
-    GST_DEBUG_CATEGORY_INIT (gst_video_inference_debug_category, "videoinference", 0,
-        "debug category for videoinference base class");
-     G_ADD_PRIVATE (GstVideoInference));
+/* GObject methods */
+static void gst_video_inference_finalize (GObject * object);
+
+/* GstElement methods */
+static GstStateChangeReturn gst_video_inference_change_state (GstElement *
+    element, GstStateChange transition);
+static GstPad *gst_video_inference_request_new_pad (GstElement * element,
+    GstPadTemplate * templ, const gchar * name, const GstCaps * caps);
+static void gst_video_inference_release_pad (GstElement * element,
+    GstPad * pad);
+
+/* GstChildProxy methods */
+static void gst_video_inference_child_proxy_init (GstChildProxyInterface *
+    iface);
+static GObject *gst_video_inference_get_child_by_name (GstChildProxy * parent,
+    const gchar * name);
+static GObject *gst_video_inference_get_child_by_index (GstChildProxy * parent,
+    guint index);
+static guint gst_video_inference_get_children_count (GstChildProxy * parent);
+
+/* GstVideoInference methods */
+static gboolean gst_video_inference_start (GstVideoInference * self);
+static gboolean gst_video_inference_stop (GstVideoInference * self);
+static GstPad *gst_video_inference_create_pad (GstVideoInference * self,
+    GstPadTemplate * templ, const gchar * name, GstCollectData ** data);
+static GstFlowReturn gst_video_inference_collected (GstCollectPads * pads,
+    gpointer user_data);
+static GstFlowReturn gst_video_inference_forward_buffer (GstVideoInference *
+    self, GstVideoInferencePrivate * priv, GstCollectData * data, GstPad * pad);
+static gboolean gst_video_inference_sink_event (GstCollectPads * pads,
+    GstCollectData * pad, GstEvent * event, gpointer user_data);
+static gboolean gst_video_inference_src_event (GstPad * pad, GstObject * parent,
+    GstEvent * event);
+static GstPad *gst_video_inference_get_src_pad (GstVideoInference * self,
+    GstVideoInferencePrivate * priv, GstPad * pad);
+
+G_DEFINE_TYPE_WITH_CODE (GstVideoInference, gst_video_inference,
+    GST_TYPE_ELEMENT,
+    GST_DEBUG_CATEGORY_INIT (gst_video_inference_debug_category,
+        "videoinference", 0, "debug category for videoinference base class");
+    G_ADD_PRIVATE (GstVideoInference);
+    G_IMPLEMENT_INTERFACE (GST_TYPE_CHILD_PROXY,
+        gst_video_inference_child_proxy_init));
 
 #define GST_VIDEO_INFERENCE_PRIVATE(self) \
   (GstVideoInferencePrivate *)(gst_video_inference_get_instance_private (self))
-
-/* GObject methods */
-static void gst_video_inference_dispose (GObject * object);
-
-/* GstElement methods */
-static GstStateChangeReturn gst_video_inference_change_state (GstElement *element,
-    GstStateChange transition);
-static GstPad * gst_video_inference_request_new_pad (GstElement *element,
-    GstPadTemplate *templ, const gchar* name, const GstCaps *caps);
-static void gst_video_inference_release_pad (GstElement *element, GstPad *pad);
-
-/* GstVideoInference methods */
-static gboolean gst_video_inference_start (GstVideoInference *self);
-static gboolean gst_video_inference_stop (GstVideoInference *self);
-static GstPad * gst_video_inference_create_pad (GstVideoInference * self,
-    GstPadTemplate *templ, const gchar* name, GstCollectData **data);
-static GstFlowReturn gst_video_inference_collected (GstCollectPads *pads,
-    gpointer user_data);
-static GstFlowReturn gst_video_inference_forward_buffer (GstVideoInference *self,
-    GstVideoInferencePrivate *priv, GstCollectData *data, GstPad *pad);
-static gboolean gst_video_inference_sink_event (GstCollectPads *pads, GstCollectData *pad,
-    GstEvent *event, gpointer user_data);
-static gboolean gst_video_inference_src_event (GstPad *pad, GstObject *parent,
-    GstEvent *event);
-static GstPad * gst_video_inference_get_src_pad (GstVideoInference *self,
-    GstVideoInferencePrivate *priv, GstPad *pad);
 
 static void
 gst_video_inference_class_init (GstVideoInferenceClass * klass)
@@ -91,22 +115,28 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
   GstElementClass *eclass = GST_ELEMENT_CLASS (klass);
 
-  oclass->dispose = gst_video_inference_dispose;
+  oclass->finalize = gst_video_inference_finalize;
 
   eclass->change_state = GST_DEBUG_FUNCPTR (gst_video_inference_change_state);
-  eclass->request_new_pad = GST_DEBUG_FUNCPTR (gst_video_inference_request_new_pad);
+  eclass->request_new_pad =
+      GST_DEBUG_FUNCPTR (gst_video_inference_request_new_pad);
   eclass->release_pad = GST_DEBUG_FUNCPTR (gst_video_inference_release_pad);
   gst_element_class_add_static_pad_template (eclass, &sink_bypass_factory);
   gst_element_class_add_static_pad_template (eclass, &src_bypass_factory);
 
   klass->start = NULL;
   klass->stop = NULL;
+  klass->preprocess = NULL;
+  klass->postprocess = NULL;
 }
 
 static void
 gst_video_inference_init (GstVideoInference * self)
 {
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+  r2i::RuntimeError error;
+  auto factory = r2i::IFrameworkFactory::MakeFactory (r2i::FrameworkCode::NCSDK,
+      error);
 
   priv->sink_bypass_data = NULL;
   priv->sink_model_data = NULL;
@@ -119,27 +149,91 @@ gst_video_inference_init (GstVideoInference * self)
   priv->cpads = gst_collect_pads_new ();
   gst_collect_pads_set_function (priv->cpads, gst_video_inference_collected,
       (gpointer) (self));
-  gst_collect_pads_set_event_function (priv->cpads, gst_video_inference_sink_event,
-      (gpointer) (self));
+  gst_collect_pads_set_event_function (priv->cpads,
+      gst_video_inference_sink_event, (gpointer) (self));
+
+  priv->backend = GST_BACKEND (g_object_new (GST_TYPE_NCSDK, NULL));
+
+  priv->engine = factory->MakeEngine(error);
+  priv->loader = factory->MakeLoader(error);
+  priv->model = nullptr;
+}
+
+static void
+gst_video_inference_child_proxy_init (GstChildProxyInterface * iface)
+{
+  iface->get_child_by_name = gst_video_inference_get_child_by_name;
+  iface->get_child_by_index = gst_video_inference_get_child_by_index;
+  iface->get_children_count = gst_video_inference_get_children_count;
+}
+
+static GObject *
+gst_video_inference_get_child_by_name (GstChildProxy * parent,
+    const gchar * name)
+{
+  GstVideoInference *self = GST_VIDEO_INFERENCE (parent);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  GST_DEBUG_OBJECT (self, "Requested for child %s", name);
+
+  if (0 == g_strcmp0 (name, "backend")) {
+    return G_OBJECT (g_object_ref (priv->backend));
+  } else {
+    GST_ERROR_OBJECT (self, "No such child %s", name);
+    return NULL;
+  }
+}
+
+static GObject *
+gst_video_inference_get_child_by_index (GstChildProxy * parent, guint index)
+{
+  GstVideoInference *self = GST_VIDEO_INFERENCE (parent);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  GST_DEBUG_OBJECT (self, "Requested for child %d", index);
+
+  if (0 == index) {
+    return G_OBJECT (g_object_ref (priv->backend));
+  } else {
+    GST_DEBUG_OBJECT (self, "No such child %d", index);
+    return NULL;
+  }
+}
+
+static guint
+gst_video_inference_get_children_count (GstChildProxy * parent)
+{
+  return 1;
 }
 
 static gboolean
-gst_video_inference_start (GstVideoInference *self)
+gst_video_inference_start (GstVideoInference * self)
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
+  //GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+  r2i::RuntimeError error;
   gboolean ret = TRUE;
 
   GST_INFO_OBJECT (self, "Starting video inference");
 
+  //priv->model = priv->loader->Load ("/path/to/model", error);
+  if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Unable to load model: (%d) %s", error.GetCode (),
+        error.GetDescription ().c_str ());
+    ret = FALSE;
+    goto out;
+  }
+  
   if (klass->start != NULL) {
     ret = klass->start (self);
   }
 
+ out:
   return ret;
 }
 
 static gboolean
-gst_video_inference_stop (GstVideoInference *self)
+gst_video_inference_stop (GstVideoInference * self)
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   gboolean ret = TRUE;
@@ -154,55 +248,57 @@ gst_video_inference_stop (GstVideoInference *self)
 }
 
 static GstStateChangeReturn
-gst_video_inference_change_state (GstElement *element, GstStateChange transition)
+gst_video_inference_change_state (GstElement * element,
+    GstStateChange transition)
 {
   GstStateChangeReturn ret;
   GstVideoInference *self = GST_VIDEO_INFERENCE (element);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
 
- switch (transition) {
- case GST_STATE_CHANGE_READY_TO_PAUSED:
-   gst_collect_pads_start (priv->cpads);
+  switch (transition) {
+    case GST_STATE_CHANGE_READY_TO_PAUSED:
+      if (FALSE == gst_video_inference_start (self)) {
+        GST_ERROR_OBJECT (self, "Subclass failed to start");
+        ret = GST_STATE_CHANGE_FAILURE;
+        goto out;
+      }
 
-   if (FALSE == gst_video_inference_start (self)) {
-     GST_ERROR_OBJECT (self, "Subclass failed to start");
-     ret = GST_STATE_CHANGE_FAILURE;
-     goto out;
-   }
-   break;
- case GST_STATE_CHANGE_PAUSED_TO_READY:
-   gst_collect_pads_stop (priv->cpads);
-   break;
- default:
-   break;
- }
+      gst_collect_pads_start (priv->cpads);
+      break;
+    case GST_STATE_CHANGE_PAUSED_TO_READY:
+      gst_collect_pads_stop (priv->cpads);
+      break;
+    default:
+      break;
+  }
 
- ret = GST_ELEMENT_CLASS (gst_video_inference_parent_class)->change_state (element,
-    transition);
- if (GST_STATE_CHANGE_FAILURE == ret) {
-   GST_ERROR_OBJECT (self, "Parent failed to change state");
-   goto out;
- }
+  ret =
+      GST_ELEMENT_CLASS (gst_video_inference_parent_class)->
+      change_state (element, transition);
+  if (GST_STATE_CHANGE_FAILURE == ret) {
+    GST_ERROR_OBJECT (self, "Parent failed to change state");
+    goto out;
+  }
 
- switch (transition) {
- case GST_STATE_CHANGE_PAUSED_TO_READY:
-   if (FALSE == gst_video_inference_stop (self)) {
-     GST_ERROR_OBJECT (self, "Subclass failed to stop");
-     ret = GST_STATE_CHANGE_FAILURE;
-     goto out;
-   }
-   break;
- default:
-   break;
- }
+  switch (transition) {
+    case GST_STATE_CHANGE_PAUSED_TO_READY:
+      if (FALSE == gst_video_inference_stop (self)) {
+        GST_ERROR_OBJECT (self, "Subclass failed to stop");
+        ret = GST_STATE_CHANGE_FAILURE;
+        goto out;
+      }
+      break;
+    default:
+      break;
+  }
 
- out:
- return ret;
+out:
+  return ret;
 }
 
 static GstPad *
 gst_video_inference_create_pad (GstVideoInference * self,
-    GstPadTemplate *templ, const gchar* name, GstCollectData **data)
+    GstPadTemplate * templ, const gchar * name, GstCollectData ** data)
 {
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstElement *element = GST_ELEMENT (self);
@@ -214,8 +310,9 @@ gst_video_inference_create_pad (GstVideoInference * self,
   if (GST_PAD_IS_SINK (pad)) {
     g_return_val_if_fail (data, NULL);
 
-    *data = gst_collect_pads_add_pad (priv->cpads, pad, sizeof (GstCollectData), NULL,
-      TRUE);
+    *data =
+        gst_collect_pads_add_pad (priv->cpads, pad, sizeof (GstCollectData),
+        NULL, TRUE);
     if (NULL == *data) {
       GST_ERROR_OBJECT (self, "Unable to add pad %s to collect pads", name);
       goto free_pad;
@@ -229,19 +326,19 @@ gst_video_inference_create_pad (GstVideoInference * self,
     goto remove_pad;
   }
 
-  return GST_PAD_CAST(gst_object_ref (pad));
+  return GST_PAD_CAST (gst_object_ref (pad));
 
- remove_pad:
+remove_pad:
   gst_collect_pads_remove_pad (priv->cpads, pad);
 
- free_pad:
+free_pad:
   gst_object_unref (pad);
   return NULL;
 }
 
 static GstPad *
-gst_video_inference_request_new_pad (GstElement *element,
-    GstPadTemplate *templ, const gchar* name, const GstCaps *caps)
+gst_video_inference_request_new_pad (GstElement * element,
+    GstPadTemplate * templ, const gchar * name, const GstCaps * caps)
 {
   GstVideoInference *self = GST_VIDEO_INFERENCE (element);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
@@ -278,13 +375,15 @@ gst_video_inference_request_new_pad (GstElement *element,
 }
 
 static void
-gst_video_inference_release_pad (GstElement *element, GstPad *pad)
+gst_video_inference_release_pad (GstElement * element, GstPad * pad)
 {
   GstVideoInference *self = GST_VIDEO_INFERENCE (element);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstPad **ourpad;
   GstCollectData **data;
 
+  GST_INFO_OBJECT (self, "Removing %s:%s", GST_DEBUG_PAD_NAME (pad));
+  
   if (pad == priv->sink_bypass) {
     ourpad = &priv->sink_bypass;
     data = &priv->sink_bypass_data;
@@ -301,8 +400,6 @@ gst_video_inference_release_pad (GstElement *element, GstPad *pad)
     g_return_if_reached ();
   }
 
-  GST_INFO_OBJECT (self, "Removing %s:%s", GST_DEBUG_PAD_NAME (pad));
-
   if (GST_PAD_IS_SINK (pad)) {
     *data = NULL;
     gst_collect_pads_remove_pad (priv->cpads, pad);
@@ -312,8 +409,8 @@ gst_video_inference_release_pad (GstElement *element, GstPad *pad)
 }
 
 static GstFlowReturn
-gst_video_inference_forward_buffer (GstVideoInference *self, GstVideoInferencePrivate *priv,
-    GstCollectData *data, GstPad *pad)
+gst_video_inference_forward_buffer (GstVideoInference * self,
+    GstVideoInferencePrivate * priv, GstCollectData * data, GstPad * pad)
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstBuffer *buffer = NULL;
@@ -331,7 +428,8 @@ gst_video_inference_forward_buffer (GstVideoInference *self, GstVideoInferencePr
 
   buffer = gst_collect_pads_pop (priv->cpads, data);
   if (NULL == buffer) {
-    GST_INFO_OBJECT (self, "EOS requested on %s:%s", GST_DEBUG_PAD_NAME (data->pad));
+    GST_INFO_OBJECT (self, "EOS requested on %s:%s",
+        GST_DEBUG_PAD_NAME (data->pad));
     ret = GST_FLOW_EOS;
     goto out;
   }
@@ -340,7 +438,9 @@ gst_video_inference_forward_buffer (GstVideoInference *self, GstVideoInferencePr
     /* Allocate a new buffer for the preprocessing stage */
     GstAllocationParams params;
     gsize size = gst_buffer_get_size (buffer);
-    GstBufferCopyFlags flags = (GstBufferCopyFlags)(GST_BUFFER_COPY_FLAGS | GST_BUFFER_COPY_TIMESTAMPS | GST_BUFFER_COPY_META);
+    GstBufferCopyFlags flags =
+        (GstBufferCopyFlags) (GST_BUFFER_COPY_FLAGS | GST_BUFFER_COPY_TIMESTAMPS
+        | GST_BUFFER_COPY_META);
 
     gst_allocation_params_init (&params);
     prepared = gst_buffer_new_allocate (NULL, size, &params);
@@ -359,9 +459,8 @@ gst_video_inference_forward_buffer (GstVideoInference *self, GstVideoInferencePr
     GST_ERROR_OBJECT (self, "Subclass failed preprocess");
     goto suberror;
   }
-
   // TODO: Do processing here
-  predsize = 1000*sizeof (float);
+  predsize = 1000 * sizeof (float);
   prediction = g_malloc (predsize);
 
   if (NULL != klass->postprocess) {
@@ -377,53 +476,55 @@ gst_video_inference_forward_buffer (GstVideoInference *self, GstVideoInferencePr
   }
 
   if (NULL != pad) {
-    GST_LOG_OBJECT (self, "Forwarding buffer to %s:%s", GST_DEBUG_PAD_NAME (pad));
+    GST_LOG_OBJECT (self, "Forwarding buffer to %s:%s",
+        GST_DEBUG_PAD_NAME (pad));
     ret = gst_pad_push (pad, prepared);
   } else {
-    GST_LOG_OBJECT (self, "Dropping buffer from %s:%s", GST_DEBUG_PAD_NAME (data->pad));
+    GST_LOG_OBJECT (self, "Dropping buffer from %s:%s",
+        GST_DEBUG_PAD_NAME (data->pad));
     gst_buffer_unref (prepared);
     goto out;
   }
 
   if (GST_FLOW_OK != ret) {
-    GST_ERROR_OBJECT (self, "Pad %s:%s returned: (%d) %s", GST_DEBUG_PAD_NAME (pad), ret,
-        gst_flow_get_name (ret));
+    GST_ERROR_OBJECT (self, "Pad %s:%s returned: (%d) %s",
+        GST_DEBUG_PAD_NAME (pad), ret, gst_flow_get_name (ret));
   }
 
- out:
+out:
   return ret;
 
- suberror:
+suberror:
   gst_buffer_unref (prepared);
   return GST_FLOW_ERROR;
 }
 
 static GstFlowReturn
-gst_video_inference_collected (GstCollectPads *pads,
-    gpointer user_data)
+gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
 {
   GstVideoInference *self = GST_VIDEO_INFERENCE (user_data);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstFlowReturn ret;
 
-  ret = gst_video_inference_forward_buffer(self, priv, priv->sink_bypass_data,
+  ret = gst_video_inference_forward_buffer (self, priv, priv->sink_bypass_data,
       priv->src_bypass);
   if (GST_FLOW_OK != ret) {
     goto out;
   }
 
-  ret = gst_video_inference_forward_buffer(self, priv, priv->sink_model_data,
+  ret = gst_video_inference_forward_buffer (self, priv, priv->sink_model_data,
       priv->src_model);
   if (GST_FLOW_OK != ret) {
     goto out;
   }
 
- out:
+out:
   return ret;
 }
 
 static GstPad *
-gst_video_inference_get_src_pad (GstVideoInference *self, GstVideoInferencePrivate *priv, GstPad *sinkpad)
+gst_video_inference_get_src_pad (GstVideoInference * self,
+    GstVideoInferencePrivate * priv, GstPad * sinkpad)
 {
   GstPad *pad;
 
@@ -439,8 +540,8 @@ gst_video_inference_get_src_pad (GstVideoInference *self, GstVideoInferencePriva
 }
 
 static gboolean
-gst_video_inference_sink_event (GstCollectPads *pads, GstCollectData *pad,
-    GstEvent *event, gpointer user_data)
+gst_video_inference_sink_event (GstCollectPads * pads, GstCollectData * pad,
+    GstEvent * event, gpointer user_data)
 {
   GstVideoInference *self = GST_VIDEO_INFERENCE (user_data);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
@@ -453,20 +554,20 @@ gst_video_inference_sink_event (GstCollectPads *pads, GstCollectData *pad,
   gst_event_ref (event);
 
   if (FALSE == gst_pad_push_event (srcpad, event)) {
-    GST_ERROR_OBJECT (self, "Event %s failed in %s:%s", GST_EVENT_TYPE_NAME (event),
-        GST_DEBUG_PAD_NAME (srcpad));
+    GST_ERROR_OBJECT (self, "Event %s failed in %s:%s",
+        GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (srcpad));
     goto out;
   }
 
   ret = gst_collect_pads_event_default (priv->cpads, pad, event, FALSE);
 
- out:
+out:
   return ret;
 }
 
 static gboolean
-gst_video_inference_src_event (GstPad *pad, GstObject *parent,
-    GstEvent *event)
+gst_video_inference_src_event (GstPad * pad, GstObject * parent,
+    GstEvent * event)
 {
   GstVideoInference *self = GST_VIDEO_INFERENCE (parent);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
@@ -475,7 +576,7 @@ gst_video_inference_src_event (GstPad *pad, GstObject *parent,
 }
 
 static void
-gst_video_inference_dispose (GObject * object)
+gst_video_inference_finalize (GObject * object)
 {
   GstVideoInference *self = GST_VIDEO_INFERENCE (object);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
@@ -488,4 +589,8 @@ gst_video_inference_dispose (GObject * object)
 
   priv->sink_bypass_data = NULL;
   priv->sink_model_data = NULL;
+
+  g_clear_object (&priv->backend);
+
+  G_OBJECT_CLASS (gst_video_inference_parent_class)->finalize (object);
 }
