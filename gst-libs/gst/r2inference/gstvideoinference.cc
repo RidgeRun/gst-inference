@@ -101,6 +101,8 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
 
   klass->start = NULL;
   klass->stop = NULL;
+  klass->preprocess = NULL;
+  klass->postprocess = NULL;
 }
 
 static void
