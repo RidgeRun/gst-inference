@@ -315,8 +315,14 @@ static GstFlowReturn
 gst_video_inference_forward_buffer (GstVideoInference *self, GstVideoInferencePrivate *priv,
     GstCollectData *data, GstPad *pad)
 {
+  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstBuffer *buffer = NULL;
   GstFlowReturn ret = GST_FLOW_OK;
+  gboolean subret = FALSE;
+  GstBuffer *prepared;
+  gpointer prediction;
+  gsize predsize;
+
 
   /* User didn't request this pad */
   if (NULL == data) {
@@ -330,12 +336,52 @@ gst_video_inference_forward_buffer (GstVideoInference *self, GstVideoInferencePr
     goto out;
   }
 
+  if (data->pad == priv->sink_model && NULL != klass->preprocess) {
+    /* Allocate a new buffer for the preprocessing stage */
+    GstAllocationParams params;
+    gsize size = gst_buffer_get_size (buffer);
+    GstBufferCopyFlags flags = (GstBufferCopyFlags)(GST_BUFFER_COPY_FLAGS | GST_BUFFER_COPY_TIMESTAMPS | GST_BUFFER_COPY_META);
+
+    gst_allocation_params_init (&params);
+    prepared = gst_buffer_new_allocate (NULL, size, &params);
+    gst_buffer_copy_into (prepared, buffer, flags, 0, size);
+    subret = klass->preprocess (self, buffer, prepared);
+  } else {
+    prepared = gst_buffer_ref (buffer);
+    subret = TRUE;
+  }
+
+  /* This reference is no longer needed because the pre-process copied
+     it or now its called prepared */
+  gst_buffer_unref (buffer);
+
+  if (FALSE == subret) {
+    GST_ERROR_OBJECT (self, "Subclass failed preprocess");
+    goto suberror;
+  }
+
+  // TODO: Do processing here
+  predsize = 1000*sizeof (float);
+  prediction = g_malloc (predsize);
+
+  if (NULL != klass->postprocess) {
+    subret = klass->postprocess (self, prepared, prediction, predsize);
+  }
+
+  /* Prediction is no longer needed */
+  g_free (prediction);
+
+  if (FALSE == subret) {
+    GST_ERROR_OBJECT (self, "Subclass failed postprocess");
+    goto suberror;
+  }
+
   if (NULL != pad) {
     GST_LOG_OBJECT (self, "Forwarding buffer to %s:%s", GST_DEBUG_PAD_NAME (pad));
-    ret = gst_pad_push (pad, buffer);
+    ret = gst_pad_push (pad, prepared);
   } else {
     GST_LOG_OBJECT (self, "Dropping buffer from %s:%s", GST_DEBUG_PAD_NAME (data->pad));
-    gst_buffer_unref (buffer);
+    gst_buffer_unref (prepared);
     goto out;
   }
 
@@ -346,6 +392,10 @@ gst_video_inference_forward_buffer (GstVideoInference *self, GstVideoInferencePr
 
  out:
   return ret;
+
+ suberror:
+  gst_buffer_unref (prepared);
+  return GST_FLOW_ERROR;
 }
 
 static GstFlowReturn

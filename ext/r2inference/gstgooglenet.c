@@ -1,10 +1,10 @@
-/* 
+/*
  * Copyright (C) 2017 RidgeRun, LLC (http://www.ridgerun.com)
  * All Rights Reserved.
  *
  * The contents of this software are proprietary and confidential to RidgeRun,
  * LLC.  No part of this program may be photocopied, reproduced or translated
- * into another programming language without prior written consent of 
+ * into another programming language without prior written consent of
  * RidgeRun, LLC.  The user is free to modify the source code after obtaining
  * a software license from RidgeRun.  All source code changes must be provided
  * back to RidgeRun without any encumbrance.
@@ -43,6 +43,13 @@ static void gst_googlenet_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
 static void gst_googlenet_dispose (GObject * object);
 static void gst_googlenet_finalize (GObject * object);
+
+static gboolean gst_googlenet_preprocess (GstVideoInference * vi,
+    GstBuffer * inbuf, GstBuffer * outbuf);
+static gboolean gst_googlenet_postprocess (GstVideoInference * vi,
+    GstBuffer * buf, const gpointer prediction, gsize predsize);
+static gboolean gst_googlenet_start (GstVideoInference * vi);
+static gboolean gst_googlenet_stop (GstVideoInference * vi);
 
 enum
 {
@@ -88,6 +95,7 @@ gst_googlenet_class_init (GstGooglenetClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
+  GstVideoInferenceClass *vi_class = GST_VIDEO_INFERENCE_CLASS (klass);
 
   gst_element_class_add_static_pad_template (element_class,
       &sink_model_factory);
@@ -104,6 +112,11 @@ gst_googlenet_class_init (GstGooglenetClass * klass)
   gobject_class->get_property = gst_googlenet_get_property;
   gobject_class->dispose = gst_googlenet_dispose;
   gobject_class->finalize = gst_googlenet_finalize;
+
+  vi_class->start = GST_DEBUG_FUNCPTR (gst_googlenet_start);
+  vi_class->stop = GST_DEBUG_FUNCPTR (gst_googlenet_stop);
+  vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_googlenet_preprocess);
+  vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_googlenet_postprocess);
 }
 
 static void
@@ -163,4 +176,49 @@ gst_googlenet_finalize (GObject * object)
   /* clean up object here */
 
   G_OBJECT_CLASS (gst_googlenet_parent_class)->finalize (object);
+}
+
+static gboolean
+gst_googlenet_preprocess (GstVideoInference * vi,
+    GstBuffer * inbuf, GstBuffer * outbuf)
+{
+  GstMapInfo ininfo;
+  GstMapInfo outinfo;
+
+  GST_LOG_OBJECT (vi, "Preprocess");
+
+  gst_buffer_map (inbuf, &ininfo, GST_MAP_READ);
+  gst_buffer_map (outbuf, &outinfo, GST_MAP_WRITE);
+
+  memcpy (outinfo.data, ininfo.data, ininfo.size);
+
+  gst_buffer_unmap (inbuf, &ininfo);
+  gst_buffer_unmap (outbuf, &outinfo);
+
+  return TRUE;
+}
+
+static gboolean
+gst_googlenet_postprocess (GstVideoInference * vi,
+    GstBuffer * buf, const gpointer prediction, gsize predsize)
+{
+  GST_LOG_OBJECT (vi, "Postprocess");
+
+  return TRUE;
+}
+
+static gboolean
+gst_googlenet_start (GstVideoInference * vi)
+{
+  GST_INFO_OBJECT (vi, "Starting GoogLeNet");
+
+  return TRUE;
+}
+
+static gboolean
+gst_googlenet_stop (GstVideoInference * vi)
+{
+  GST_INFO_OBJECT (vi, "Stopping GoogLeNet");
+
+  return TRUE;
 }
