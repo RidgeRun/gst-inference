@@ -3,6 +3,8 @@ lib_LTLIBRARIES = libgstinference-@GST_API_VERSION@.la
 
 libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gstvideoinference.cc			\
+	gstchildinspector.c			\
+	gstinferencebackends.cc			\
 	gstbackend.cc				\
 	gstncsdk.cc
 
@@ -30,5 +32,7 @@ gstinferenceincludedir=@includedir@/gstreamer-@GST_API_VERSION@/gst/r2inference/
 
 gstinferenceinclude_HEADERS=	\
 	gstvideoinference.h	\
+	gstchildinspector.h	\
+	gstinferencebackends.h	\
 	gstbackend.h		\
 	gstncsdk.h
