@@ -30,6 +30,7 @@
 #endif
 
 #include "gstgooglenet.h"
+#include <string.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_googlenet_debug_category);
 #define GST_CAT_DEFAULT gst_googlenet_debug_category

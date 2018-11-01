@@ -29,18 +29,16 @@
 
 #define DEFAULT_ALIGNMENT 32
 
-static std::unordered_map < int, GType >
-backend_types (
-    {
-      {
-      r2i::FrameworkCode::NCSDK, GST_TYPE_NCSDK}, {
-      r2i::FrameworkCode::MAX_FRAMEWORK, G_TYPE_INVALID}
-    });
+static std::unordered_map <int,GType>
+backend_types ({
+  {r2i::FrameworkCode::NCSDK, GST_TYPE_NCSDK},
+  {r2i::FrameworkCode::MAX_FRAMEWORK, G_TYPE_INVALID}
+});
 
 static void
 gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
     gchar ** backends_parameters, r2i::RuntimeError error,
-    unsigned int alignment);
+    guint alignment);
 static GType
 gst_inference_backends_search_type (r2i::FrameworkCode id);
 
@@ -50,12 +48,12 @@ gst_inference_backends_get_type (void)
   static GType backend_type = 0;
   static const GEnumValue
       backend_desc[] = {
-    {0, "NCSDK Backend", "NCSDK"},
+    {r2i::FrameworkCode::NCSDK, "Intel Movidius Neural Compute SDK", "ncsdk"},
     {0, NULL, NULL}
   };
   if (!backend_type) {
     backend_type =
-        g_enum_register_static ("Backends", (GEnumValue *) backend_desc);
+        g_enum_register_static ("GstInferenceBackends", (GEnumValue *) backend_desc);
   }
   return backend_type;
 }
@@ -73,7 +71,7 @@ gst_inference_backends_search_type (r2i::FrameworkCode id)
 static void
 gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
     gchar ** backends_parameters, r2i::RuntimeError error,
-    unsigned int alignment)
+    guint alignment)
 {
   GstBackend * backend = NULL;
   gchar * parameters, * backend_name;

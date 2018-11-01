@@ -29,13 +29,12 @@ GST_DEBUG_CATEGORY_STATIC (gst_backend_debug_category);
 typedef struct _GstBackendPrivate GstBackendPrivate;
 struct _GstBackendPrivate
 {
-  std::unique_ptr<r2i::IParameters> params;
+  std::unique_ptr < r2i::IParameters > params;
 };
 
-G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, GST_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
     GST_DEBUG_CATEGORY_INIT (gst_backend_debug_category, "backend", 0,
-        "debug category for backend parameters");
-    G_ADD_PRIVATE (GstBackend));
+        "debug category for backend parameters"); G_ADD_PRIVATE (GstBackend));
 
 #define GST_BACKEND_PRIVATE(self) \
   (GstBackendPrivate *)(gst_backend_get_instance_private (self))
@@ -69,7 +68,7 @@ gst_backend_install_properties (GstBackendClass * klass)
 {
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
   r2i::RuntimeError error;
-  std::vector < r2i::ParameterMeta > params;
+  static std::vector < r2i::ParameterMeta > params;
   static gint nprop = 1;
 
   klass->props = g_hash_table_new (g_direct_hash, g_direct_equal);
@@ -169,8 +168,9 @@ gst_backend_get_property (GObject * object, guint property_id,
 }
 
 gboolean
-gst_backend_configure (GstBackend *self, std::shared_ptr<r2i::IEngine> engine,
-    std::shared_ptr<r2i::IModel> model)
+gst_backend_configure (GstBackend * self,
+    std::shared_ptr < r2i::IEngine > engine,
+    std::shared_ptr < r2i::IModel > model)
 {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   r2i::RuntimeError error;
@@ -178,7 +178,7 @@ gst_backend_configure (GstBackend *self, std::shared_ptr<r2i::IEngine> engine,
   error = priv->params->Configure (engine, model);
   if (error.IsError ()) {
     GST_ERROR_OBJECT (self, "Error configuring backend parameters: (%d): %s",
-        error.GetCode (), error.GetDescription ().c_str());
+        error.GetCode (), error.GetDescription ().c_str ());
     return FALSE;
   }
 

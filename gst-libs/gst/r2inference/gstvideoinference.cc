@@ -20,6 +20,7 @@
  */
 
 #include "gstvideoinference.h"
+#include "gstinferencebackends.h"
 
 #include <gst/base/gstcollectpads.h>
 #include <memory>
@@ -43,6 +44,15 @@ GST_STATIC_PAD_TEMPLATE ("src_bypass",
 GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define GST_CAT_DEFAULT gst_video_inference_debug_category
 
+#define DEFAULT_BACKEND          0
+
+enum
+{
+  PROP_0,
+  PROP_BACKEND
+};
+
+
 typedef struct _GstVideoInferencePrivate GstVideoInferencePrivate;
 struct _GstVideoInferencePrivate
 {
@@ -57,13 +67,17 @@ struct _GstVideoInferencePrivate
 
   GstBackend *backend;
 
-  std::shared_ptr<r2i::IEngine> engine;
-  std::shared_ptr<r2i::ILoader> loader;
-  std::shared_ptr<r2i::IModel> model;
+    std::shared_ptr < r2i::IEngine > engine;
+    std::shared_ptr < r2i::ILoader > loader;
+    std::shared_ptr < r2i::IModel > model;
 };
 
 /* GObject methods */
 static void gst_video_inference_finalize (GObject * object);
+static void gst_video_inference_set_property (GObject * object,
+    guint property_id, const GValue * value, GParamSpec * pspec);
+static void gst_video_inference_get_property (GObject * object,
+    guint property_id, GValue * value, GParamSpec * pspec);
 
 /* GstElement methods */
 static GstStateChangeReturn gst_video_inference_change_state (GstElement *
@@ -114,8 +128,11 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
 {
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
   GstElementClass *eclass = GST_ELEMENT_CLASS (klass);
+  gchar *backend_blurb, *backends_params = NULL;
 
   oclass->finalize = gst_video_inference_finalize;
+  oclass->set_property = gst_video_inference_set_property;
+  oclass->get_property = gst_video_inference_get_property;
 
   eclass->change_state = GST_DEBUG_FUNCPTR (gst_video_inference_change_state);
   eclass->request_new_pad =
@@ -123,6 +140,22 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
   eclass->release_pad = GST_DEBUG_FUNCPTR (gst_video_inference_release_pad);
   gst_element_class_add_static_pad_template (eclass, &sink_bypass_factory);
   gst_element_class_add_static_pad_template (eclass, &src_bypass_factory);
+
+  backends_params = gst_inference_backends_get_string_properties ();
+  backend_blurb = g_strdup_printf ("Type of predefined backend to use.\n"
+      "\t\t\tAccording to the selected backend "
+      "different properties will be available.\n "
+      "\t\t\tThese properties can be accessed using the "
+      "\"backend::<property>\" syntax.\n"
+      "\t\t\tThe following list details the properties "
+      "for each backend\n%s", backends_params);
+
+  g_free (backends_params);
+
+  g_object_class_install_property (oclass, PROP_BACKEND,
+      g_param_spec_enum ("backend", "Backend",
+          backend_blurb, GST_TYPE_INFERENCE_BACKENDS, DEFAULT_BACKEND,
+          G_PARAM_READWRITE));
 
   klass->start = NULL;
   klass->stop = NULL;
@@ -154,10 +187,27 @@ gst_video_inference_init (GstVideoInference * self)
 
   priv->backend = GST_BACKEND (g_object_new (GST_TYPE_NCSDK, NULL));
 
-  priv->engine = factory->MakeEngine(error);
-  priv->loader = factory->MakeLoader(error);
+  priv->engine = factory->MakeEngine (error);
+  priv->loader = factory->MakeLoader (error);
   priv->model = nullptr;
 }
+
+static void
+gst_video_inference_set_property (GObject * object,
+    guint property_id, const GValue * value, GParamSpec * pspec)
+{
+  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (object);
+  GST_LOG_OBJECT (klass, "Set Property");
+}
+
+static void
+gst_video_inference_get_property (GObject * object,
+    guint property_id, GValue * value, GParamSpec * pspec)
+{
+  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (object);
+  GST_LOG_OBJECT (klass, "Get Property");
+}
+
 
 static void
 gst_video_inference_child_proxy_init (GstChildProxyInterface * iface)
@@ -223,12 +273,12 @@ gst_video_inference_start (GstVideoInference * self)
     ret = FALSE;
     goto out;
   }
-  
+
   if (klass->start != NULL) {
     ret = klass->start (self);
   }
 
- out:
+out:
   return ret;
 }
 
@@ -273,8 +323,8 @@ gst_video_inference_change_state (GstElement * element,
   }
 
   ret =
-      GST_ELEMENT_CLASS (gst_video_inference_parent_class)->
-      change_state (element, transition);
+      GST_ELEMENT_CLASS (gst_video_inference_parent_class)->change_state
+      (element, transition);
   if (GST_STATE_CHANGE_FAILURE == ret) {
     GST_ERROR_OBJECT (self, "Parent failed to change state");
     goto out;
@@ -383,7 +433,7 @@ gst_video_inference_release_pad (GstElement * element, GstPad * pad)
   GstCollectData **data;
 
   GST_INFO_OBJECT (self, "Removing %s:%s", GST_DEBUG_PAD_NAME (pad));
-  
+
   if (pad == priv->sink_bypass) {
     ourpad = &priv->sink_bypass;
     data = &priv->sink_bypass_data;
