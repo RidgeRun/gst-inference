@@ -45,7 +45,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define GST_CAT_DEFAULT gst_video_inference_debug_category
 
 #define DEFAULT_BACKEND          0
-#define DEFAULT_MODEL_LOCATION nullptr
+#define DEFAULT_MODEL_LOCATION   NULL
 
 enum
 {
@@ -69,9 +69,9 @@ struct _GstVideoInferencePrivate
 
   GstBackend *backend;
 
-    std::shared_ptr < r2i::IEngine > engine;
-    std::shared_ptr < r2i::ILoader > loader;
-    std::shared_ptr < r2i::IModel > model;
+  std::shared_ptr < r2i::IEngine > engine;
+  std::shared_ptr < r2i::ILoader > loader;
+  std::shared_ptr < r2i::IModel > model;
 
   gchar *model_location;
 };
@@ -216,10 +216,16 @@ gst_video_inference_set_property (GObject * object,
     case PROP_BACKEND:
       break;
     case PROP_MODEL_LOCATION:
-      if (priv->model_location) {
-	  g_free (priv->model_location);
+      GstState actual_state;
+      gst_element_get_state (GST_ELEMENT(self), &actual_state, NULL, GST_SECOND);
+      GST_OBJECT_LOCK (self);
+      if (actual_state <= GST_STATE_READY) {
+        g_free (priv->model_location);
+        priv->model_location = g_value_dup_string (value);
+      } else {
+	  GST_ERROR_OBJECT (self, "Model location can only be set in the NULL or READY states");
       }
-      priv->model_location = g_value_dup_string (value);
+      GST_OBJECT_UNLOCK (self);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -679,9 +685,8 @@ gst_video_inference_finalize (GObject * object)
 
   priv->sink_bypass_data = NULL;
   priv->sink_model_data = NULL;
-  if (priv->model_location) {
-    g_free (priv->model_location);
-  }
+  g_free (priv->model_location);
+  priv->model_location = NULL;
 
   g_clear_object (&priv->backend);
 
