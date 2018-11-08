@@ -26,21 +26,20 @@
 #include <r2i/r2i.h>
 
 G_BEGIN_DECLS
-
 #define GST_TYPE_BACKEND gst_backend_get_type ()
-G_DECLARE_DERIVABLE_TYPE (GstBackend, gst_backend, GST, BACKEND, GstObject);
+G_DECLARE_DERIVABLE_TYPE (GstBackend, gst_backend, GST, BACKEND, GObject);
 
 struct _GstBackendClass
 {
-  GstObjectClass parent_class;
+  GObjectClass parent_class;
 
   r2i::FrameworkCode backend;
   GHashTable *props;
 };
 
-gboolean gst_backend_configure (GstBackend *self,
-    std::shared_ptr<r2i::IEngine> engine, std::shared_ptr<r2i::IModel> model);
+gboolean gst_backend_configure (GstBackend * self,
+    std::shared_ptr < r2i::IEngine > engine,
+    std::shared_ptr < r2i::IModel > model);
 
 G_END_DECLS
-
 #endif //__GST_BACKEND_H__

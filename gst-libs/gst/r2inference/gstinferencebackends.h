@@ -19,16 +19,18 @@
  *
  */
 
-#ifndef _GST_GOOGLENET_H_
-#define _GST_GOOGLENET_H_
+#ifndef __GST_INFERENCE_BACKENDS_H__
+#define __GST_INFERENCE_BACKENDS_H__
 
-#include <gst/r2inference/gstvideoinference.h>
+#include <gst/gst.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_GOOGLENET gst_googlenet_get_type ()
-G_DECLARE_FINAL_TYPE (GstGooglenet, gst_googlenet, GST, GOOGLENET, GstVideoInference)
+#define GST_TYPE_INFERENCE_BACKENDS (gst_inference_backends_get_type())
+
+GType gst_inference_backends_get_type(void);
+gchar * gst_inference_backends_get_string_properties (void);
 
 G_END_DECLS
 
-#endif
+#endif //__GST_INFERENCE_BACKENDS_H__

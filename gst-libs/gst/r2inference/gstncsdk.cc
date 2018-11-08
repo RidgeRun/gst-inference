@@ -28,7 +28,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_ncsdk_debug_category);
 
 struct _GstNcsdk
 {
-  GstObject parent;
+  GstBackend parent;
 };
 
 G_DEFINE_TYPE_WITH_CODE (GstNcsdk, gst_ncsdk, GST_TYPE_BACKEND,
