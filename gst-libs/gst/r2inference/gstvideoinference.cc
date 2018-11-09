@@ -671,13 +671,20 @@ gst_video_inference_sink_event (GstCollectPads * pads, GstCollectData * pad,
 
   srcpad = gst_video_inference_get_src_pad (self, priv, pad->pad);
 
-  /* Collect pads will decrease the refcount of the event when we return */
-  gst_event_ref (event);
-
-  if (FALSE == gst_pad_push_event (srcpad, event)) {
-    GST_ERROR_OBJECT (self, "Event %s failed in %s:%s",
-        GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (srcpad));
-    goto out;
+  if (NULL != srcpad) {
+    GST_LOG_OBJECT (self, "Forwarding event %s from %s:%s",
+	GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (pad->pad));
+    /* Collect pads will decrease the refcount of the event when we return */
+    gst_event_ref (event);
+    if (FALSE == gst_pad_push_event (srcpad, event)) {
+      GST_ERROR_OBJECT (self, "Event %s failed in %s:%s",
+	  GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (srcpad));
+      goto out;
+    }
+  }
+  else {
+    GST_LOG_OBJECT (self, "Dropping event %s from %s:%s",
+       GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (pad->pad));
   }
 
   ret = gst_collect_pads_event_default (priv->cpads, pad, event, FALSE);
