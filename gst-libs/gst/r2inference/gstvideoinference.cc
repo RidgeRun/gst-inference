@@ -45,11 +45,13 @@ GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define GST_CAT_DEFAULT gst_video_inference_debug_category
 
 #define DEFAULT_BACKEND          0
+#define DEFAULT_MODEL_LOCATION   NULL
 
 enum
 {
   PROP_0,
-  PROP_BACKEND
+  PROP_BACKEND,
+  PROP_MODEL_LOCATION
 };
 
 
@@ -67,9 +69,11 @@ struct _GstVideoInferencePrivate
 
   GstBackend *backend;
 
-    std::shared_ptr < r2i::IEngine > engine;
-    std::shared_ptr < r2i::ILoader > loader;
-    std::shared_ptr < r2i::IModel > model;
+  std::shared_ptr < r2i::IEngine > engine;
+  std::shared_ptr < r2i::ILoader > loader;
+  std::shared_ptr < r2i::IModel > model;
+
+  gchar *model_location;
 };
 
 /* GObject methods */
@@ -157,6 +161,11 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
           backend_blurb, GST_TYPE_INFERENCE_BACKENDS, DEFAULT_BACKEND,
           G_PARAM_READWRITE));
 
+  g_object_class_install_property (oclass, PROP_MODEL_LOCATION,
+      g_param_spec_string ("model-location", "Model Location",
+          "Path to the model to use", DEFAULT_MODEL_LOCATION,
+	   G_PARAM_READWRITE));
+
   klass->start = NULL;
   klass->stop = NULL;
   klass->preprocess = NULL;
@@ -190,22 +199,59 @@ gst_video_inference_init (GstVideoInference * self)
   priv->engine = factory->MakeEngine (error);
   priv->loader = factory->MakeLoader (error);
   priv->model = nullptr;
+
+  priv->model_location = g_strdup (DEFAULT_MODEL_LOCATION);
 }
 
 static void
 gst_video_inference_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec)
 {
-  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (object);
-  GST_LOG_OBJECT (klass, "Set Property");
+  GstVideoInference *self = GST_VIDEO_INFERENCE (object);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  GST_LOG_OBJECT (self, "Set Property");
+
+  switch (property_id) {
+    case PROP_BACKEND:
+      break;
+    case PROP_MODEL_LOCATION:
+      GstState actual_state;
+      gst_element_get_state (GST_ELEMENT(self), &actual_state, NULL, GST_SECOND);
+      GST_OBJECT_LOCK (self);
+      if (actual_state <= GST_STATE_READY) {
+        g_free (priv->model_location);
+        priv->model_location = g_value_dup_string (value);
+      } else {
+	  GST_ERROR_OBJECT (self, "Model location can only be set in the NULL or READY states");
+      }
+      GST_OBJECT_UNLOCK (self);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
 }
 
 static void
 gst_video_inference_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec)
 {
-  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (object);
-  GST_LOG_OBJECT (klass, "Get Property");
+  GstVideoInference *self = GST_VIDEO_INFERENCE (object);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  GST_LOG_OBJECT (self, "Get Property");
+
+  switch (property_id) {
+    case PROP_BACKEND:
+      break;
+    case PROP_MODEL_LOCATION:
+      g_value_set_string (value, priv->model_location);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
 }
 
 
@@ -260,13 +306,13 @@ static gboolean
 gst_video_inference_start (GstVideoInference * self)
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
-  //GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   r2i::RuntimeError error;
   gboolean ret = TRUE;
 
   GST_INFO_OBJECT (self, "Starting video inference");
 
-  //priv->model = priv->loader->Load ("/path/to/model", error);
+  priv->model = priv->loader->Load (priv->model_location, error);
   if (error.IsError ()) {
     GST_ERROR_OBJECT (self, "Unable to load model: (%d) %s", error.GetCode (),
         error.GetDescription ().c_str ());
@@ -639,6 +685,8 @@ gst_video_inference_finalize (GObject * object)
 
   priv->sink_bypass_data = NULL;
   priv->sink_model_data = NULL;
+  g_free (priv->model_location);
+  priv->model_location = NULL;
 
   g_clear_object (&priv->backend);
 
