@@ -176,9 +176,6 @@ static void
 gst_video_inference_init (GstVideoInference * self)
 {
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
-  r2i::RuntimeError error;
-  auto factory = r2i::IFrameworkFactory::MakeFactory (r2i::FrameworkCode::NCSDK,
-      error);
 
   priv->sink_bypass_data = NULL;
   priv->sink_model_data = NULL;
@@ -194,11 +191,7 @@ gst_video_inference_init (GstVideoInference * self)
   gst_collect_pads_set_event_function (priv->cpads,
       gst_video_inference_sink_event, (gpointer) (self));
 
-  priv->backend = GST_BACKEND (g_object_new (GST_TYPE_NCSDK, NULL));
-
-  priv->engine = factory->MakeEngine (error);
-  priv->loader = factory->MakeLoader (error);
-  priv->model = nullptr;
+  // priv->backend = GST_BACKEND (g_object_new (GST_TYPE_NCSDK, NULL));
 
   priv->model_location = g_strdup (DEFAULT_MODEL_LOCATION);
 }
@@ -307,25 +300,58 @@ gst_video_inference_start (GstVideoInference * self)
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
-  r2i::RuntimeError error;
   gboolean ret = TRUE;
+  r2i::RuntimeError error;
+
+  /* TODO: Avoid hardcoded NCSDK, it should be queried from the backend */
+  auto factory = r2i::IFrameworkFactory::MakeFactory (r2i::FrameworkCode::NCSDK,
+      error);
 
   GST_INFO_OBJECT (self, "Starting video inference");
 
-  priv->model = priv->loader->Load (priv->model_location, error);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Unable to load model: (%d) %s", error.GetCode (),
-        error.GetDescription ().c_str ());
+  if (NULL == priv->model_location) {
+    GST_ELEMENT_ERROR (self, RESOURCE, NOT_FOUND,
+      ("Model Location has not been set"), (NULL));
     ret = FALSE;
     goto out;
+  }
+
+  priv->engine = factory->MakeEngine (error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  priv->loader = factory->MakeLoader (error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  priv->model = priv->loader->Load (priv->model_location, error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  error = priv->engine->SetModel (priv->model);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  error = priv->engine->Start ();
+  if (error.IsError ()) {
+    goto error;
   }
 
   if (klass->start != NULL) {
     ret = klass->start (self);
   }
 
-out:
+ out:
   return ret;
+ error:
+  GST_ELEMENT_ERROR (self, STREAM, FAILED,
+    ("R2Inference Error: (Code:%d) %s", error.GetCode(),
+     error.GetDescription ().c_str()), (NULL));
+  return FALSE;
 }
 
 static gboolean
@@ -515,7 +541,6 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
   GstBuffer *prepared;
   gpointer prediction;
   gsize predsize;
-
 
   /* User didn't request this pad */
   if (NULL == data) {
