@@ -108,7 +108,11 @@ static GstPad *gst_video_inference_create_pad (GstVideoInference * self,
 static GstFlowReturn gst_video_inference_collected (GstCollectPads * pads,
     gpointer user_data);
 static GstFlowReturn gst_video_inference_forward_buffer (GstVideoInference *
-    self, GstVideoInferencePrivate * priv, GstCollectData * data, GstPad * pad);
+    self, GstBuffer * buffer, GstCollectData * data, GstPad * pad);
+static GstBuffer * gst_video_inference_model_buffer_process (GstVideoInference *
+    self, GstBuffer * buffer);
+static GstBuffer * gst_video_inference_bypass_buffer_process (GstVideoInference *
+    self, GstBuffer * buffer_bypass, GstBuffer * buffer_model);
 static gboolean gst_video_inference_sink_event (GstCollectPads * pads,
     GstCollectData * pad, GstEvent * event, gpointer user_data);
 static gboolean gst_video_inference_src_event (GstPad * pad, GstObject * parent,
@@ -176,9 +180,6 @@ static void
 gst_video_inference_init (GstVideoInference * self)
 {
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
-  r2i::RuntimeError error;
-  auto factory = r2i::IFrameworkFactory::MakeFactory (r2i::FrameworkCode::NCSDK,
-      error);
 
   priv->sink_bypass_data = NULL;
   priv->sink_model_data = NULL;
@@ -193,12 +194,6 @@ gst_video_inference_init (GstVideoInference * self)
       (gpointer) (self));
   gst_collect_pads_set_event_function (priv->cpads,
       gst_video_inference_sink_event, (gpointer) (self));
-
-  priv->backend = GST_BACKEND (g_object_new (GST_TYPE_NCSDK, NULL));
-
-  priv->engine = factory->MakeEngine (error);
-  priv->loader = factory->MakeLoader (error);
-  priv->model = nullptr;
 
   priv->model_location = g_strdup (DEFAULT_MODEL_LOCATION);
 }
@@ -254,7 +249,6 @@ gst_video_inference_get_property (GObject * object,
   }
 }
 
-
 static void
 gst_video_inference_child_proxy_init (GstChildProxyInterface * iface)
 {
@@ -307,25 +301,58 @@ gst_video_inference_start (GstVideoInference * self)
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
-  r2i::RuntimeError error;
   gboolean ret = TRUE;
+  r2i::RuntimeError error;
+
+  /* TODO: Avoid hardcoded NCSDK, it should be queried from the backend */
+  auto factory = r2i::IFrameworkFactory::MakeFactory (r2i::FrameworkCode::NCSDK,
+      error);
 
   GST_INFO_OBJECT (self, "Starting video inference");
 
-  priv->model = priv->loader->Load (priv->model_location, error);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Unable to load model: (%d) %s", error.GetCode (),
-        error.GetDescription ().c_str ());
+  if (NULL == priv->model_location) {
+    GST_ELEMENT_ERROR (self, RESOURCE, NOT_FOUND,
+      ("Model Location has not been set"), (NULL));
     ret = FALSE;
     goto out;
+  }
+
+  priv->engine = factory->MakeEngine (error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  priv->loader = factory->MakeLoader (error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  priv->model = priv->loader->Load (priv->model_location, error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  error = priv->engine->SetModel (priv->model);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  error = priv->engine->Start ();
+  if (error.IsError ()) {
+    goto error;
   }
 
   if (klass->start != NULL) {
     ret = klass->start (self);
   }
 
-out:
+ out:
   return ret;
+ error:
+  GST_ELEMENT_ERROR (self, STREAM, FAILED,
+    ("R2Inference Error: (Code:%d) %s", error.GetCode(),
+     error.GetDescription ().c_str()), (NULL));
+  return FALSE;
 }
 
 static gboolean
@@ -506,79 +533,23 @@ gst_video_inference_release_pad (GstElement * element, GstPad * pad)
 
 static GstFlowReturn
 gst_video_inference_forward_buffer (GstVideoInference * self,
-    GstVideoInferencePrivate * priv, GstCollectData * data, GstPad * pad)
+   GstBuffer * buffer, GstCollectData * data, GstPad * pad)
 {
-  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
-  GstBuffer *buffer = NULL;
   GstFlowReturn ret = GST_FLOW_OK;
-  gboolean subret = FALSE;
-  GstBuffer *prepared;
-  gpointer prediction;
-  gsize predsize;
-
 
   /* User didn't request this pad */
   if (NULL == data) {
     goto out;
   }
 
-  buffer = gst_collect_pads_pop (priv->cpads, data);
-  if (NULL == buffer) {
-    GST_INFO_OBJECT (self, "EOS requested on %s:%s",
-        GST_DEBUG_PAD_NAME (data->pad));
-    ret = GST_FLOW_EOS;
-    goto out;
-  }
-
-  if (data->pad == priv->sink_model && NULL != klass->preprocess) {
-    /* Allocate a new buffer for the preprocessing stage */
-    GstAllocationParams params;
-    gsize size = gst_buffer_get_size (buffer);
-    GstBufferCopyFlags flags =
-        (GstBufferCopyFlags) (GST_BUFFER_COPY_FLAGS | GST_BUFFER_COPY_TIMESTAMPS
-        | GST_BUFFER_COPY_META);
-
-    gst_allocation_params_init (&params);
-    prepared = gst_buffer_new_allocate (NULL, size, &params);
-    gst_buffer_copy_into (prepared, buffer, flags, 0, size);
-    subret = klass->preprocess (self, buffer, prepared);
-  } else {
-    prepared = gst_buffer_ref (buffer);
-    subret = TRUE;
-  }
-
-  /* This reference is no longer needed because the pre-process copied
-     it or now its called prepared */
-  gst_buffer_unref (buffer);
-
-  if (FALSE == subret) {
-    GST_ERROR_OBJECT (self, "Subclass failed preprocess");
-    goto suberror;
-  }
-  // TODO: Do processing here
-  predsize = 1000 * sizeof (float);
-  prediction = g_malloc (predsize);
-
-  if (NULL != klass->postprocess) {
-    subret = klass->postprocess (self, prepared, prediction, predsize);
-  }
-
-  /* Prediction is no longer needed */
-  g_free (prediction);
-
-  if (FALSE == subret) {
-    GST_ERROR_OBJECT (self, "Subclass failed postprocess");
-    goto suberror;
-  }
-
   if (NULL != pad) {
     GST_LOG_OBJECT (self, "Forwarding buffer to %s:%s",
         GST_DEBUG_PAD_NAME (pad));
-    ret = gst_pad_push (pad, prepared);
+    ret = gst_pad_push (pad, buffer);
   } else {
     GST_LOG_OBJECT (self, "Dropping buffer from %s:%s",
         GST_DEBUG_PAD_NAME (data->pad));
-    gst_buffer_unref (prepared);
+    gst_buffer_unref (buffer);
     goto out;
   }
 
@@ -589,10 +560,63 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
 
 out:
   return ret;
+}
 
-suberror:
+static GstBuffer *
+gst_video_inference_model_buffer_process (GstVideoInference * self,
+    GstBuffer * buffer)
+{
+  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
+  GstBuffer *buffer_out = NULL;
+  GstBuffer *prepared = NULL;
+  gpointer prediction;
+  gsize predsize;
+
+  if (NULL != klass->preprocess) {
+    /* Allocate a new buffer for the preprocessing stage */
+    GstAllocationParams params;
+    gsize size = gst_buffer_get_size (buffer);
+    gst_allocation_params_init (&params);
+    prepared = gst_buffer_new_allocate (NULL, size, &params);
+
+    if (!klass->preprocess (self, buffer, prepared)) {
+      GST_ERROR_OBJECT (self, "Subclass failed Preprocess");
+      gst_buffer_unref (prepared);
+      goto out;
+    }
+  } else {
+    prepared = gst_buffer_ref (buffer);
+  }
+
+  /* TODO: Create R2I Frame */
+  /* TODO: Creat R2I Prediction */
+  predsize = 1000 * sizeof (float);
+  prediction = g_malloc (predsize);
+  /* TODO: Predict using the Prepared Buffer */
+
+  if (NULL != klass->postprocess) {
+    if (!klass->postprocess (self, buffer, prediction, predsize)) {
+      GST_ERROR_OBJECT (self, "Subclass failed postprocess");
+      gst_buffer_unref (prepared);
+      goto out;
+    }
+  }
+
   gst_buffer_unref (prepared);
-  return GST_FLOW_ERROR;
+
+  buffer_out = buffer;
+out:
+  return buffer_out;
+}
+
+static GstBuffer *
+gst_video_inference_bypass_buffer_process (GstVideoInference * self,
+    GstBuffer * buffer_bypass, GstBuffer * buffer_model)
+{
+  /* TODO: Get GstMetas from Model buffer and attach them to the
+     Bypass Buffer */
+
+  return buffer_bypass;
 }
 
 static GstFlowReturn
@@ -600,18 +624,57 @@ gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
 {
   GstVideoInference *self = GST_VIDEO_INFERENCE (user_data);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
-  GstFlowReturn ret;
+  GstFlowReturn ret = GST_FLOW_OK;
+  GstBuffer * buffer_model;
+  GstBuffer * buffer_bypass;
 
-  ret = gst_video_inference_forward_buffer (self, priv, priv->sink_bypass_data,
-      priv->src_bypass);
-  if (GST_FLOW_OK != ret) {
-    goto out;
+  /* Process Model Buffer */
+  if (priv->sink_model_data) {
+    buffer_model = gst_collect_pads_pop (priv->cpads, priv->sink_model_data);
+    if (NULL == buffer_model) {
+      GST_INFO_OBJECT (self, "EOS requested on %s:%s",
+         GST_DEBUG_PAD_NAME (priv->sink_model_data->pad));
+      ret = GST_FLOW_EOS;
+      goto out;
+    }
+    buffer_model = gst_video_inference_model_buffer_process (self, buffer_model);
+    if (NULL == buffer_model) {
+      ret = GST_FLOW_ERROR;
+      goto out;
+    }
   }
 
-  ret = gst_video_inference_forward_buffer (self, priv, priv->sink_model_data,
-      priv->src_model);
-  if (GST_FLOW_OK != ret) {
-    goto out;
+  /* Process Bypass Buffer */
+  if (priv->sink_bypass_data) {
+    buffer_bypass = gst_collect_pads_pop (priv->cpads, priv->sink_bypass_data);
+    if (NULL == buffer_bypass) {
+      GST_INFO_OBJECT (self, "EOS requested on %s:%s",
+	 GST_DEBUG_PAD_NAME (priv->sink_bypass_data->pad));
+      ret = GST_FLOW_EOS;
+      goto out;
+    }
+    buffer_bypass = gst_video_inference_bypass_buffer_process (self, buffer_bypass, buffer_model);
+    if (NULL == buffer_bypass) {
+      ret = GST_FLOW_ERROR;
+      goto out;
+    }
+  }
+
+  /* Forward buffers to src pads */
+  if (NULL != buffer_model) {
+    ret = gst_video_inference_forward_buffer (self, buffer_model,
+	     priv->sink_model_data, priv->src_model);
+    if (GST_FLOW_OK != ret) {
+      goto out;
+    }
+  }
+
+  if (NULL != buffer_bypass) {
+    ret = gst_video_inference_forward_buffer (self, buffer_bypass,
+	     priv->sink_bypass_data, priv->src_bypass);
+    if (GST_FLOW_OK != ret) {
+      goto out;
+    }
   }
 
 out:
@@ -646,13 +709,20 @@ gst_video_inference_sink_event (GstCollectPads * pads, GstCollectData * pad,
 
   srcpad = gst_video_inference_get_src_pad (self, priv, pad->pad);
 
-  /* Collect pads will decrease the refcount of the event when we return */
-  gst_event_ref (event);
-
-  if (FALSE == gst_pad_push_event (srcpad, event)) {
-    GST_ERROR_OBJECT (self, "Event %s failed in %s:%s",
-        GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (srcpad));
-    goto out;
+  if (NULL != srcpad) {
+    GST_LOG_OBJECT (self, "Forwarding event %s from %s:%s",
+	GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (pad->pad));
+    /* Collect pads will decrease the refcount of the event when we return */
+    gst_event_ref (event);
+    if (FALSE == gst_pad_push_event (srcpad, event)) {
+      GST_ERROR_OBJECT (self, "Event %s failed in %s:%s",
+	  GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (srcpad));
+      goto out;
+    }
+  }
+  else {
+    GST_LOG_OBJECT (self, "Dropping event %s from %s:%s",
+       GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (pad->pad));
   }
 
   ret = gst_collect_pads_event_default (priv->cpads, pad, event, FALSE);
