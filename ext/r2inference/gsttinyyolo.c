@@ -115,11 +115,11 @@ gst_tinyyolo_class_init (GstTinyyoloClass * klass)
       "tinyyolo", "Filter",
       "Infers incoming image frames using a pretrained TinyYolo model",
       "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
-      "Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
-      "Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
-      "Carlos Aguero <carlos.aguero@ridgerun.com> \n\t\t\t"
-      "Miguel Taylor <miguel.taylor@ridgerun.com> \n\t\t\t"
-      "Greivin Fallas <greivin.fallas@ridgerun.com>");
+      "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
+      "   Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
+      "   Carlos Aguero <carlos.aguero@ridgerun.com> \n\t\t\t"
+      "   Miguel Taylor <miguel.taylor@ridgerun.com> \n\t\t\t"
+      "   Greivin Fallas <greivin.fallas@ridgerun.com>");
 
   gobject_class->set_property = gst_tinyyolo_set_property;
   gobject_class->get_property = gst_tinyyolo_get_property;
