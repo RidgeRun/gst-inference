@@ -24,6 +24,7 @@
 #endif
 
 #include "gstgooglenet.h"
+#include "gsttinyyolo.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
@@ -31,8 +32,22 @@ plugin_init (GstPlugin * plugin)
 
   /* FIXME Remember to set the rank if it's an element that is meant
      to be autoplugged by decodebin. */
-  return gst_element_register (plugin, "googlenet", GST_RANK_NONE,
+  gboolean ret = TRUE;
+  
+  ret = gst_element_register (plugin, "googlenet", GST_RANK_NONE,
       GST_TYPE_GOOGLENET);
+  if (!ret) {
+    goto out;
+  }
+  
+  ret = gst_element_register (plugin, "tinyyolo", GST_RANK_NONE,
+      GST_TYPE_TINYYOLO);
+  if (!ret) {
+    goto out;
+  }
+  
+  out:
+   return ret;
 }
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
