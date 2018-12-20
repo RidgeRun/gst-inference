@@ -21,7 +21,6 @@
 
 #include "gstvideoinference.h"
 #include "gstinferencebackends.h"
-
 #include <gst/base/gstcollectpads.h>
 #include <memory>
 
@@ -568,43 +567,74 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstBuffer *buffer_out = NULL;
-  GstBuffer *prepared = NULL;
-  gpointer prediction;
+  GstBuffer *outbuf = NULL;
   gsize predsize;
+  GstVideoInferencePrivate *priv;
+  std::shared_ptr<r2i::IPrediction> prediction;  
+  std::unique_ptr<r2i::IFrameworkFactory> factory;
+  r2i::RuntimeError error;  
+  std::shared_ptr<r2i::IFrame> frame;
+  gpointer prediction_data = NULL;  
+
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;  
+  
+  GstVideoInfo vininfo;
+  GstCaps* pad_caps;
+  GstStructure *str;
+  gint width, height;
+  
+  
+  priv = GST_VIDEO_INFERENCE_PRIVATE (self);  
 
   if (NULL != klass->preprocess) {
-    /* Allocate a new buffer for the preprocessing stage */
+    /* Allocate a new frame for the preprocessing stage */
     GstAllocationParams params;
-    gsize size = gst_buffer_get_size (buffer);
     gst_allocation_params_init (&params);
-    prepared = gst_buffer_new_allocate (NULL, size, &params);
+        
+    gsize size = gst_buffer_get_size(buffer); 
+    outbuf = gst_buffer_new_allocate (NULL, size*4, &params);
+    
+    pad_caps = gst_pad_get_current_caps (priv->sink_model);
+    gst_video_info_init(&vininfo);
+    gst_video_info_from_caps (&vininfo,pad_caps);    
+    
+    gst_video_frame_map(&inframe, &vininfo, buffer, GST_MAP_READ);
+    gst_video_frame_map(&outframe, &vininfo, outbuf, GST_MAP_READ);   
+    
 
-    if (!klass->preprocess (self, buffer, prepared)) {
+    if (!klass->preprocess (self, &inframe, &outframe)) {
       GST_ERROR_OBJECT (self, "Subclass failed Preprocess");
-      gst_buffer_unref (prepared);
+      gst_buffer_unref(outbuffer);
       goto out;
-    }
-  } else {
-    prepared = gst_buffer_ref (buffer);
+    } else {
+      
+      predsize = 1000 * sizeof (float);
+      
+      str = gst_caps_get_structure (pad_caps, 0);
+      gst_structure_get_int (str, "width", &width);
+      gst_structure_get_int (str, "height", &height); 
+       
+      factory = r2i::IFrameworkFactory::MakeFactory (r2i::FrameworkCode::NCSDK,error);
+      frame = factory->MakeFrame (error);
+      error = frame->Configure (outframe.data[0], width, height, r2i::ImageFormat::Id::RGB);
+      prediction = priv->engine->Predict (frame, error);
+      
+      if (NULL != prediction){
+        prediction_data = prediction->GetResultData();
+      }
+    } 
   }
-
-  /* TODO: Create R2I Frame */
-  /* TODO: Creat R2I Prediction */
-  predsize = 1000 * sizeof (float);
-  prediction = g_malloc (predsize);
-  /* TODO: Predict using the Prepared Buffer */
-
+  
   if (NULL != klass->postprocess) {
-    if (!klass->postprocess (self, buffer, prediction, predsize)) {
+    if (!klass->postprocess (self,  outframe.buffer ,  prediction_data, predsize)) {
       GST_ERROR_OBJECT (self, "Subclass failed postprocess");
-      gst_buffer_unref (prepared);
+      gst_buffer_unref (outframe.buffer );
       goto out;
     }
   }
-
-  gst_buffer_unref (prepared);
-
-  buffer_out = buffer;
+  
+  buffer_out = outbuf;
 out:
   return buffer_out;
 }
