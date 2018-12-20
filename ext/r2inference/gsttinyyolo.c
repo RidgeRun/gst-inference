@@ -40,11 +40,36 @@
 
 #include "gsttinyyolo.h"
 #include <string.h>
+#include <stdio.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
 #define GST_CAT_DEFAULT gst_tinyyolo_debug_category
 
 /* prototypes */
+
+#define DIM 448
+
+#define GRID_H 7
+#define GRID_W 7
+/* Number of classes */
+#define CLASSES 20
+/* Number of boxes per cell */
+#define BOXES 2
+/* Box dim */
+#define BOX_DIM 4
+/* Probability threshold */
+#define PROB_THRESH 0.08
+/* Intersection over union threshold */
+#define IOU_THRESH 0.30
+
+struct box {
+  const char * label;
+  double x_center;
+  double y_center;
+  double width;
+  double height;
+  double prob;
+};
 
 
 static void gst_tinyyolo_set_property (GObject * object,
@@ -55,11 +80,31 @@ static void gst_tinyyolo_dispose (GObject * object);
 static void gst_tinyyolo_finalize (GObject * object);
 
 static gboolean gst_tinyyolo_preprocess (GstVideoInference * vi,
-    GstBuffer * inbuf, GstBuffer * outbuf);
+    GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_tinyyolo_postprocess (GstVideoInference * vi,
     GstBuffer * buf, const gpointer prediction, gsize predsize);
 static gboolean gst_tinyyolo_start (GstVideoInference * vi);
 static gboolean gst_tinyyolo_stop (GstVideoInference * vi);
+
+float* PreProcessImage (const unsigned char *input, int reqwidth, 
+                        int reqheight);
+
+static void PrintBox (struct box in_box);
+
+static void PrintTopPredictions (gpointer prediction,
+                          int input_image_width, int input_image_height);
+static void GetBoxesFromPrediction(gpointer prediction, 
+    int input_image_width, int input_image_height, 
+    struct box* boxes, int* elements);
+
+static void Box2Pixels (struct box* normalized_box, int row, int col, 
+    int image_width, int image_height);
+
+static void  RemoveDuplicatedBoxes(struct box *boxes, int *num_boxes);
+
+static void DeleteBox(struct box *boxes, int *num_boxes, int index);
+
+static double IntersectionOverUnion(struct box box_1, struct box box_2);
 
 enum
 {
@@ -191,22 +236,213 @@ gst_tinyyolo_finalize (GObject * object)
   G_OBJECT_CLASS (gst_tinyyolo_parent_class)->finalize (object);
 }
 
+void PrintBox (struct box in_box) 
+{
+  printf("Box:");
+  printf("[class:'%s', ", in_box.label);
+  printf("x_center:%f, ",in_box.x_center);
+  printf("y_center:%f, ",in_box.y_center);
+  printf("width:%f, ",in_box.width);
+  printf("height:%f, ",in_box.height);
+  printf("prob:%f]\n",in_box.prob);
+}
+
+void Box2Pixels (struct box * normalized_box, int row, int col, int image_width,
+                 int image_height) 
+{
+
+  /* adjust the box center according to its cell and grid dim */ 
+  normalized_box->x_center += col;
+  normalized_box->y_center += row;
+  normalized_box->x_center /= GRID_H;
+  normalized_box->y_center /= GRID_W;
+
+  /* adjust the lengths and widths */
+  normalized_box->width *= normalized_box->width;
+  normalized_box->height *= normalized_box->height;
+
+  /* scale the boxes to the image size in pixels */ 
+  normalized_box->x_center *= image_width;
+  normalized_box->y_center *= image_height;
+  normalized_box->width *= image_width;
+  normalized_box->height *= image_height;
+}
+
+void GetBoxesFromPrediction(gpointer prediction, int input_image_width, 
+          int input_image_height, struct box* boxes, int * elements ) 
+{
+
+  int i; int j; int c; int b;
+  int box_probs_start = GRID_H * GRID_W * CLASSES;
+  int all_boxes_start = GRID_H * GRID_W * CLASSES + GRID_H * GRID_W * BOXES;
+  int index;
+  double class_prob;
+  double box_prob;
+  double prob;
+  int counter = 0;
+
+  const char * labels[] = {"aeroplane", "bicycle", "bird", "boat","bottle", 
+                           "bus", "car", "cat", "chair","cow", "diningtable", 
+                           "dog", "horse","motorbike", "person", "pottedplant",
+                           "sheep", "sofa", "train", "tvmonitor" };
+
+  /* Iterate rows */
+  for (i = 0; i < GRID_H; i++) {
+    /* Iterate colums */    
+    for (j = 0; j < GRID_W; j++) {   
+      /* Iterate classes*/
+      for (c = 0; c < CLASSES; c++) {   
+        index = (i * GRID_W + j) * CLASSES + c;
+        class_prob =  ((float*)prediction)[index];
+        for (b = 0; b < BOXES; b++) {
+          index = (i * GRID_W + j) * BOXES + b;
+          box_prob =   ((float*)prediction)[box_probs_start + index];
+          prob = class_prob * box_prob;
+          /* If the probability is over the threshold add it to the boxes list */ 
+          if (prob > PROB_THRESH) {
+            struct box result;
+            index = ((i * GRID_W + j) * BOXES + b ) * BOX_DIM;
+            result.label = labels[c];
+            result.x_center = ((float*)prediction)[all_boxes_start + index];
+            result.y_center = ((float*)prediction)[all_boxes_start + index + 1];
+            result.width = ((float*)prediction)[all_boxes_start + index + 2];
+            result.height = ((float*)prediction)[all_boxes_start + index + 3];
+            result.prob = prob;
+            Box2Pixels(&result, i, j, input_image_width, input_image_height);
+            boxes[counter]=result;
+            counter=counter+1;
+        }
+      }
+    }
+  }
+
+  *elements=counter;
+
+  }
+}
+
+void PrintTopPredictions (gpointer prediction,
+                          int input_image_width, int input_image_height) 
+{
+
+  struct box boxes[98];
+  int elements = 0;
+  int index = 0;
+  
+  GetBoxesFromPrediction(prediction, input_image_width, input_image_height, boxes, &elements);
+
+  RemoveDuplicatedBoxes(boxes, &elements);  
+  
+  for( index = 0; index < elements; index = index + 1 ){
+  PrintBox (boxes[index]);
+  }
+  
+}
+
+float* PreProcessImage (const unsigned char *input, int reqwidth, int reqheight) 
+{
+  
+  const int channels = 3;
+  const int scaled_size = channels * reqwidth * reqheight;
+
+  static float adjusted[602112];
+
+  for (int i = 0; i < scaled_size; i += channels) {
+    adjusted[i + 2] = (input[i + 2]) / 255.0;
+    adjusted[i + 1] = (input[i + 1]) / 255.0;
+    adjusted[i + 0] = (input[i + 0]) / 255.0;
+  }
+  
+  return adjusted;
+}
+
+double IntersectionOverUnion(struct box box_1, struct box box_2) 
+{
+
+  /*
+   * Evaluate the intersection-over-union for two boxes
+   * The intersection-over-union metric determines how close
+   * two boxes are to being the same box.
+   */
+  double intersection_dim_1;
+  double intersection_dim_2;
+  double intersection_area;
+  double union_area;
+
+  /* First diminsion of the intersecting box */
+  intersection_dim_1 = MIN(box_1.x_center + 0.5 * box_1.width,
+                           box_2.x_center + 0.5 * box_2.width) -
+                       MAX(box_1.x_center - 0.5 * box_1.width,
+                           box_2.x_center - 0.5 * box_2.width);
+
+  /* Second dimension of the intersecting box */
+  intersection_dim_2 = MIN(box_1.y_center + 0.5 * box_1.height,
+                           box_2.y_center + 0.5 * box_2.height) -
+                       MAX(box_1.y_center - 0.5 * box_1.height,
+                           box_2.y_center - 0.5 * box_2.height);
+
+  if ((intersection_dim_1 < 0) || (intersection_dim_2 < 0)) {
+    intersection_area = 0;
+  } else {
+    intersection_area =  intersection_dim_1 * intersection_dim_2;
+  }
+  union_area = box_1.width * box_1.height + box_2.width * box_2.height -
+               intersection_area;
+  return intersection_area / union_area;
+}
+
+void DeleteBox(struct box *boxes, int *num_boxes, int index) 
+{
+
+  int i, last_index;
+  if (*num_boxes > 0 && index < *num_boxes && index > -1) {
+    last_index = *num_boxes - 1;
+    for ( i = index; i < last_index; i++) {
+      boxes[i] = boxes[i + 1];
+    }
+    *num_boxes -= 1;
+  }
+}
+
+void RemoveDuplicatedBoxes(struct box *boxes, int *num_boxes) 
+{
+
+  /* Remove duplicated boxes. A box is considered a duplicate if its
+   * intersection over union metric is above a threshold
+   */
+  double iou;
+  int it1, it2;
+
+  for (it1 = 0; it1 < *num_boxes - 1 ; it1++) {
+    for (it2 = it1 + 1; it2 < *num_boxes; it2++) {
+      if (strcmp(boxes[it1].label, boxes[it2].label) == 0) {
+        iou = IntersectionOverUnion(boxes[it1], boxes[it2]);
+        if (iou > IOU_THRESH) {
+          if (boxes[it1].prob > boxes[it2].prob) {
+            DeleteBox(boxes, num_boxes, it2);
+            it2 --;
+          } else {
+            DeleteBox(boxes, num_boxes, it1);
+            it1 --;
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
 static gboolean
 gst_tinyyolo_preprocess (GstVideoInference * vi,
-    GstBuffer * inbuf, GstBuffer * outbuf)
+    GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-  GstMapInfo ininfo;
-  GstMapInfo outinfo;
-
+ 
+  float* ret;
+  
   GST_LOG_OBJECT (vi, "Preprocess");
 
-  gst_buffer_map (inbuf, &ininfo, GST_MAP_READ);
-  gst_buffer_map (outbuf, &outinfo, GST_MAP_WRITE);
-
-  memcpy (outinfo.data, ininfo.data, ininfo.size);
-
-  gst_buffer_unmap (inbuf, &ininfo);
-  gst_buffer_unmap (outbuf, &outinfo);
+  ret = PreProcessImage(inframe->data[0], DIM, DIM);  
+  memcpy (outframe->data[0], ret, 2408448);  
 
   return TRUE;
 }
@@ -215,7 +451,10 @@ static gboolean
 gst_tinyyolo_postprocess (GstVideoInference * vi,
     GstBuffer * buf, const gpointer prediction, gsize predsize)
 {
+
   GST_LOG_OBJECT (vi, "Postprocess");
+
+  PrintTopPredictions (prediction, 448, 448);
 
   return TRUE;
 }
