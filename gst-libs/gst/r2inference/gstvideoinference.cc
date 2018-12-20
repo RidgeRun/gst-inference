@@ -605,7 +605,7 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
 
     if (!klass->preprocess (self, &inframe, &outframe)) {
       GST_ERROR_OBJECT (self, "Subclass failed Preprocess");
-      gst_buffer_unref(outbuffer);
+      gst_buffer_unref(outbuf);
       goto out;
     } else {
       
