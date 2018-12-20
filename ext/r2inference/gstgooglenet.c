@@ -45,7 +45,12 @@ GST_DEBUG_CATEGORY_STATIC (gst_googlenet_debug_category);
 #define GST_CAT_DEFAULT gst_googlenet_debug_category
 
 /* prototypes */
+#define DIM 448
 
+const float GoogleNetMean[] = {0.40787054 * 255.0,
+                               0.45752458 * 255.0,
+                               0.48109378 * 255.0
+                              };
 
 static void gst_googlenet_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
@@ -55,11 +60,14 @@ static void gst_googlenet_dispose (GObject * object);
 static void gst_googlenet_finalize (GObject * object);
 
 static gboolean gst_googlenet_preprocess (GstVideoInference * vi,
-    GstBuffer * inbuf, GstBuffer * outbuf);
+    GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_googlenet_postprocess (GstVideoInference * vi,
     GstBuffer * buf, const gpointer prediction, gsize predsize);
 static gboolean gst_googlenet_start (GstVideoInference * vi);
 static gboolean gst_googlenet_stop (GstVideoInference * vi);
+
+static float* PreProcessImage (const unsigned char *input, int reqwidth,
+                        int reqheight, const float *mean);
 
 enum
 {
@@ -188,23 +196,36 @@ gst_googlenet_finalize (GObject * object)
   G_OBJECT_CLASS (gst_googlenet_parent_class)->finalize (object);
 }
 
+float* PreProcessImage (const unsigned char *input, int reqwidth, int reqheight,
+                      const float *mean ){
+
+  const int channels = 3;
+  const int scaled_size = channels * reqwidth * reqheight;
+
+  static float adjusted[150528];
+
+  for (int i = 0; i < scaled_size; i += channels) {
+    // BGR = RGB - Mean
+    //adjusted[i + 0] = (input[i + 2]);// - mean[0];
+    //adjusted[i + 1] = (input[i + 1]);// - mean[1];
+    //adjusted[i + 2] = (input[i + 0]);// - mean[2];
+  }
+
+  return adjusted;
+}
+
+
 static gboolean
 gst_googlenet_preprocess (GstVideoInference * vi,
-    GstBuffer * inbuf, GstBuffer * outbuf)
+    GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-  GstMapInfo ininfo;
-  GstMapInfo outinfo;
+  float* ret;
 
   GST_LOG_OBJECT (vi, "Preprocess");
-
-  gst_buffer_map (inbuf, &ininfo, GST_MAP_READ);
-  gst_buffer_map (outbuf, &outinfo, GST_MAP_WRITE);
-
-  memcpy (outinfo.data, ininfo.data, ininfo.size);
-
-  gst_buffer_unmap (inbuf, &ininfo);
-  gst_buffer_unmap (outbuf, &outinfo);
-
+  
+  ret = PreProcessImage(inframe->data[0], DIM, DIM, GoogleNetMean);
+  memcpy (outframe->data[0], ret, 602112);
+  
   return TRUE;
 }
 
