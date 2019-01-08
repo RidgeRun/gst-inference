@@ -36,9 +36,10 @@ struct _GstVideoInferenceClass
 
   gboolean (* start) (GstVideoInference *self);
   gboolean (* stop) (GstVideoInference *self);
-  gboolean (* preprocess) (GstVideoInference *self, GstVideoFrame *inframe, GstVideoFrame *outframe);
-  gboolean (* postprocess) (GstVideoInference *self, GstVideoFrame *outframe, const gpointer prediction,
-      gsize size);
+  gboolean (* preprocess) (GstVideoInference *self, GstVideoFrame *inframe,
+    GstVideoFrame *outframe);
+  gboolean (* postprocess) (GstVideoInference *self, GstVideoFrame *outframe,
+    const gpointer prediction, gsize size);
 };
 
 G_END_DECLS
