@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2019 RidgeRun
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,36 +19,17 @@
  *
  */
 
-#ifndef __GST_BACKEND_H__
-#define __GST_BACKEND_H__
+#ifndef __GST_TENSORFLOW_H__
+#define __GST_TENSORFLOW_H__
 
 #include <gst/gst.h>
-#include <r2i/r2i.h>
+#include <gst/r2inference/gstbackend.h>
 
 G_BEGIN_DECLS
-#define GST_TYPE_BACKEND gst_backend_get_type ()
-G_DECLARE_DERIVABLE_TYPE (GstBackend, gst_backend, GST, BACKEND, GObject);
 
-struct _GstBackendClass
-{
-  GObjectClass parent_class;
-
-  r2i::FrameworkCode backend;
-  GHashTable *props;
-};
-
-void gst_backend_install_properties (GstBackendClass * klass);
-
-void gst_backend_set_property (GObject * object, guint property_id,
-    const GValue * value, GParamSpec * pspec);
-void gst_backend_get_property (GObject * object, guint property_id,
-    GValue * value, GParamSpec * pspec);
-
-
-
-gboolean gst_backend_configure (GstBackend * self,
-    std::shared_ptr < r2i::IEngine > engine,
-    std::shared_ptr < r2i::IModel > model);
+#define GST_TYPE_TENSORFLOW gst_tensorflow_get_type ()
+G_DECLARE_FINAL_TYPE(GstTensorflow, gst_tensorflow, GST, TENSORFLOW, GstBackend);
 
 G_END_DECLS
-#endif //__GST_BACKEND_H__
+
+#endif //__GST_TENSORFLOW_H__

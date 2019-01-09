@@ -25,6 +25,7 @@
 #include <memory>
 
 #include "gstncsdk.h"
+#include "gsttensorflow.h"
 
 static GstStaticPadTemplate sink_bypass_factory =
 GST_STATIC_PAD_TEMPLATE ("sink_bypass",

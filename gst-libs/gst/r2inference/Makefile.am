@@ -6,7 +6,8 @@ libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gstchildinspector.c			\
 	gstinferencebackends.cc			\
 	gstbackend.cc				\
-	gstncsdk.cc
+	gstncsdk.cc				\
+	gsttensorflow.cc
 
 libgstinference_@GST_API_VERSION@_la_CXXFLAGS=	\
 	$(GST_CXXFLAGS)				\
@@ -36,4 +37,5 @@ gstinferenceinclude_HEADERS=	\
 	gstchildinspector.h	\
 	gstinferencebackends.h	\
 	gstbackend.h		\
-	gstncsdk.h
+	gstncsdk.h		\
+	gsttensorflow.h

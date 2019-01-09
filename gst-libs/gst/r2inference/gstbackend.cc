@@ -41,11 +41,6 @@ G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
 
 static GParamSpec *gst_backend_param_to_spec (r2i::ParameterMeta * param);
 static int gst_backend_param_flags (int flags);
-static void gst_backend_install_properties (GstBackendClass * klass);
-static void gst_backend_set_property (GObject * object, guint property_id,
-    const GValue * value, GParamSpec * pspec);
-static void gst_backend_get_property (GObject * object, guint property_id,
-    GValue * value, GParamSpec * pspec);
 
 static void
 gst_backend_class_init (GstBackendClass * klass)
@@ -55,7 +50,6 @@ gst_backend_class_init (GstBackendClass * klass)
   oclass->set_property = gst_backend_set_property;
   oclass->get_property = gst_backend_get_property;
 
-  gst_backend_install_properties (klass);
 }
 
 static void
@@ -63,7 +57,7 @@ gst_backend_init (GstBackend * self)
 {
 }
 
-static void
+void
 gst_backend_install_properties (GstBackendClass * klass)
 {
   GObjectClass *oclass = G_OBJECT_CLASS (klass);

@@ -22,6 +22,7 @@
 #include "gstinferencebackends.h"
 #include "gstchildinspector.h"
 #include "gstncsdk.h"
+#include "gsttensorflow.h"
 #include "gstbackend.h"
 #include <r2i/r2i.h>
 #include <unordered_map>
@@ -32,6 +33,7 @@
 static std::unordered_map <int,GType>
 backend_types ({
   {r2i::FrameworkCode::NCSDK, GST_TYPE_NCSDK},
+  {r2i::FrameworkCode::TENSORFLOW, GST_TYPE_TENSORFLOW},
   {r2i::FrameworkCode::MAX_FRAMEWORK, G_TYPE_INVALID}
 });
 
@@ -49,6 +51,7 @@ gst_inference_backends_get_type (void)
   static const GEnumValue
       backend_desc[] = {
     {r2i::FrameworkCode::NCSDK, "Intel Movidius Neural Compute SDK", "ncsdk"},
+    {r2i::FrameworkCode::TENSORFLOW, "TensorFlow Machine Learning Framework", "tensorflow"},
     {0, NULL, NULL}
   };
   if (!backend_type) {
@@ -98,8 +101,8 @@ gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
   if (NULL == *backends_parameters)
     *backends_parameters = parameters;
   else
-    *backends_parameters = g_strconcat (*backends_parameters, parameters, NULL);
-
+    *backends_parameters = g_strconcat (*backends_parameters,"\n", parameters, NULL);
+ 
   g_object_unref (backend);
 }
 

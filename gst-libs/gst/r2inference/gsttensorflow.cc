@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2019 RidgeRun
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,38 +19,39 @@
  *
  */
 
-#include "gstncsdk.h"
+#include "gsttensorflow.h"
 
 #include <r2i/r2i.h>
 
-GST_DEBUG_CATEGORY_STATIC (gst_ncsdk_debug_category);
-#define GST_CAT_DEFAULT gst_ncsdk_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_tensorflow_debug_category);
+#define GST_CAT_DEFAULT gst_tensorflow_debug_category
 
-struct _GstNcsdk
+struct _GstTensorflow
 {
   GstBackend parent;
 };
 
-G_DEFINE_TYPE_WITH_CODE (GstNcsdk, gst_ncsdk, GST_TYPE_BACKEND,
-    GST_DEBUG_CATEGORY_INIT (gst_ncsdk_debug_category, "ncsdk", 0,
-        "debug category for ncsdk parameters"));
+G_DEFINE_TYPE_WITH_CODE (GstTensorflow, gst_tensorflow, GST_TYPE_BACKEND,
+    GST_DEBUG_CATEGORY_INIT (gst_tensorflow_debug_category, "tensorflow", 0,
+        "debug category for tensorflow parameters"));
 
 static void
-gst_ncsdk_class_init (GstNcsdkClass * klass)
+gst_tensorflow_class_init (GstTensorflowClass * klass)
 {
   GstBackendClass *bclass = GST_BACKEND_CLASS (klass);
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
 
-  bclass->backend = r2i::FrameworkCode::NCSDK;
-
+  bclass->backend = r2i::FrameworkCode::TENSORFLOW;
+  
   oclass->set_property = gst_backend_set_property;
   oclass->get_property = gst_backend_get_property;
   
+
   gst_backend_install_properties (bclass);
 }
 
 static void
-gst_ncsdk_init (GstNcsdk * self)
+gst_tensorflow_init (GstTensorflow * self)
 {
 
 }
