@@ -23,6 +23,7 @@
 #define __GST_VIDEO_INFERENCE_H__
 
 #include <gst/gst.h>
+#include <gst/video/video.h>
 
 G_BEGIN_DECLS
 
@@ -35,9 +36,10 @@ struct _GstVideoInferenceClass
 
   gboolean (* start) (GstVideoInference *self);
   gboolean (* stop) (GstVideoInference *self);
-  gboolean (* preprocess) (GstVideoInference *self, GstBuffer * inbuf, GstBuffer * outbuf);
-  gboolean (* postprocess) (GstVideoInference *self, GstBuffer *buf, const gpointer prediction,
-      gsize size);
+  gboolean (* preprocess) (GstVideoInference *self, GstVideoFrame *inframe,
+    GstVideoFrame *outframe);
+  gboolean (* postprocess) (GstVideoInference *self, GstVideoFrame *outframe,
+    const gpointer prediction, gsize size);
 };
 
 G_END_DECLS

@@ -45,7 +45,12 @@ GST_DEBUG_CATEGORY_STATIC (gst_googlenet_debug_category);
 #define GST_CAT_DEFAULT gst_googlenet_debug_category
 
 /* prototypes */
+#define CHANNELS 3
 
+const float GoogleNetMean[] = { 0.40787054 * 255.0,
+  0.45752458 * 255.0,
+  0.48109378 * 255.0
+};
 
 static void gst_googlenet_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
@@ -55,9 +60,9 @@ static void gst_googlenet_dispose (GObject * object);
 static void gst_googlenet_finalize (GObject * object);
 
 static gboolean gst_googlenet_preprocess (GstVideoInference * vi,
-    GstBuffer * inbuf, GstBuffer * outbuf);
+    GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_googlenet_postprocess (GstVideoInference * vi,
-    GstBuffer * buf, const gpointer prediction, gsize predsize);
+    GstVideoFrame * outframe, const gpointer prediction, gsize predsize);
 static gboolean gst_googlenet_start (GstVideoInference * vi);
 static gboolean gst_googlenet_stop (GstVideoInference * vi);
 
@@ -190,29 +195,47 @@ gst_googlenet_finalize (GObject * object)
 
 static gboolean
 gst_googlenet_preprocess (GstVideoInference * vi,
-    GstBuffer * inbuf, GstBuffer * outbuf)
+    GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-  GstMapInfo ininfo;
-  GstMapInfo outinfo;
+  gint size;
 
   GST_LOG_OBJECT (vi, "Preprocess");
+  size = CHANNELS * inframe->info.width * inframe->info.height;
 
-  gst_buffer_map (inbuf, &ininfo, GST_MAP_READ);
-  gst_buffer_map (outbuf, &outinfo, GST_MAP_WRITE);
-
-  memcpy (outinfo.data, ininfo.data, ininfo.size);
-
-  gst_buffer_unmap (inbuf, &ininfo);
-  gst_buffer_unmap (outbuf, &outinfo);
+  for (gint i = 0; i < size; i += CHANNELS) {
+    /* BGR = RGB - Mean */
+    ((gfloat *) outframe->data[0])[i + 0] =
+        (((guchar *) inframe->data[0])[i + 2]) - GoogleNetMean[0];
+    ((gfloat *) outframe->data[0])[i + 1] =
+        (((guchar *) inframe->data[0])[i + 1]) - GoogleNetMean[1];
+    ((gfloat *) outframe->data[0])[i + 2] =
+        (((guchar *) inframe->data[0])[i + 0]) - GoogleNetMean[2];
+  }
 
   return TRUE;
 }
 
 static gboolean
 gst_googlenet_postprocess (GstVideoInference * vi,
-    GstBuffer * buf, const gpointer prediction, gsize predsize)
+    GstVideoFrame * outframe, const gpointer prediction, gsize predsize)
 {
+  gint index;
+  gint size;
+  gdouble max;
   GST_LOG_OBJECT (vi, "Postprocess");
+  index = 0;
+  max = -1;
+  size = predsize / sizeof (gfloat);
+
+  for (gint i = 0; i < size; ++i) {
+    gfloat current = ((gfloat *) prediction)[i];
+    if (current > max) {
+      max = current;
+      index = i;
+    }
+  }
+
+  g_print ("Highest probability is label %i : (%f)\n", index, max);
 
   return TRUE;
 }
