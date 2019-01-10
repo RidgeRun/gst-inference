@@ -41,16 +41,15 @@ gst_ncsdk_class_init (GstNcsdkClass * klass)
   GstBackendClass *bclass = GST_BACKEND_CLASS (klass);
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
 
-  bclass->backend = r2i::FrameworkCode::NCSDK;
-
   oclass->set_property = gst_backend_set_property;
   oclass->get_property = gst_backend_get_property;
-  
-  gst_backend_install_properties (bclass);
+
+  gst_backend_install_properties (bclass, r2i::FrameworkCode::NCSDK);
 }
 
 static void
 gst_ncsdk_init (GstNcsdk * self)
 {
-
+  gst_backend_set_framework_code (GST_BACKEND (self),
+      r2i::FrameworkCode::NCSDK);
 }

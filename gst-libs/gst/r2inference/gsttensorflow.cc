@@ -41,17 +41,14 @@ gst_tensorflow_class_init (GstTensorflowClass * klass)
   GstBackendClass *bclass = GST_BACKEND_CLASS (klass);
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
 
-  bclass->backend = r2i::FrameworkCode::TENSORFLOW;
-  
   oclass->set_property = gst_backend_set_property;
   oclass->get_property = gst_backend_get_property;
-  
-
-  gst_backend_install_properties (bclass);
+  gst_backend_install_properties (bclass, r2i::FrameworkCode::TENSORFLOW);
 }
 
 static void
 gst_tensorflow_init (GstTensorflow * self)
 {
-
+  gst_backend_set_framework_code (GST_BACKEND (self),
+      r2i::FrameworkCode::TENSORFLOW);
 }

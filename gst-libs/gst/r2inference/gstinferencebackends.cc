@@ -41,8 +41,6 @@ static void
 gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
     gchar ** backends_parameters, r2i::RuntimeError error,
     guint alignment);
-static GType
-gst_inference_backends_search_type (r2i::FrameworkCode id);
 
 GType
 gst_inference_backends_get_type (void)
@@ -51,18 +49,20 @@ gst_inference_backends_get_type (void)
   static const GEnumValue
       backend_desc[] = {
     {r2i::FrameworkCode::NCSDK, "Intel Movidius Neural Compute SDK", "ncsdk"},
-    {r2i::FrameworkCode::TENSORFLOW, "TensorFlow Machine Learning Framework", "tensorflow"},
+    {r2i::FrameworkCode::TENSORFLOW, "TensorFlow Machine Learning Framework",
+          "tensorflow"},
     {0, NULL, NULL}
   };
   if (!backend_type) {
     backend_type =
-        g_enum_register_static ("GstInferenceBackends", (GEnumValue *) backend_desc);
+        g_enum_register_static ("GstInferenceBackends",
+        (GEnumValue *) backend_desc);
   }
   return backend_type;
 }
 
-static GType
-gst_inference_backends_search_type (r2i::FrameworkCode id)
+GType
+gst_inference_backends_search_type (guint id)
 {
   auto search = backend_types.find (id);
   if (backend_types.end () == search) {
@@ -101,8 +101,9 @@ gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
   if (NULL == *backends_parameters)
     *backends_parameters = parameters;
   else
-    *backends_parameters = g_strconcat (*backends_parameters,"\n", parameters, NULL);
- 
+    *backends_parameters =
+        g_strconcat (*backends_parameters, "\n", parameters, NULL);
+
   g_object_unref (backend);
 }
 

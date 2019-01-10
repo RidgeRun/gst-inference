@@ -21,11 +21,10 @@
 
 #include "gstvideoinference.h"
 #include "gstinferencebackends.h"
-#include <gst/base/gstcollectpads.h>
-#include <memory>
+#include "gstbackend.h"
 
-#include "gstncsdk.h"
-#include "gsttensorflow.h"
+#include <gst/base/gstcollectpads.h>
+
 
 static GstStaticPadTemplate sink_bypass_factory =
 GST_STATIC_PAD_TEMPLATE ("sink_bypass",
@@ -68,10 +67,6 @@ struct _GstVideoInferencePrivate
   GstPad *src_model;
 
   GstBackend *backend;
-
-  std::shared_ptr < r2i::IEngine > engine;
-  std::shared_ptr < r2i::ILoader > loader;
-  std::shared_ptr < r2i::IModel > model;
 
   gchar *model_location;
 };
@@ -119,6 +114,9 @@ static gboolean gst_video_inference_src_event (GstPad * pad, GstObject * parent,
     GstEvent * event);
 static GstPad *gst_video_inference_get_src_pad (GstVideoInference * self,
     GstVideoInferencePrivate * priv, GstPad * pad);
+static void
+gst_video_inference_set_backend (GstVideoInference * self, gint backend);
+static guint gst_video_inference_get_backend_type (GstVideoInference * self);
 
 G_DEFINE_TYPE_WITH_CODE (GstVideoInference, gst_video_inference,
     GST_TYPE_ELEMENT,
@@ -168,7 +166,7 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
   g_object_class_install_property (oclass, PROP_MODEL_LOCATION,
       g_param_spec_string ("model-location", "Model Location",
           "Path to the model to use", DEFAULT_MODEL_LOCATION,
-	   G_PARAM_READWRITE));
+          G_PARAM_READWRITE));
 
   klass->start = NULL;
   klass->stop = NULL;
@@ -196,6 +194,8 @@ gst_video_inference_init (GstVideoInference * self)
       gst_video_inference_sink_event, (gpointer) (self));
 
   priv->model_location = g_strdup (DEFAULT_MODEL_LOCATION);
+
+  gst_video_inference_set_backend (self, DEFAULT_BACKEND);
 }
 
 static void
@@ -204,14 +204,17 @@ gst_video_inference_set_property (GObject * object,
 {
   GstVideoInference *self = GST_VIDEO_INFERENCE (object);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+  GstState actual_state;
 
   GST_LOG_OBJECT (self, "Set Property");
 
   switch (property_id) {
     case PROP_BACKEND:
+      GST_OBJECT_LOCK (self);
+      gst_video_inference_set_backend (self, g_value_get_enum (value));
+      GST_OBJECT_UNLOCK (self);
       break;
     case PROP_MODEL_LOCATION:
-      GstState actual_state;
       gst_element_get_state (GST_ELEMENT (self), &actual_state, NULL,
           GST_SECOND);
       GST_OBJECT_LOCK (self);
@@ -241,6 +244,7 @@ gst_video_inference_get_property (GObject * object,
 
   switch (property_id) {
     case PROP_BACKEND:
+      g_value_set_enum (value, gst_video_inference_get_backend_type (self));
       break;
     case PROP_MODEL_LOCATION:
       g_value_set_string (value, priv->model_location);
@@ -304,11 +308,6 @@ gst_video_inference_start (GstVideoInference * self)
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   gboolean ret = TRUE;
-  r2i::RuntimeError error;
-
-  /* TODO: Avoid hardcoded NCSDK, it should be queried from the backend */
-  auto factory = r2i::IFrameworkFactory::MakeFactory (r2i::FrameworkCode::NCSDK,
-      error);
 
   GST_INFO_OBJECT (self, "Starting video inference");
 
@@ -319,29 +318,10 @@ gst_video_inference_start (GstVideoInference * self)
     goto out;
   }
 
-  priv->engine = factory->MakeEngine (error);
-  if (error.IsError ()) {
-    goto error;
-  }
-
-  priv->loader = factory->MakeLoader (error);
-  if (error.IsError ()) {
-    goto error;
-  }
-
-  priv->model = priv->loader->Load (priv->model_location, error);
-  if (error.IsError ()) {
-    goto error;
-  }
-
-  error = priv->engine->SetModel (priv->model);
-  if (error.IsError ()) {
-    goto error;
-  }
-
-  error = priv->engine->Start ();
-  if (error.IsError ()) {
-    goto error;
+  if (!gst_backend_start (priv->backend, priv->model_location)) {
+    GST_ELEMENT_ERROR (self, LIBRARY, INIT,
+        ("Could not start the selected backend"), (NULL));
+    ret = FALSE;
   }
 
   if (klass->start != NULL) {
@@ -350,11 +330,6 @@ gst_video_inference_start (GstVideoInference * self)
 
 out:
   return ret;
-error:
-  GST_ELEMENT_ERROR (self, STREAM, FAILED,
-      ("R2Inference Error: (Code:%d) %s", error.GetCode (),
-          error.GetDescription ().c_str ()), (NULL));
-  return FALSE;
 }
 
 static gboolean
@@ -546,8 +521,7 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
     goto out;
   }
 
-  GST_LOG_OBJECT (self, "Forwarding buffer to %s:%s",
-      GST_DEBUG_PAD_NAME (pad));
+  GST_LOG_OBJECT (self, "Forwarding buffer to %s:%s", GST_DEBUG_PAD_NAME (pad));
   ret = gst_pad_push (pad, gst_buffer_ref (buffer));
 
   if (GST_FLOW_OK != ret) {
@@ -571,11 +545,9 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   GstAllocationParams params;
   GstVideoInfo vininfo;
   GstCaps *pad_caps;
-  std::shared_ptr < r2i::IPrediction > prediction;
-  std::unique_ptr < r2i::IFrameworkFactory > factory;
-  std::shared_ptr < r2i::IFrame > frame;
-  r2i::RuntimeError error;
   gboolean ret;
+  gpointer prediction_data = NULL;
+  gsize prediction_size;
 
   klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   priv = GST_VIDEO_INFERENCE_PRIVATE (self);
@@ -585,7 +557,7 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
 
   if (NULL == klass->preprocess) {
     GST_ELEMENT_ERROR (self, STREAM, FAILED,
-      ("Subclass did not implement preprocess"), (NULL));
+        ("Subclass did not implement preprocess"), (NULL));
     ret = FALSE;
     goto out;
   }
@@ -604,61 +576,31 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
 
   if (!klass->preprocess (self, &inframe, &outframe)) {
     GST_ELEMENT_ERROR (self, STREAM, FAILED,
-      ("Subclass failed to preprocess"), (NULL));
+        ("Subclass failed to preprocess"), (NULL));
     ret = FALSE;
-    goto free_frames;
-  }  
-
-  factory =
-      r2i::IFrameworkFactory::MakeFactory (r2i::FrameworkCode::NCSDK, error);
-  if (error.IsError ()) {
-    ret = FALSE;
-    GST_ELEMENT_ERROR (self, STREAM, FAILED,
-      ("Failed to create factory backend (Code:%d) %s", error.GetCode (),
-          error.GetDescription ().c_str ()), (NULL));
     goto free_frames;
   }
 
-  frame = factory->MakeFrame (error);
-  if (error.IsError ()) {
-    ret = FALSE;
-    GST_ELEMENT_ERROR (self, STREAM, FAILED,
-      ("Failed to created backend frame (Code:%d) %s", error.GetCode (),
-          error.GetDescription ().c_str ()), (NULL));
-    goto free_frames;
-  }
+  GST_LOG_OBJECT (self, "Processing frame using selected Backend");
 
-  error =
-      frame->Configure (outframe.data[0], inframe.info.width,
-      inframe.info.height, r2i::ImageFormat::Id::RGB);
-  if (error.IsError ()) {
+  if (!gst_backend_process_frame (priv->backend, &outframe,
+          &prediction_data, &prediction_size)) {
     ret = FALSE;
-    GST_ELEMENT_ERROR (self, STREAM, FAILED,
-      ("Failed to configure backend frame (Code:%d) %s", error.GetCode (),
-          error.GetDescription ().c_str ()), (NULL));
-    goto free_frames;
-  }
-
-  prediction = priv->engine->Predict (frame, error);
-  if (error.IsError ()) {
-    ret = FALSE;
-    GST_ELEMENT_ERROR (self, STREAM, FAILED,
-      ("Backend prediction failed (Code:%d) %s", error.GetCode (),
-          error.GetDescription ().c_str ()), (NULL));
     goto free_frames;
   }
 
   if (NULL != klass->postprocess) {
-    if (!klass->postprocess (self, &outframe, prediction->GetResultData (),
-            prediction->GetResultSize ())) {
+    if (!klass->postprocess (self, &outframe, prediction_data, prediction_size)) {
       ret = FALSE;
       GST_ELEMENT_ERROR (self, STREAM, FAILED,
-      ("Subclass failed at preprocess"), (NULL));
+          ("Subclass failed at preprocess"), (NULL));
       goto free_frames;
     }
   }
 
 free_frames:
+  if(prediction_data)
+    g_free(prediction_data);
   gst_video_frame_unmap (&outframe);
   gst_video_frame_unmap (&inframe);
   gst_buffer_unref (outbuf);
@@ -682,8 +624,8 @@ gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
   GstVideoInference *self = GST_VIDEO_INFERENCE (user_data);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstFlowReturn ret = GST_FLOW_OK;
-  GstBuffer *buffer_model;
-  GstBuffer *buffer_bypass;
+  GstBuffer *buffer_model = NULL;
+  GstBuffer *buffer_bypass = NULL;
 
   /* Process Model Buffer */
   if (priv->sink_model_data) {
@@ -710,7 +652,7 @@ gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
       goto model_free;
     }
     if (!gst_video_inference_bypass_buffer_process (self, buffer_bypass,
-        buffer_model)) {
+            buffer_model)) {
       ret = GST_FLOW_ERROR;
       goto bypass_free;
     }
@@ -718,7 +660,8 @@ gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
 
   /* Forward buffers to src pads */
   if (NULL != buffer_model) {
-    ret = gst_video_inference_forward_buffer (self, gst_buffer_ref (buffer_model),
+    ret =
+        gst_video_inference_forward_buffer (self, gst_buffer_ref (buffer_model),
         priv->sink_model_data, priv->src_model);
     if (GST_FLOW_OK != ret) {
       goto bypass_free;
@@ -726,8 +669,10 @@ gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
   }
 
   if (NULL != buffer_bypass) {
-    ret = gst_video_inference_forward_buffer (self, gst_buffer_ref (buffer_bypass),
-        priv->sink_bypass_data, priv->src_bypass);
+    ret =
+        gst_video_inference_forward_buffer (self,
+        gst_buffer_ref (buffer_bypass), priv->sink_bypass_data,
+        priv->src_bypass);
     if (GST_FLOW_OK != ret) {
       goto bypass_free;
     }
@@ -821,5 +766,42 @@ gst_video_inference_finalize (GObject * object)
 
   g_clear_object (&priv->backend);
 
+  if (priv->backend)
+    g_object_unref (priv->backend);
+
   G_OBJECT_CLASS (gst_video_inference_parent_class)->finalize (object);
+}
+
+static void
+gst_video_inference_set_backend (GstVideoInference * self, gint backend)
+{
+  GstBackend *backend_new;
+  GType backend_type;
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  g_return_if_fail (priv);
+
+  if (GST_STATE (self) != GST_STATE_NULL) {
+    g_warning ("Can't set backend property  if not on NULL state");
+    return;
+  }
+
+  if (priv->backend)
+    g_object_unref (priv->backend);
+
+  backend_type = gst_inference_backends_search_type (backend);
+  backend_new = (GstBackend *) g_object_new (backend_type, NULL);
+  priv->backend = backend_new;
+
+  return;
+}
+
+static guint
+gst_video_inference_get_backend_type (GstVideoInference * self)
+{
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  g_return_val_if_fail (priv, -1);
+
+  return gst_backend_get_framework_code (priv->backend);
 }

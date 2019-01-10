@@ -20,7 +20,11 @@
  */
 
 #include "gstbackend.h"
+#include "gstbackendsubclass.h"
 
+#include <r2i/r2i.h>
+
+#include <cstring>
 #include <memory>
 
 GST_DEBUG_CATEGORY_STATIC (gst_backend_debug_category);
@@ -29,7 +33,12 @@ GST_DEBUG_CATEGORY_STATIC (gst_backend_debug_category);
 typedef struct _GstBackendPrivate GstBackendPrivate;
 struct _GstBackendPrivate
 {
+  r2i::FrameworkCode code;
+  std::shared_ptr < r2i::IEngine > engine;
+  std::shared_ptr < r2i::ILoader > loader;
+  std::shared_ptr < r2i::IModel > model;
   std::unique_ptr < r2i::IParameters > params;
+  std::unique_ptr < r2i::IFrameworkFactory > factory;
 };
 
 G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
@@ -58,7 +67,8 @@ gst_backend_init (GstBackend * self)
 }
 
 void
-gst_backend_install_properties (GstBackendClass * klass)
+gst_backend_install_properties (GstBackendClass * klass,
+    r2i::FrameworkCode code)
 {
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
   r2i::RuntimeError error;
@@ -67,7 +77,7 @@ gst_backend_install_properties (GstBackendClass * klass)
 
   klass->props = g_hash_table_new (g_direct_hash, g_direct_equal);
 
-  auto factory = r2i::IFrameworkFactory::MakeFactory (klass->backend, error);
+  auto factory = r2i::IFrameworkFactory::MakeFactory (code, error);
   auto pfactory = factory->MakeParameters (error);
   error = pfactory->List (params);
 
@@ -162,19 +172,117 @@ gst_backend_get_property (GObject * object, guint property_id,
 }
 
 gboolean
-gst_backend_configure (GstBackend * self,
-    std::shared_ptr < r2i::IEngine > engine,
-    std::shared_ptr < r2i::IModel > model)
+gst_backend_start (GstBackend * self, const gchar * model_location)
 {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   r2i::RuntimeError error;
+  
+  g_return_val_if_fail (priv, FALSE);
 
-  error = priv->params->Configure (engine, model);
+  priv->factory = r2i::IFrameworkFactory::MakeFactory (priv->code,
+      error);
   if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Error configuring backend parameters: (%d): %s",
-        error.GetCode (), error.GetDescription ().c_str ());
-    return FALSE;
+    goto error;
   }
 
+  priv->engine = priv->factory->MakeEngine (error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  priv->loader = priv->factory->MakeLoader (error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  priv->model = priv->loader->Load (model_location, error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  error = priv->engine->SetModel (priv->model);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  error = priv->engine->Start ();
+  if (error.IsError ()) {
+    goto error;
+  }
+  
   return TRUE;
+error:
+  GST_ERROR ("R2Inference Error: (Code:%d) %s", error.GetCode (),
+      error.GetDescription ().c_str ());
+  return FALSE;
+}
+
+gboolean
+gst_backend_process_frame (GstBackend * self, GstVideoFrame * input_frame,
+                                    gpointer *prediction_data, gsize *prediction_size)
+{
+  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+  std::shared_ptr < r2i::IPrediction > prediction;
+  std::shared_ptr < r2i::IFrame > frame;
+  r2i::RuntimeError error;
+ 
+  g_return_val_if_fail (priv, FALSE);
+  g_return_val_if_fail (input_frame, FALSE);
+  g_return_val_if_fail (prediction_data, FALSE);
+  g_return_val_if_fail (prediction_size, FALSE);
+
+  frame = priv->factory->MakeFrame (error);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  GST_LOG_OBJECT (self, "Processing Frame of size %d x %d",
+                    input_frame->info.width , input_frame->info.height);
+
+  error =
+      frame->Configure (input_frame->data[0], input_frame->info.width,
+      input_frame->info.height, r2i::ImageFormat::Id::RGB);
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  prediction = priv->engine->Predict (frame, error);
+  if (error.IsError ()) {
+    goto error;
+  }
+  
+  *prediction_size = prediction->GetResultSize ();
+
+  /*could we avoid memory copy ?*/
+  *prediction_data = g_malloc(*prediction_size);
+  memcpy(*prediction_data , prediction->GetResultData(),*prediction_size);
+
+  GST_LOG_OBJECT (self, "Size of prediction %p is %lu",
+                  *prediction_data, *prediction_size);
+
+  return TRUE;
+error:
+  GST_ERROR ("R2Inference Error: (Code:%d) %s", error.GetCode (),
+      error.GetDescription ().c_str ());
+  return FALSE;  
+}
+
+gboolean
+gst_backend_set_framework_code (GstBackend * backend, r2i::FrameworkCode code)
+{
+  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (backend);
+  g_return_val_if_fail (priv, FALSE);
+
+  priv->code = code;
+  return TRUE;
+
+}
+
+guint
+gst_backend_get_framework_code (GstBackend * backend)
+{
+  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (backend);
+  g_return_val_if_fail (priv, -1);
+
+  return priv->code;
 }

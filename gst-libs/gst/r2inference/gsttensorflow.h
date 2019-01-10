@@ -23,7 +23,7 @@
 #define __GST_TENSORFLOW_H__
 
 #include <gst/gst.h>
-#include <gst/r2inference/gstbackend.h>
+#include <gst/r2inference/gstbackendsubclass.h>
 
 G_BEGIN_DECLS
 
