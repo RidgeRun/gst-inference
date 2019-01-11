@@ -28,9 +28,9 @@ G_BEGIN_DECLS
 
 #define GST_TYPE_INFERENCE_BACKENDS (gst_inference_backends_get_type())
 
-GType gst_inference_backends_get_type(void);
+GType gst_inference_backends_get_type (void);
 gchar * gst_inference_backends_get_string_properties (void);
+GType gst_inference_backends_search_type (guint);
 
 G_END_DECLS
-
 #endif //__GST_INFERENCE_BACKENDS_H__

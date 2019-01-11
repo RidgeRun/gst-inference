@@ -23,7 +23,7 @@
 #define __GST_BACKEND_H__
 
 #include <gst/gst.h>
-#include <r2i/r2i.h>
+#include <gst/video/video.h>
 
 G_BEGIN_DECLS
 #define GST_TYPE_BACKEND gst_backend_get_type ()
@@ -33,13 +33,12 @@ struct _GstBackendClass
 {
   GObjectClass parent_class;
 
-  r2i::FrameworkCode backend;
   GHashTable *props;
 };
 
-gboolean gst_backend_configure (GstBackend * self,
-    std::shared_ptr < r2i::IEngine > engine,
-    std::shared_ptr < r2i::IModel > model);
-
+gboolean gst_backend_start (GstBackend *, const gchar *);
+guint gst_backend_get_framework_code (GstBackend *);
+gboolean gst_backend_process_frame (GstBackend *, GstVideoFrame *,
+                                    gpointer *, gsize *);
 G_END_DECLS
 #endif //__GST_BACKEND_H__

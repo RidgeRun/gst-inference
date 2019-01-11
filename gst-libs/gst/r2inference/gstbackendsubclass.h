@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2019 RidgeRun
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -18,18 +18,23 @@
  * Boston, MA 02111-1307, USA.
  *
  */
+#ifndef __GST_BACKENDSUBCLASS_H__
+#define __GST_BACKENDSUBCLASS_H__
 
-#ifndef __GST_NCSDK_H__
-#define __GST_NCSDK_H__
+#include "gstbackend.h"
 
-#include <gst/gst.h>
-#include <gst/r2inference/gstbackendsubclass.h>
+#include <r2i/r2i.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_NCSDK gst_ncsdk_get_type ()
-G_DECLARE_FINAL_TYPE(GstNcsdk, gst_ncsdk, GST, NCSDK, GstBackend);
+void gst_backend_get_property (GObject * object, guint property_id,
+                               GValue * value, GParamSpec * pspec);
+void gst_backend_set_property (GObject * object, guint property_id,
+                               const GValue * value, GParamSpec * pspec);
+void gst_backend_install_properties (GstBackendClass * klass,
+                                r2i::FrameworkCode code);
+gboolean gst_backend_set_framework_code (GstBackend * backend,
+                                         r2i::FrameworkCode code);
 
 G_END_DECLS
-
-#endif //__GST_NCSDK_H__
+#endif //__GST_BACKENDSUBCLASS_H__

@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2019 RidgeRun
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,17 +19,17 @@
  *
  */
 
-#ifndef __GST_NCSDK_H__
-#define __GST_NCSDK_H__
+#ifndef __GST_TENSORFLOW_H__
+#define __GST_TENSORFLOW_H__
 
 #include <gst/gst.h>
 #include <gst/r2inference/gstbackendsubclass.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_NCSDK gst_ncsdk_get_type ()
-G_DECLARE_FINAL_TYPE(GstNcsdk, gst_ncsdk, GST, NCSDK, GstBackend);
+#define GST_TYPE_TENSORFLOW gst_tensorflow_get_type ()
+G_DECLARE_FINAL_TYPE(GstTensorflow, gst_tensorflow, GST, TENSORFLOW, GstBackend);
 
 G_END_DECLS
 
-#endif //__GST_NCSDK_H__
+#endif //__GST_TENSORFLOW_H__
