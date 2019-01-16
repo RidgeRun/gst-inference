@@ -308,6 +308,7 @@ gst_video_inference_start (GstVideoInference * self)
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   gboolean ret = TRUE;
+  GError *err = NULL;
 
   GST_INFO_OBJECT (self, "Starting video inference");
 
@@ -318,9 +319,9 @@ gst_video_inference_start (GstVideoInference * self)
     goto out;
   }
 
-  if (!gst_backend_start (priv->backend, priv->model_location)) {
+  if (!gst_backend_start (priv->backend, priv->model_location, &err)) {
     GST_ELEMENT_ERROR (self, LIBRARY, INIT,
-        ("Could not start the selected backend"), (NULL));
+        ("Could not start the selected backend: (%s)", err->message), (NULL));
     ret = FALSE;
   }
 
@@ -329,6 +330,8 @@ gst_video_inference_start (GstVideoInference * self)
   }
 
 out:
+  if (err)
+    g_error_free (err);
   return ret;
 }
 
@@ -548,6 +551,7 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   gboolean ret;
   gpointer prediction_data = NULL;
   gsize prediction_size;
+  GError *err = NULL;
 
   klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   priv = GST_VIDEO_INFERENCE_PRIVATE (self);
@@ -584,7 +588,10 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   GST_LOG_OBJECT (self, "Processing frame using selected Backend");
 
   if (!gst_backend_process_frame (priv->backend, &outframe,
-          &prediction_data, &prediction_size)) {
+          &prediction_data, &prediction_size, &err)) {
+    GST_ELEMENT_ERROR (self, STREAM, FAILED,
+        ("Could not process using the selected backend: (%s)",
+            err->message), (NULL));
     ret = FALSE;
     goto free_frames;
   }
@@ -599,12 +606,14 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   }
 
 free_frames:
-  if(prediction_data)
-    g_free(prediction_data);
+  if (prediction_data)
+    g_free (prediction_data);
   gst_video_frame_unmap (&outframe);
   gst_video_frame_unmap (&inframe);
   gst_buffer_unref (outbuf);
 out:
+  if (err)
+    g_error_free (err);
   return ret;
 }
 

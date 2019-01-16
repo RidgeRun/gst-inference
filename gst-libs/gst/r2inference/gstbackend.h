@@ -36,9 +36,11 @@ struct _GstBackendClass
   GHashTable *props;
 };
 
-gboolean gst_backend_start (GstBackend *, const gchar *);
+GQuark gst_backend_error_quark (void);
+gboolean gst_backend_start (GstBackend *, const gchar *, GError **);
 guint gst_backend_get_framework_code (GstBackend *);
 gboolean gst_backend_process_frame (GstBackend *, GstVideoFrame *,
-                                    gpointer *, gsize *);
+                                    gpointer *, gsize *, GError **);
+
 G_END_DECLS
 #endif //__GST_BACKEND_H__

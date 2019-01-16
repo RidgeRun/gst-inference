@@ -51,6 +51,8 @@ G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
 static GParamSpec *gst_backend_param_to_spec (r2i::ParameterMeta * param);
 static int gst_backend_param_flags (int flags);
 
+#define GST_BACKEND_ERROR gst_backend_error_quark()
+
 static void
 gst_backend_class_init (GstBackendClass * klass)
 {
@@ -172,12 +174,14 @@ gst_backend_get_property (GObject * object, guint property_id,
 }
 
 gboolean
-gst_backend_start (GstBackend * self, const gchar * model_location)
+gst_backend_start (GstBackend * self, const gchar * model_location, GError **err)
 {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   r2i::RuntimeError error;
   
   g_return_val_if_fail (priv, FALSE);
+  g_return_val_if_fail (model_location, FALSE);
+  g_return_val_if_fail (err, FALSE);
 
   priv->factory = r2i::IFrameworkFactory::MakeFactory (priv->code,
       error);
@@ -212,14 +216,15 @@ gst_backend_start (GstBackend * self, const gchar * model_location)
   
   return TRUE;
 error:
-  GST_ERROR ("R2Inference Error: (Code:%d) %s", error.GetCode (),
+  g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
+      "R2Inference Error: (Code:%d) %s", error.GetCode (),
       error.GetDescription ().c_str ());
   return FALSE;
 }
 
 gboolean
 gst_backend_process_frame (GstBackend * self, GstVideoFrame * input_frame,
-                                    gpointer *prediction_data, gsize *prediction_size)
+    gpointer *prediction_data, gsize *prediction_size, GError **err)
 {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   std::shared_ptr < r2i::IPrediction > prediction;
@@ -230,6 +235,7 @@ gst_backend_process_frame (GstBackend * self, GstVideoFrame * input_frame,
   g_return_val_if_fail (input_frame, FALSE);
   g_return_val_if_fail (prediction_data, FALSE);
   g_return_val_if_fail (prediction_size, FALSE);
+  g_return_val_if_fail (err, FALSE);
 
   frame = priv->factory->MakeFrame (error);
   if (error.IsError ()) {
@@ -262,7 +268,8 @@ gst_backend_process_frame (GstBackend * self, GstVideoFrame * input_frame,
 
   return TRUE;
 error:
-  GST_ERROR ("R2Inference Error: (Code:%d) %s", error.GetCode (),
+  g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
+      "R2Inference Error: (Code:%d) %s", error.GetCode (),
       error.GetDescription ().c_str ());
   return FALSE;  
 }
@@ -285,4 +292,16 @@ gst_backend_get_framework_code (GstBackend * backend)
   g_return_val_if_fail (priv, -1);
 
   return priv->code;
+}
+
+GQuark
+gst_backend_error_quark(void)
+{
+  static GQuark q = 0;
+
+  if (0 == q) {
+    q = g_quark_from_static_string("gst-backend-error-quark");
+  }
+  
+  return q;
 }
