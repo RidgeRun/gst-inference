@@ -77,17 +77,12 @@ gst_backend_install_properties (GstBackendClass * klass,
   static std::vector < r2i::ParameterMeta > params;
   static gint nprop = 1;
 
-  klass->props = g_hash_table_new (g_direct_hash, g_direct_equal);
-
   auto factory = r2i::IFrameworkFactory::MakeFactory (code, error);
   auto pfactory = factory->MakeParameters (error);
   error = pfactory->List (params);
 
   for (auto & param:params) {
     GParamSpec *spec = gst_backend_param_to_spec (&param);
-
-    g_hash_table_insert (klass->props, GINT_TO_POINTER (nprop),
-        (gpointer) (param.name.c_str ()));
     g_object_class_install_property (oclass, nprop, spec);
     nprop++;
   }
@@ -141,36 +136,20 @@ void
 gst_backend_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstBackendClass *klass = GST_BACKEND_GET_CLASS (object);
   GstBackend *self = GST_BACKEND (object);
-  const gchar *param;
 
   GST_DEBUG_OBJECT (self, "set_property");
 
-  param = (const gchar *) g_hash_table_lookup (klass->props,
-      GINT_TO_POINTER (property_id));
-  if (NULL == param) {
-    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-    return;
-  }
 }
 
 void
 gst_backend_get_property (GObject * object, guint property_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstBackendClass *klass = GST_BACKEND_GET_CLASS (object);
   GstBackend *self = GST_BACKEND (object);
-  const gchar *param;
 
   GST_DEBUG_OBJECT (self, "get_property");
 
-  param = (const gchar *) g_hash_table_lookup (klass->props,
-      GINT_TO_POINTER (property_id));
-  if (NULL == param) {
-    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-    return;
-  }
 }
 
 gboolean
