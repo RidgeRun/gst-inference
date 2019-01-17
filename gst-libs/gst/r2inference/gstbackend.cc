@@ -32,9 +32,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_backend_debug_category);
 #define GST_CAT_DEFAULT gst_backend_debug_category
 
 typedef struct {
-  guint property_id;
-  GValue value;
-  GParamSpec pspec;
+  GValue *value;
+  GParamSpec *pspec;
 } InferenceProperty;
 
 
@@ -44,11 +43,11 @@ struct _GstBackendPrivate {
   std::shared_ptr < r2i::IEngine > engine;
   std::shared_ptr < r2i::ILoader > loader;
   std::shared_ptr < r2i::IModel > model;
-  std::unique_ptr < r2i::IParameters > params;
+  std::shared_ptr < r2i::IParameters > params;
   std::unique_ptr < r2i::IFrameworkFactory > factory;
-  std::queue<InferenceProperty> property_queue;
   GMutex backend_mutex;
   gboolean backend_started;
+  std::shared_ptr < std::queue<InferenceProperty> > property_queue;
 };
 
 G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
@@ -79,6 +78,7 @@ gst_backend_init (GstBackend *self) {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   g_mutex_init(&priv->backend_mutex);
   priv->backend_started = false;
+  priv->property_queue = std::make_shared<std::queue<InferenceProperty>>();
 }
 
 static void
@@ -155,6 +155,7 @@ gst_backend_set_property (GObject *object, guint property_id,
                           const GValue *value, GParamSpec *pspec) {
   GstBackend *self = GST_BACKEND (object);
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+  GValue *value_copy;
 
   GST_DEBUG_OBJECT (self, "set_property");
 
@@ -172,14 +173,13 @@ gst_backend_set_property (GObject *object, guint property_id,
         break;
     }
   } else {
-
-    InferenceProperty property;
-
-    property.property_id = property_id;
-    property.value = *value;
-    property.pspec = *pspec;
-    priv->property_queue.push(property);
-
+    value_copy = (GValue *) g_malloc(sizeof(GValue));
+    *value_copy = G_VALUE_INIT;
+    value_copy = g_value_init (value_copy, pspec->value_type);
+    g_value_copy (value, value_copy);
+    g_param_spec_ref (pspec);
+    priv->property_queue->push({value_copy, pspec});
+    GST_INFO_OBJECT (self, "Queueing property: %s\n", pspec->name);
   }
   g_mutex_unlock (&priv->backend_mutex);
 
@@ -198,6 +198,7 @@ gboolean
 gst_backend_start (GstBackend *self, const gchar *model_location, GError **err) {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   r2i::RuntimeError error;
+  InferenceProperty property;
 
   g_return_val_if_fail (priv, FALSE);
   g_return_val_if_fail (model_location, FALSE);
@@ -234,25 +235,37 @@ gst_backend_start (GstBackend *self, const gchar *model_location, GError **err) 
     goto error;
   }
 
-  g_mutex_lock (&priv->backend_mutex);
+  priv->params = priv->factory->MakeParameters (error);
+  if (error.IsError ()) {
+    goto error;
+  }
+  error = priv->params->Configure(priv->engine, priv->model);
+  if (error.IsError ()) {
+    goto error;
+  }
 
-  while (!priv->property_queue.empty()) {
-    InferenceProperty property = priv->property_queue.front();
-    switch (property.pspec.value_type) {
+  g_mutex_lock (&priv->backend_mutex);
+  while (!priv->property_queue->empty()) {
+    property = priv->property_queue->front();
+    switch (property.pspec->value_type) {
       case G_TYPE_STRING:
-        priv->params->Set(property.pspec.name, g_value_get_string(&property.value));
+        GST_INFO_OBJECT (self, "Setting property: %s=%s\n", property.pspec->name,
+                         g_value_get_string(property.value));
+        priv->params->Set(property.pspec->name, g_value_get_string(property.value));
         break;
       case G_TYPE_INT:
-        priv->params->Set(property.pspec.name, g_value_get_int(&property.value));
+        GST_INFO_OBJECT (self, "Setting property: %s=%d\n", property.pspec->name,
+                         g_value_get_int(property.value));
+        priv->params->Set(property.pspec->name, g_value_get_int(property.value));
         break;
       default:
         GST_WARNING_OBJECT (self, "Invalid property type");
         break;
     }
-
-    priv->property_queue.pop();
+    g_param_spec_unref (property.pspec);
+    g_free(property.value);
+    priv->property_queue->pop();
   }
-
   priv->backend_started = true;
   g_mutex_unlock (&priv->backend_mutex);
 
