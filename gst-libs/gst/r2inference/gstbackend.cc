@@ -172,7 +172,14 @@ gst_backend_set_property (GObject *object, guint property_id,
         break;
     }
   } else {
-    /* TODO: Add params to queue */
+
+    InferenceProperty property;
+
+    property.property_id = property_id;
+    property.value = *value;
+    property.pspec = *pspec;
+    priv->property_queue.push(property);
+
   }
   g_mutex_unlock (&priv->backend_mutex);
 
@@ -229,7 +236,22 @@ gst_backend_start (GstBackend *self, const gchar *model_location, GError **err) 
 
   g_mutex_lock (&priv->backend_mutex);
 
-  /* TODO: Extract params and free queue  */
+  while (!priv->property_queue.empty()) {
+    InferenceProperty property = priv->property_queue.front();
+    switch (property.pspec.value_type) {
+      case G_TYPE_STRING:
+        priv->params->Set(property.pspec.name, g_value_get_string(&property.value));
+        break;
+      case G_TYPE_INT:
+        priv->params->Set(property.pspec.name, g_value_get_int(&property.value));
+        break;
+      default:
+        GST_WARNING_OBJECT (self, "Invalid property type");
+        break;
+    }
+
+    priv->property_queue.pop();
+  }
 
   priv->backend_started = true;
   g_mutex_unlock (&priv->backend_mutex);
