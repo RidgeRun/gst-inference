@@ -26,7 +26,7 @@
 
 #include <cstring>
 #include <memory>
-#include <queue>
+#include <list>
 
 GST_DEBUG_CATEGORY_STATIC (gst_backend_debug_category);
 #define GST_CAT_DEFAULT gst_backend_debug_category
@@ -47,7 +47,7 @@ struct _GstBackendPrivate {
   std::unique_ptr < r2i::IFrameworkFactory > factory;
   GMutex backend_mutex;
   gboolean backend_started;
-  std::shared_ptr < std::queue<InferenceProperty> > property_queue;
+  std::shared_ptr < std::list<InferenceProperty> > property_list;
 };
 
 G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
@@ -78,7 +78,7 @@ gst_backend_init (GstBackend *self) {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   g_mutex_init(&priv->backend_mutex);
   priv->backend_started = false;
-  priv->property_queue = std::make_shared<std::queue<InferenceProperty>>();
+  priv->property_list = std::make_shared<std::list<InferenceProperty>>();
 }
 
 static void
@@ -178,7 +178,7 @@ gst_backend_set_property (GObject *object, guint property_id,
     value_copy = g_value_init (value_copy, pspec->value_type);
     g_value_copy (value, value_copy);
     g_param_spec_ref (pspec);
-    priv->property_queue->push({value_copy, pspec});
+    priv->property_list->push_back({value_copy, pspec});
     GST_INFO_OBJECT (self, "Queueing property: %s\n", pspec->name);
   }
   g_mutex_unlock (&priv->backend_mutex);
@@ -199,6 +199,9 @@ gst_backend_start (GstBackend *self, const gchar *model_location, GError **err) 
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   r2i::RuntimeError error;
   InferenceProperty property;
+  std::list<InferenceProperty>::iterator property_it;
+  static std::vector<r2i::ParameterMeta> params;
+  static std::vector<r2i::ParameterMeta>::iterator param_it;
 
   g_return_val_if_fail (priv, FALSE);
   g_return_val_if_fail (model_location, FALSE);
@@ -230,11 +233,6 @@ gst_backend_start (GstBackend *self, const gchar *model_location, GError **err) 
     goto error;
   }
 
-  error = priv->engine->Start ();
-  if (error.IsError ()) {
-    goto error;
-  }
-
   priv->params = priv->factory->MakeParameters (error);
   if (error.IsError ()) {
     goto error;
@@ -243,10 +241,48 @@ gst_backend_start (GstBackend *self, const gchar *model_location, GError **err) 
   if (error.IsError ()) {
     goto error;
   }
+  error = priv->params->List (params);
+  if (error.IsError ()) {
+    goto error;
+  }
 
   g_mutex_lock (&priv->backend_mutex);
-  while (!priv->property_queue->empty()) {
-    property = priv->property_queue->front();
+  for (property_it = priv->property_list->begin();
+       property_it != priv->property_list->end(); ++property_it) {
+    for (param_it = params.begin(); param_it != params.end(); ++param_it) {
+      if (!g_strcmp0(property_it->pspec->name, param_it->name.c_str())) {
+        if (r2i::ParameterMeta::Flags::WRITE_BEFORE_START & param_it->flags) {
+          switch (property_it->pspec->value_type) {
+            case G_TYPE_STRING:
+              GST_INFO_OBJECT (self, "Setting property: %s=%s\n", property_it->pspec->name,
+                               g_value_get_string(property_it->value));
+              priv->params->Set(property_it->pspec->name,
+                                g_value_get_string(property_it->value));
+              break;
+            case G_TYPE_INT:
+              GST_INFO_OBJECT (self, "Setting property: %s=%d\n", property_it->pspec->name,
+                               g_value_get_int(property.value));
+              priv->params->Set(property_it->pspec->name,
+                                g_value_get_int(property_it->value));
+              break;
+            default:
+              GST_WARNING_OBJECT (self, "Invalid property type");
+              break;
+          }
+          priv->property_list->erase(property_it--);
+        }
+        break;
+      }
+    }
+  }
+
+  error = priv->engine->Start ();
+  if (error.IsError ()) {
+    goto error;
+  }
+
+  while (!priv->property_list->empty()) {
+    property = priv->property_list->front();
     switch (property.pspec->value_type) {
       case G_TYPE_STRING:
         GST_INFO_OBJECT (self, "Setting property: %s=%s\n", property.pspec->name,
@@ -264,7 +300,7 @@ gst_backend_start (GstBackend *self, const gchar *model_location, GError **err) 
     }
     g_param_spec_unref (property.pspec);
     g_free(property.value);
-    priv->property_queue->pop();
+    priv->property_list->pop_front();
   }
   priv->backend_started = true;
   g_mutex_unlock (&priv->backend_mutex);
