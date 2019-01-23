@@ -110,7 +110,7 @@ gst_backend_install_properties (GstBackendClass *klass,
 
 static int
 gst_backend_param_flags (int flags) {
-  int pflags = G_PARAM_STATIC_STRINGS;
+  int pflags = 0;
 
   if (r2i::ParameterMeta::Flags::READ & flags) {
     pflags += G_PARAM_READABLE;
