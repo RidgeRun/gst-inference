@@ -189,9 +189,23 @@ void
 gst_backend_get_property (GObject *object, guint property_id,
                           GValue *value, GParamSpec *pspec) {
   GstBackend *self = GST_BACKEND (object);
-
+  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+  int int_buffer;
+  std::string string_buffer;
   GST_DEBUG_OBJECT (self, "get_property");
 
+  if (NULL != priv->params ){
+    switch (pspec->value_type) {
+      case G_TYPE_STRING:
+        priv->params->Get (pspec->name, string_buffer);
+        g_value_set_enum (value, int_buffer);
+        break;
+      case G_TYPE_INT:
+        priv->params->Get (pspec->name, int_buffer);
+        g_value_set_string (value, string_buffer.c_str());
+        break;
+    }
+  }
 }
 
 gboolean
