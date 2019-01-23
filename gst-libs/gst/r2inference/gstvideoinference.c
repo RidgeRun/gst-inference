@@ -527,7 +527,12 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
   GST_LOG_OBJECT (self, "Forwarding buffer to %s:%s", GST_DEBUG_PAD_NAME (pad));
   ret = gst_pad_push (pad, gst_buffer_ref (buffer));
 
-  if (GST_FLOW_OK != ret) {
+  if (GST_FLOW_FLUSHING == ret || GST_FLOW_EOS == ret) {
+    GST_INFO_OBJECT (self, "Pad %s:%s returned: (%d) %s",
+        GST_DEBUG_PAD_NAME (pad), ret, gst_flow_get_name (ret));
+  }
+
+  else if (GST_FLOW_OK != ret) {
     GST_ERROR_OBJECT (self, "Pad %s:%s returned: (%d) %s",
         GST_DEBUG_PAD_NAME (pad), ret, gst_flow_get_name (ret));
   }
