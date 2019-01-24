@@ -31,11 +31,54 @@
 GST_DEBUG_CATEGORY_STATIC (gst_backend_debug_category);
 #define GST_CAT_DEFAULT gst_backend_debug_category
 
-typedef struct {
-  GValue *value;
-  GParamSpec *pspec;
-} InferenceProperty;
+class InferenceProperty {
+ private:
 
+  GValue *avalue;
+  GParamSpec *apspec;
+
+ public:
+
+  InferenceProperty() {
+  }
+
+  InferenceProperty(const GValue *value, GParamSpec *pspec) {
+    avalue = (GValue *) g_malloc(sizeof(GValue));
+    *avalue = G_VALUE_INIT;
+    avalue = g_value_init (avalue, pspec->value_type);
+    g_value_copy (value, avalue);
+    g_param_spec_ref (pspec);
+    apspec = pspec;
+  }
+
+  ~InferenceProperty() {
+    g_param_spec_unref (apspec);
+    g_free(avalue);
+  }
+
+  void apply_inference_property(GstBackend *self,
+                                std::shared_ptr<r2i::IParameters> params) {
+    switch (apspec->value_type) {
+      case G_TYPE_STRING:
+        GST_INFO_OBJECT (self, "Setting property: %s=%s\n", apspec->name,
+                         g_value_get_string(avalue));
+        params->Set(apspec->name, g_value_get_string(avalue));
+        break;
+      case G_TYPE_INT:
+        GST_INFO_OBJECT (self, "Setting property: %s=%d\n", apspec->name,
+                         g_value_get_int(avalue));
+        params->Set(apspec->name, g_value_get_int(avalue));
+        break;
+      default:
+        GST_WARNING_OBJECT (self, "Invalid property type");
+        break;
+    }
+  }
+
+  const gchar *get_name() {
+    return apspec->name;
+  }
+};
 
 typedef struct _GstBackendPrivate GstBackendPrivate;
 struct _GstBackendPrivate {
@@ -47,7 +90,7 @@ struct _GstBackendPrivate {
   std::unique_ptr < r2i::IFrameworkFactory > factory;
   GMutex backend_mutex;
   gboolean backend_started;
-  std::shared_ptr < std::list<InferenceProperty> > property_list;
+  std::shared_ptr < std::list<InferenceProperty *> > property_list;
 };
 
 G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
@@ -78,7 +121,7 @@ gst_backend_init (GstBackend *self) {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   g_mutex_init(&priv->backend_mutex);
   priv->backend_started = false;
-  priv->property_list = std::make_shared<std::list<InferenceProperty>>();
+  priv->property_list = std::make_shared<std::list<InferenceProperty *>>();
 }
 
 static void
@@ -155,7 +198,7 @@ gst_backend_set_property (GObject *object, guint property_id,
                           const GValue *value, GParamSpec *pspec) {
   GstBackend *self = GST_BACKEND (object);
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
-  GValue *value_copy;
+  InferenceProperty *property;
 
   GST_DEBUG_OBJECT (self, "set_property");
 
@@ -173,12 +216,8 @@ gst_backend_set_property (GObject *object, guint property_id,
         break;
     }
   } else {
-    value_copy = (GValue *) g_malloc(sizeof(GValue));
-    *value_copy = G_VALUE_INIT;
-    value_copy = g_value_init (value_copy, pspec->value_type);
-    g_value_copy (value, value_copy);
-    g_param_spec_ref (pspec);
-    priv->property_list->push_back({value_copy, pspec});
+    property = new InferenceProperty(value, pspec);
+    priv->property_list->push_back(property);
     GST_INFO_OBJECT (self, "Queueing property: %s\n", pspec->name);
   }
   g_mutex_unlock (&priv->backend_mutex);
@@ -213,8 +252,8 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
                    GError **err) {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   r2i::RuntimeError error;
-  InferenceProperty property;
-  std::list<InferenceProperty>::iterator property_it;
+  InferenceProperty *property;
+  std::list<InferenceProperty *>::iterator property_it;
   static std::vector<r2i::ParameterMeta> params;
   static std::vector<r2i::ParameterMeta>::iterator param_it;
 
@@ -264,26 +303,12 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
   g_mutex_lock (&priv->backend_mutex);
   for (property_it = priv->property_list->begin();
        property_it != priv->property_list->end(); ++property_it) {
+    property = *property_it;
     for (param_it = params.begin(); param_it != params.end(); ++param_it) {
-      if (!g_strcmp0(property_it->pspec->name, param_it->name.c_str())) {
+      if (!g_strcmp0(property->get_name(), param_it->name.c_str())) {
         if (r2i::ParameterMeta::Flags::WRITE_BEFORE_START & param_it->flags) {
-          switch (property_it->pspec->value_type) {
-            case G_TYPE_STRING:
-              GST_INFO_OBJECT (self, "Setting property: %s=%s\n", property_it->pspec->name,
-                               g_value_get_string(property_it->value));
-              priv->params->Set(property_it->pspec->name,
-                                g_value_get_string(property_it->value));
-              break;
-            case G_TYPE_INT:
-              GST_INFO_OBJECT (self, "Setting property: %s=%d\n", property_it->pspec->name,
-                               g_value_get_int(property.value));
-              priv->params->Set(property_it->pspec->name,
-                                g_value_get_int(property_it->value));
-              break;
-            default:
-              GST_WARNING_OBJECT (self, "Invalid property type");
-              break;
-          }
+          property->apply_inference_property(self, priv->params);
+          property->~InferenceProperty();
           priv->property_list->erase(property_it--);
         }
         break;
@@ -298,23 +323,8 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
 
   while (!priv->property_list->empty()) {
     property = priv->property_list->front();
-    switch (property.pspec->value_type) {
-      case G_TYPE_STRING:
-        GST_INFO_OBJECT (self, "Setting property: %s=%s\n", property.pspec->name,
-                         g_value_get_string(property.value));
-        priv->params->Set(property.pspec->name, g_value_get_string(property.value));
-        break;
-      case G_TYPE_INT:
-        GST_INFO_OBJECT (self, "Setting property: %s=%d\n", property.pspec->name,
-                         g_value_get_int(property.value));
-        priv->params->Set(property.pspec->name, g_value_get_int(property.value));
-        break;
-      default:
-        GST_WARNING_OBJECT (self, "Invalid property type");
-        break;
-    }
-    g_param_spec_unref (property.pspec);
-    g_free(property.value);
+    property->apply_inference_property(self, priv->params);
+    property->~InferenceProperty();
     priv->property_list->pop_front();
   }
   priv->backend_started = true;
