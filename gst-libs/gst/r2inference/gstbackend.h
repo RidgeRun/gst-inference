@@ -33,7 +33,6 @@ struct _GstBackendClass
 {
   GObjectClass parent_class;
 
-  GHashTable *props;
 };
 
 GQuark gst_backend_error_quark (void);
