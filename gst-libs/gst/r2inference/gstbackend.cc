@@ -194,7 +194,7 @@ gst_backend_get_property (GObject *object, guint property_id,
   std::string string_buffer;
   GST_DEBUG_OBJECT (self, "get_property");
 
-  if (NULL != priv->params ){
+  if (NULL != priv->params ) {
     switch (pspec->value_type) {
       case G_TYPE_STRING:
         priv->params->Get (pspec->name, string_buffer);
@@ -209,7 +209,8 @@ gst_backend_get_property (GObject *object, guint property_id,
 }
 
 gboolean
-gst_backend_start (GstBackend *self, const gchar *model_location, GError **err) {
+gst_backend_start (GstBackend *self, const gchar *model_location,
+                   GError **err) {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   r2i::RuntimeError error;
   InferenceProperty property;
@@ -322,8 +323,8 @@ gst_backend_start (GstBackend *self, const gchar *model_location, GError **err) 
   return TRUE;
 error:
   g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
-      "R2Inference Error: (Code:%d) %s", error.GetCode (),
-      error.GetDescription ().c_str ());
+               "R2Inference Error: (Code:%d) %s", error.GetCode (),
+               error.GetDescription ().c_str ());
   return FALSE;
 }
 
@@ -397,13 +398,12 @@ gst_backend_get_framework_code (GstBackend *backend) {
 }
 
 GQuark
-gst_backend_error_quark(void)
-{
+gst_backend_error_quark(void) {
   static GQuark q = 0;
 
   if (0 == q) {
     q = g_quark_from_static_string("gst-backend-error-quark");
   }
-  
+
   return q;
 }
