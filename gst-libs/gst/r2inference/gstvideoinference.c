@@ -43,7 +43,7 @@ GST_STATIC_PAD_TEMPLATE ("src_bypass",
 GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define GST_CAT_DEFAULT gst_video_inference_debug_category
 
-#define DEFAULT_BACKEND          0
+#define DEFAULT_BACKEND          1
 #define DEFAULT_MODEL_LOCATION   NULL
 
 enum
