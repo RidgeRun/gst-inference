@@ -57,17 +57,17 @@ class InferenceProperty {
   }
 
   void apply_inference_property(GstBackend *self,
-                                std::shared_ptr<r2i::IParameters> params) {
+                                std::shared_ptr<r2i::IParameters> params, r2i::RuntimeError &error) {
     switch (apspec->value_type) {
       case G_TYPE_STRING:
         GST_INFO_OBJECT (self, "Setting property: %s=%s\n", apspec->name,
                          g_value_get_string(avalue));
-        params->Set(apspec->name, g_value_get_string(avalue));
+        error = params->Set(apspec->name, g_value_get_string(avalue));
         break;
       case G_TYPE_INT:
         GST_INFO_OBJECT (self, "Setting property: %s=%d\n", apspec->name,
                          g_value_get_int(avalue));
-        params->Set(apspec->name, g_value_get_int(avalue));
+        error = params->Set(apspec->name, g_value_get_int(avalue));
         break;
       default:
         GST_WARNING_OBJECT (self, "Invalid property type");
@@ -264,39 +264,47 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
   priv->factory = r2i::IFrameworkFactory::MakeFactory (priv->code,
                   error);
   if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to start the backend library");
     goto error;
   }
 
   priv->engine = priv->factory->MakeEngine (error);
   if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to start the backend engine");
     goto error;
   }
 
   priv->loader = priv->factory->MakeLoader (error);
   if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to start the model loader");
     goto error;
   }
 
   priv->model = priv->loader->Load (model_location, error);
   if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to load model");
     goto error;
   }
 
   error = priv->engine->SetModel (priv->model);
   if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to set model to engine");
     goto error;
   }
 
   priv->params = priv->factory->MakeParameters (error);
   if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to set get parameters for backend");
     goto error;
   }
   error = priv->params->Configure(priv->engine, priv->model);
   if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to configure mode to backend");
     goto error;
   }
   error = priv->params->List (params);
   if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to list the backend parameters");
     goto error;
   }
 
@@ -307,9 +315,13 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
     for (param_it = params.begin(); param_it != params.end(); ++param_it) {
       if (!g_strcmp0(property->get_name(), param_it->name.c_str())) {
         if (r2i::ParameterMeta::Flags::WRITE_BEFORE_START & param_it->flags) {
-          property->apply_inference_property(self, priv->params);
+          property->apply_inference_property(self, priv->params, error);
           property->~InferenceProperty();
           priv->property_list->erase(property_it--);
+          if (error.IsError ()) {
+            GST_ERROR_OBJECT (self, "Failed to set backend parameters");
+            goto error;
+          }
         }
         break;
       }
@@ -318,20 +330,26 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
 
   error = priv->engine->Start ();
   if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to start the backend engine");
     goto error;
   }
 
   while (!priv->property_list->empty()) {
     property = priv->property_list->front();
-    property->apply_inference_property(self, priv->params);
+    property->apply_inference_property(self, priv->params, error);
     property->~InferenceProperty();
     priv->property_list->pop_front();
+    if (error.IsError ()) {
+      GST_ERROR_OBJECT (self, "Failed to set backend parameters");
+      goto error;
+    }
   }
   priv->backend_started = true;
   g_mutex_unlock (&priv->backend_mutex);
 
   return TRUE;
 error:
+  g_mutex_unlock (&priv->backend_mutex);
   g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
                "R2Inference Error: (Code:%d) %s", error.GetCode (),
                error.GetDescription ().c_str ());
