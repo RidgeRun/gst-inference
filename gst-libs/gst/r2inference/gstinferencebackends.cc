@@ -120,3 +120,16 @@ gst_inference_backends_get_string_properties (void)
 
   return backends_parameters;
 }
+
+guint16
+gst_inference_backends_get_default_backend (void)
+{
+  std::vector<r2i::FrameworkMeta> backends;
+  r2i::FrameworkCode code;
+  r2i::RuntimeError error;
+
+  backends = r2i::IFrameworkFactory::List (error);
+  code = backends.front().code;
+
+  return code;
+}
