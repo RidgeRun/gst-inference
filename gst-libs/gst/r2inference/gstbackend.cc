@@ -331,7 +331,7 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
   error = priv->engine->Start ();
   if (error.IsError ()) {
     GST_ERROR_OBJECT (self, "Failed to start the backend engine");
-    goto error;
+    goto start_error;
   }
 
   while (!priv->property_list->empty()) {
@@ -348,8 +348,10 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
   g_mutex_unlock (&priv->backend_mutex);
 
   return TRUE;
-error:
+
+start_error:
   g_mutex_unlock (&priv->backend_mutex);
+error:
   g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
                "R2Inference Error: (Code:%d) %s", error.GetCode (),
                error.GetDescription ().c_str ());
