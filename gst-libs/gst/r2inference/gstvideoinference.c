@@ -311,7 +311,6 @@ gst_video_inference_start (GstVideoInference * self)
   GError *err = NULL;
 
   GST_INFO_OBJECT (self, "Starting video inference");
-
   if (NULL == priv->model_location) {
     GST_ELEMENT_ERROR (self, RESOURCE, NOT_FOUND,
         ("Model Location has not been set"), (NULL));
@@ -339,9 +338,17 @@ static gboolean
 gst_video_inference_stop (GstVideoInference * self)
 {
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   gboolean ret = TRUE;
+  GError *err = NULL;
 
   GST_INFO_OBJECT (self, "Stopping video inference");
+
+  if (!gst_backend_stop (priv->backend, &err)) {
+    GST_ELEMENT_ERROR (self, LIBRARY, INIT,
+        ("Could not stop the selected backend: (%s)", err->message), (NULL));
+    ret = FALSE;
+  }
 
   if (klass->stop != NULL) {
     ret = klass->stop (self);

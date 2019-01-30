@@ -92,7 +92,7 @@ struct _GstBackendPrivate {
   gboolean backend_started;
   std::shared_ptr < std::list<InferenceProperty *> > property_list;
   gboolean backend_created;
-   
+
 };
 
 G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
@@ -358,6 +358,28 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
 
 start_error:
   g_mutex_unlock (&priv->backend_mutex);
+error:
+  g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
+               "R2Inference Error: (Code:%d) %s", error.GetCode (),
+               error.GetDescription ().c_str ());
+  return FALSE;
+}
+
+gboolean
+gst_backend_stop (GstBackend *self, GError **err) {
+  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+  r2i::RuntimeError error;
+
+  g_return_val_if_fail (priv, FALSE);
+  g_return_val_if_fail (err, FALSE);
+
+  error = priv->engine->Stop ();
+  if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to stop the backend engine");
+    goto error;
+  }
+  return TRUE;
+
 error:
   g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
                "R2Inference Error: (Code:%d) %s", error.GetCode (),

@@ -37,6 +37,7 @@ struct _GstBackendClass
 
 GQuark gst_backend_error_quark (void);
 gboolean gst_backend_start (GstBackend *, const gchar *, GError **);
+gboolean gst_backend_stop (GstBackend *, GError **);
 guint gst_backend_get_framework_code (GstBackend *);
 gboolean gst_backend_process_frame (GstBackend *, GstVideoFrame *,
                                     gpointer *, gsize *, GError **);
