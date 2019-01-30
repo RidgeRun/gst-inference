@@ -30,6 +30,7 @@ G_BEGIN_DECLS
 
 GType gst_inference_backends_get_type (void);
 gchar * gst_inference_backends_get_string_properties (void);
+guint16 gst_inference_backends_get_default_backend (void);
 GType gst_inference_backends_search_type (guint);
 
 G_END_DECLS

@@ -43,7 +43,6 @@ GST_STATIC_PAD_TEMPLATE ("src_bypass",
 GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define GST_CAT_DEFAULT gst_video_inference_debug_category
 
-#define DEFAULT_BACKEND          1
 #define DEFAULT_MODEL_LOCATION   NULL
 
 enum
@@ -159,9 +158,9 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
   g_free (backends_params);
 
   g_object_class_install_property (oclass, PROP_BACKEND,
-      g_param_spec_enum ("backend", "Backend",
-          backend_blurb, GST_TYPE_INFERENCE_BACKENDS, DEFAULT_BACKEND,
-          G_PARAM_READWRITE));
+      g_param_spec_enum ("backend", "Backend", backend_blurb,
+          GST_TYPE_INFERENCE_BACKENDS,
+          gst_inference_backends_get_default_backend (), G_PARAM_READWRITE));
 
   g_object_class_install_property (oclass, PROP_MODEL_LOCATION,
       g_param_spec_string ("model-location", "Model Location",
@@ -195,7 +194,8 @@ gst_video_inference_init (GstVideoInference * self)
 
   priv->model_location = g_strdup (DEFAULT_MODEL_LOCATION);
 
-  gst_video_inference_set_backend (self, DEFAULT_BACKEND);
+  gst_video_inference_set_backend (self,
+      gst_inference_backends_get_default_backend ());
 }
 
 static void
