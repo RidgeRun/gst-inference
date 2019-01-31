@@ -91,6 +91,8 @@ struct _GstBackendPrivate {
   GMutex backend_mutex;
   gboolean backend_started;
   std::shared_ptr < std::list<InferenceProperty *> > property_list;
+  gboolean backend_created;
+
 };
 
 G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
@@ -121,6 +123,7 @@ gst_backend_init (GstBackend *self) {
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   g_mutex_init(&priv->backend_mutex);
   priv->backend_started = false;
+  priv->backend_created = false;
   priv->property_list = std::make_shared<std::list<InferenceProperty *>>();
 }
 
@@ -261,51 +264,55 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
   g_return_val_if_fail (model_location, FALSE);
   g_return_val_if_fail (err, FALSE);
 
-  priv->factory = r2i::IFrameworkFactory::MakeFactory (priv->code,
-                  error);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Failed to start the backend library");
-    goto error;
-  }
 
-  priv->engine = priv->factory->MakeEngine (error);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Failed to start the backend engine");
-    goto error;
-  }
+  if (!priv->backend_created) {
+    priv->factory = r2i::IFrameworkFactory::MakeFactory (priv->code,
+                    error);
+    if (error.IsError ()) {
+      GST_ERROR_OBJECT (self, "Failed to start the backend library");
+      goto error;
+    }
 
-  priv->loader = priv->factory->MakeLoader (error);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Failed to start the model loader");
-    goto error;
-  }
+    priv->engine = priv->factory->MakeEngine (error);
+    if (error.IsError ()) {
+      GST_ERROR_OBJECT (self, "Failed to start the backend engine");
+      goto error;
+    }
 
-  priv->model = priv->loader->Load (model_location, error);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Failed to load model");
-    goto error;
-  }
+    priv->loader = priv->factory->MakeLoader (error);
+    if (error.IsError ()) {
+      GST_ERROR_OBJECT (self, "Failed to start the model loader");
+      goto error;
+    }
 
-  error = priv->engine->SetModel (priv->model);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Failed to set model to engine");
-    goto error;
-  }
+    priv->model = priv->loader->Load (model_location, error);
+    if (error.IsError ()) {
+      GST_ERROR_OBJECT (self, "Failed to load model");
+      goto error;
+    }
 
-  priv->params = priv->factory->MakeParameters (error);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Failed to set get parameters for backend");
-    goto error;
-  }
-  error = priv->params->Configure(priv->engine, priv->model);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Failed to configure mode to backend");
-    goto error;
-  }
-  error = priv->params->List (params);
-  if (error.IsError ()) {
-    GST_ERROR_OBJECT (self, "Failed to list the backend parameters");
-    goto error;
+    error = priv->engine->SetModel (priv->model);
+    if (error.IsError ()) {
+      GST_ERROR_OBJECT (self, "Failed to set model to engine");
+      goto error;
+    }
+
+    priv->params = priv->factory->MakeParameters (error);
+    if (error.IsError ()) {
+      GST_ERROR_OBJECT (self, "Failed to set get parameters for backend");
+      goto error;
+    }
+    error = priv->params->Configure(priv->engine, priv->model);
+    if (error.IsError ()) {
+      GST_ERROR_OBJECT (self, "Failed to configure mode to backend");
+      goto error;
+    }
+    error = priv->params->List (params);
+    if (error.IsError ()) {
+      GST_ERROR_OBJECT (self, "Failed to list the backend parameters");
+      goto error;
+    }
+    priv->backend_created = true;
   }
 
   g_mutex_lock (&priv->backend_mutex);
@@ -331,7 +338,7 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
   error = priv->engine->Start ();
   if (error.IsError ()) {
     GST_ERROR_OBJECT (self, "Failed to start the backend engine");
-    goto error;
+    goto start_error;
   }
 
   while (!priv->property_list->empty()) {
@@ -348,8 +355,32 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
   g_mutex_unlock (&priv->backend_mutex);
 
   return TRUE;
-error:
+
+start_error:
   g_mutex_unlock (&priv->backend_mutex);
+error:
+  g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
+               "R2Inference Error: (Code:%d) %s", error.GetCode (),
+               error.GetDescription ().c_str ());
+  return FALSE;
+}
+
+gboolean
+gst_backend_stop (GstBackend *self, GError **err) {
+  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+  r2i::RuntimeError error;
+
+  g_return_val_if_fail (priv, FALSE);
+  g_return_val_if_fail (err, FALSE);
+
+  error = priv->engine->Stop ();
+  if (error.IsError ()) {
+    GST_ERROR_OBJECT (self, "Failed to stop the backend engine");
+    goto error;
+  }
+  return TRUE;
+
+error:
   g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
                "R2Inference Error: (Code:%d) %s", error.GetCode (),
                error.GetDescription ().c_str ());
