@@ -47,11 +47,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_googlenet_debug_category);
 /* prototypes */
 #define CHANNELS 3
 
-const float GoogleNetMean[] = { 0.40787054 * 255.0,
-  0.45752458 * 255.0,
-  0.48109378 * 255.0
-};
-
 static void gst_googlenet_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
 static void gst_googlenet_get_property (GObject * object,
@@ -73,7 +68,7 @@ enum
 
 /* pad templates */
 
-#define CAPS "video/x-raw,format=BGR,width=224,height=224"
+#define CAPS "video/x-raw,format=BGR,width=299,height=299"
 
 static GstStaticPadTemplate sink_model_factory =
 GST_STATIC_PAD_TEMPLATE ("sink_model",
@@ -204,12 +199,14 @@ gst_googlenet_preprocess (GstVideoInference * vi,
 
   for (gint i = 0; i < size; i += CHANNELS) {
     /* BGR = RGB - Mean */
+
     ((gfloat *) outframe->data[0])[i + 0] =
-        (((guchar *) inframe->data[0])[i + 2]) - GoogleNetMean[0];
+        (((guchar *) inframe->data[0])[i + 0] - 128) / 128.0;
     ((gfloat *) outframe->data[0])[i + 1] =
-        (((guchar *) inframe->data[0])[i + 1]) - GoogleNetMean[1];
+        (((guchar *) inframe->data[0])[i + 1] - 128) / 128.0;
     ((gfloat *) outframe->data[0])[i + 2] =
-        (((guchar *) inframe->data[0])[i + 0]) - GoogleNetMean[2];
+        (((guchar *) inframe->data[0])[i + 2] - 128) / 128.0;
+
   }
 
   return TRUE;
