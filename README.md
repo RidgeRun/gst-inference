@@ -1,5 +1,6 @@
 # GstInference
 
-> A GStreamer deep learning inference framework.
+A GStreamer deep learning inference framework.
 
-Stay tuned for the official release!
+Please visit the official documentation hosted at:
+> http://developer.ridgerun.com/wiki/index.php?title=GstInference
