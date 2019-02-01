@@ -1,0 +1,54 @@
+GStreamer uses a *large* array of tools and libraries, most of which are
+optional. We have attempted to make sure that any code that depends on
+optional libraries doesn't get built unless you have those libraries. If
+you find this not to be the case, please, let us know by filing a bug
+report at http://bugzilla.gnome.org/.
+
+Required tools:
+===============
+
+An extra set of tools is required if you wish to build GStreamer
+from git (using autogen.sh):
+
+autoconf  >= 2.68   https://www.gnu.org/software/autoconf/
+automake  >= 1.11   https://www.gnu.org/software/automake/
+libtool   >= 2.2.6  https://www.gnu.org/software/libtool/
+pkgconfig >= 0.9.0  https://www.freedesktop.org/software/pkgconfig/
+
+Required libraries:
+===================
+
+Package:        GStreamer
+Version:        1.x (same 1.x version as this package)
+Recommended:    Latest 1.x
+URL:            http://gstreamer.freedesktop.org/
+DebianPackage:  libgstreamer1.0-dev
+Notes:          The required version is updated frequently, so the version
+                listed in this file is often out of date. If you are compiling
+                from git master, you will usually need GStreamer core and
+                gst-plugins-base from git master as well.
+
+Package:        GStreamer Base Plugins
+Version:        1.x (same 1.x version as this package)
+Recommended:    Latest 1.x
+URL:            http://gstreamer.freedesktop.org/
+DebianPackage:  libgstreamer-plugins-base1.0-dev
+Notes:          The required version is updated frequently, so the version
+                listed in this file is often out of date. If you are compiling
+                from git master, you will usually need GStreamer core and
+                gst-plugins-base from git master as well.
+
+
+Optional libraries:
+===================
+
+This file lists supporting libraries for which gst-plugins-good contains
+plugins, as well as their minimum required version. You can find the
+corresponding plugins in ext/(library)
+
+
+Optional (debian) packages:
+===========================
+
+gtk-doc-tools >= 1.12  -- needed to build documentation
+python-xml  -- needed to build plugin documentation

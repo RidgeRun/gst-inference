@@ -1,0 +1,56 @@
+# Editor backup
+*~
+*.bak
+\#*
+*.orig
+
+# Autotools cruft
+aclocal.m4
+autom4te.cache/
+compile
+config.guess
+config.h
+config.h.in
+config.status
+config.sub
+configure
+install-sh
+missing
+Makefile
+Makefile.in
+depcomp
+libtool
+ltmain.sh
+m4/
+.deps/
+.libs/
+stamp-h*
+autoregen.sh
+gstinference-*.pc
+
+# Build outputs
+.deps/
+.libs/
+*.la
+*.lo
+*.o
+
+# Git conflict files
+.merge_file_*
+
+# GtkDoc
+docs/version.entities
+
+# Tests 
+test-driver
+*.xml
+*.log
+*.trs
+
+# 3rd party tools
+.clang_complete
+cscope.files
+cscope.out
+
+# Examples
+

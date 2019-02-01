@@ -1,0 +1,15 @@
+<SECTION>
+<FILE>element-example</FILE>
+<TITLE>example</TITLE>
+GstExample
+<SUBSECTION Standard>
+GstExampleClass
+GST_EXAMPLE
+GST_EXAMPLE_CAST
+GST_IS_EXAMPLE
+GST_EXAMPLE_CLASS
+GST_IS_EXAMPLE_CLASS
+GST_TYPE_EXAMPLE
+<SUBSECTION Private>
+gst_example_get_type
+</SECTION>
