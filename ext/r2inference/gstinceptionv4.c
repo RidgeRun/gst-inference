@@ -20,17 +20,17 @@
  */
 
 /**
- * SECTION:element-gstgooglenet
+ * SECTION:element-gstinceptionv4
  *
- * The googlenet element allows the user to infer/execute a pretrained model
- * based on the GoogLeNet architecture on incoming image frames.
+ * The inceptionv4 element allows the user to infer/execute a pretrained model
+ * based on the GoogLeNet (Inception v4) architecture on incoming image frames.
  *
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch-1.0 -v videotestsrc ! googlenet ! xvimagesink
+ * gst-launch-1.0 -v videotestsrc ! inceptionv4 ! xvimagesink
  * ]|
- * Process video frames from the camera using a GoogLeNet model.
+ * Process video frames from the camera using a GoogLeNet (Inception v4) model.
  * </refsect2>
  */
 
@@ -38,28 +38,28 @@
 #include "config.h"
 #endif
 
-#include "gstgooglenet.h"
+#include "gstinceptionv4.h"
 #include <string.h>
 
-GST_DEBUG_CATEGORY_STATIC (gst_googlenet_debug_category);
-#define GST_CAT_DEFAULT gst_googlenet_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_inceptionv4_debug_category);
+#define GST_CAT_DEFAULT gst_inceptionv4_debug_category
 
 /* prototypes */
 #define CHANNELS 3
 
-static void gst_googlenet_set_property (GObject * object,
+static void gst_inceptionv4_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
-static void gst_googlenet_get_property (GObject * object,
+static void gst_inceptionv4_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
-static void gst_googlenet_dispose (GObject * object);
-static void gst_googlenet_finalize (GObject * object);
+static void gst_inceptionv4_dispose (GObject * object);
+static void gst_inceptionv4_finalize (GObject * object);
 
-static gboolean gst_googlenet_preprocess (GstVideoInference * vi,
+static gboolean gst_inceptionv4_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
-static gboolean gst_googlenet_postprocess (GstVideoInference * vi,
+static gboolean gst_inceptionv4_postprocess (GstVideoInference * vi,
     GstVideoFrame * outframe, const gpointer prediction, gsize predsize);
-static gboolean gst_googlenet_start (GstVideoInference * vi);
-static gboolean gst_googlenet_stop (GstVideoInference * vi);
+static gboolean gst_inceptionv4_start (GstVideoInference * vi);
+static gboolean gst_inceptionv4_stop (GstVideoInference * vi);
 
 enum
 {
@@ -84,24 +84,25 @@ GST_STATIC_PAD_TEMPLATE ("src_model",
     GST_STATIC_CAPS (CAPS)
     );
 
-struct _GstGooglenet
+struct _GstInceptionv4
 {
   GstVideoInference parent;
 };
 
-struct _GstGooglenetClass
+struct _GstInceptionv4Class
 {
   GstVideoInferenceClass parent;
 };
 
 /* class initialization */
 
-G_DEFINE_TYPE_WITH_CODE (GstGooglenet, gst_googlenet, GST_TYPE_VIDEO_INFERENCE,
-    GST_DEBUG_CATEGORY_INIT (gst_googlenet_debug_category, "googlenet", 0,
-        "debug category for googlenet element"));
+G_DEFINE_TYPE_WITH_CODE (GstInceptionv4, gst_inceptionv4,
+    GST_TYPE_VIDEO_INFERENCE,
+    GST_DEBUG_CATEGORY_INIT (gst_inceptionv4_debug_category, "inceptionv4", 0,
+        "debug category for inceptionv4 element"));
 
 static void
-gst_googlenet_class_init (GstGooglenetClass * klass)
+gst_inceptionv4_class_init (GstInceptionv4Class * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
@@ -112,35 +113,35 @@ gst_googlenet_class_init (GstGooglenetClass * klass)
   gst_element_class_add_static_pad_template (element_class, &src_model_factory);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-      "googlenet", "Filter",
-      "Infers incoming image frames using a pretrained GoogLeNet model",
+      "inceptionv4", "Filter",
+      "Infers incoming image frames using a pretrained GoogLeNet (Inception v4) model",
       "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
       "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
       "   Michael Gruner <michael.gruner@ridgerun.com>");
 
-  gobject_class->set_property = gst_googlenet_set_property;
-  gobject_class->get_property = gst_googlenet_get_property;
-  gobject_class->dispose = gst_googlenet_dispose;
-  gobject_class->finalize = gst_googlenet_finalize;
+  gobject_class->set_property = gst_inceptionv4_set_property;
+  gobject_class->get_property = gst_inceptionv4_get_property;
+  gobject_class->dispose = gst_inceptionv4_dispose;
+  gobject_class->finalize = gst_inceptionv4_finalize;
 
-  vi_class->start = GST_DEBUG_FUNCPTR (gst_googlenet_start);
-  vi_class->stop = GST_DEBUG_FUNCPTR (gst_googlenet_stop);
-  vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_googlenet_preprocess);
-  vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_googlenet_postprocess);
+  vi_class->start = GST_DEBUG_FUNCPTR (gst_inceptionv4_start);
+  vi_class->stop = GST_DEBUG_FUNCPTR (gst_inceptionv4_stop);
+  vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_inceptionv4_preprocess);
+  vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_inceptionv4_postprocess);
 }
 
 static void
-gst_googlenet_init (GstGooglenet * googlenet)
+gst_inceptionv4_init (GstInceptionv4 * inceptionv4)
 {
 }
 
 void
-gst_googlenet_set_property (GObject * object, guint property_id,
+gst_inceptionv4_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstGooglenet *googlenet = GST_GOOGLENET (object);
+  GstInceptionv4 *inceptionv4 = GST_INCEPTIONV4 (object);
 
-  GST_DEBUG_OBJECT (googlenet, "set_property");
+  GST_DEBUG_OBJECT (inceptionv4, "set_property");
 
   switch (property_id) {
     default:
@@ -150,12 +151,12 @@ gst_googlenet_set_property (GObject * object, guint property_id,
 }
 
 void
-gst_googlenet_get_property (GObject * object, guint property_id,
+gst_inceptionv4_get_property (GObject * object, guint property_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstGooglenet *googlenet = GST_GOOGLENET (object);
+  GstInceptionv4 *inceptionv4 = GST_INCEPTIONV4 (object);
 
-  GST_DEBUG_OBJECT (googlenet, "get_property");
+  GST_DEBUG_OBJECT (inceptionv4, "get_property");
 
   switch (property_id) {
     default:
@@ -165,31 +166,31 @@ gst_googlenet_get_property (GObject * object, guint property_id,
 }
 
 void
-gst_googlenet_dispose (GObject * object)
+gst_inceptionv4_dispose (GObject * object)
 {
-  GstGooglenet *googlenet = GST_GOOGLENET (object);
+  GstInceptionv4 *inceptionv4 = GST_INCEPTIONV4 (object);
 
-  GST_DEBUG_OBJECT (googlenet, "dispose");
+  GST_DEBUG_OBJECT (inceptionv4, "dispose");
 
   /* clean up as possible.  may be called multiple times */
 
-  G_OBJECT_CLASS (gst_googlenet_parent_class)->dispose (object);
+  G_OBJECT_CLASS (gst_inceptionv4_parent_class)->dispose (object);
 }
 
 void
-gst_googlenet_finalize (GObject * object)
+gst_inceptionv4_finalize (GObject * object)
 {
-  GstGooglenet *googlenet = GST_GOOGLENET (object);
+  GstInceptionv4 *inceptionv4 = GST_INCEPTIONV4 (object);
 
-  GST_DEBUG_OBJECT (googlenet, "finalize");
+  GST_DEBUG_OBJECT (inceptionv4, "finalize");
 
   /* clean up object here */
 
-  G_OBJECT_CLASS (gst_googlenet_parent_class)->finalize (object);
+  G_OBJECT_CLASS (gst_inceptionv4_parent_class)->finalize (object);
 }
 
 static gboolean
-gst_googlenet_preprocess (GstVideoInference * vi,
+gst_inceptionv4_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
   gint size;
@@ -213,7 +214,7 @@ gst_googlenet_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_googlenet_postprocess (GstVideoInference * vi,
+gst_inceptionv4_postprocess (GstVideoInference * vi,
     GstVideoFrame * outframe, const gpointer prediction, gsize predsize)
 {
   gint index;
@@ -238,17 +239,17 @@ gst_googlenet_postprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_googlenet_start (GstVideoInference * vi)
+gst_inceptionv4_start (GstVideoInference * vi)
 {
-  GST_INFO_OBJECT (vi, "Starting GoogLeNet");
+  GST_INFO_OBJECT (vi, "Starting Inception v4");
 
   return TRUE;
 }
 
 static gboolean
-gst_googlenet_stop (GstVideoInference * vi)
+gst_inceptionv4_stop (GstVideoInference * vi)
 {
-  GST_INFO_OBJECT (vi, "Stopping GoogLeNet");
+  GST_INFO_OBJECT (vi, "Stopping Inception v4");
 
   return TRUE;
 }
