@@ -1,7 +1,7 @@
 plugin_LTLIBRARIES = libgstinference.la
 
 libgstinference_la_SOURCES =		\
-	gstgooglenet.c 			\
+	gstinceptionv4.c 			\
 	gstinference.c			\
 	gsttinyyolo.c
 
@@ -35,5 +35,5 @@ libgstinference_la_LIBTOOLFLAGS = 	\
 	$(GST_PLUGIN_LIBTOOLFLAGS)
 
 noinst_HEADERS =			\
-	gstgooglenet.h			\
+	gstinceptionv4.h			\
 	gsttinyyolo.h

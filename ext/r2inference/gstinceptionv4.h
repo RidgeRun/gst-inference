@@ -19,15 +19,15 @@
  *
  */
 
-#ifndef _GST_GOOGLENET_H_
-#define _GST_GOOGLENET_H_
+#ifndef _GST_INCEPTIONV4_H_
+#define _GST_INCEPTIONV4_H_
 
 #include <gst/r2inference/gstvideoinference.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_GOOGLENET gst_googlenet_get_type ()
-G_DECLARE_FINAL_TYPE (GstGooglenet, gst_googlenet, GST, GOOGLENET, GstVideoInference)
+#define GST_TYPE_INCEPTIONV4 gst_inceptionv4_get_type ()
+G_DECLARE_FINAL_TYPE (GstInceptionv4, gst_inceptionv4, GST, INCEPTIONV4, GstVideoInference)
 
 G_END_DECLS
 
