@@ -11,8 +11,28 @@
 
 #include "gstinferencemeta.h"
 
+#include <gst/video/video.h>
+
+static void gst_inference_classification_meta_free (GstMeta * meta,
+    GstBuffer * buffer);
+static void gst_inference_detection_meta_free (GstMeta * meta,
+    GstBuffer * buffer);
+
+static void
+gst_inference_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
+{
+  GstClassificationMeta *class_meta = (GstClassificationMeta *) meta;
+
+  g_return_if_fail (meta != NULL);
+  g_return_if_fail (buffer != NULL);
+
+  if (class_meta->num_labels != 0) {
+    g_free (class_meta->label_probs);
+  }
+}
+
 GType
-gst_classification_meta_api_get_type (void)
+gst_inference_classification_meta_api_get_type (void)
 {
   static volatile GType type = 0;
   static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL };
@@ -33,15 +53,28 @@ gst_inference_classification_meta_get_info (void)
   if (g_once_init_enter (&classification_meta_info)) {
     const GstMetaInfo *meta =
         gst_meta_register (GST_CLASSIFICATION_META_API_TYPE,
-        "GstClassificationMeta", sizeof (GstClassificationMeta), NULL, NULL,
-        NULL);
+        "GstClassificationMeta", sizeof (GstClassificationMeta), NULL,
+        gst_inference_classification_meta_free, NULL);
     g_once_init_leave (&classification_meta_info, meta);
   }
   return classification_meta_info;
 }
 
+static void
+gst_inference_detection_meta_free (GstMeta * meta, GstBuffer * buffer)
+{
+  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta;
+
+  g_return_if_fail (meta != NULL);
+  g_return_if_fail (buffer != NULL);
+
+  if (detect_meta->num_boxes != 0) {
+    g_free (detect_meta->boxes);
+  }
+}
+
 GType
-gst_detection_meta_api_get_type (void)
+gst_inference_detection_meta_api_get_type (void)
 {
   static volatile GType type = 0;
   static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL };
@@ -62,7 +95,8 @@ gst_inference_detection_meta_get_info (void)
   if (g_once_init_enter (&detection_meta_info)) {
     const GstMetaInfo *meta =
         gst_meta_register (GST_DETECTION_META_API_TYPE, "GstDetectionMeta",
-        sizeof (GstDetectionMeta), NULL, NULL, NULL);
+        sizeof (GstDetectionMeta), NULL, gst_inference_detection_meta_free,
+        NULL);
     g_once_init_leave (&detection_meta_info, meta);
   }
   return detection_meta_info;

@@ -456,7 +456,7 @@ static gboolean
 gst_tinyyolo_postprocess (GstVideoInference * vi, GstMeta * meta,
     GstVideoFrame * outframe, const gpointer prediction, gsize predsize)
 {
-
+  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta;
   GST_LOG_OBJECT (vi, "Postprocess");
 
   print_top_predictions (prediction, outframe->info.width,
