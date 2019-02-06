@@ -47,6 +47,12 @@ GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 
 enum
 {
+  NEW_PREDICTION_SIGNAL,
+  LAST_SIGNAL
+};
+
+enum
+{
   PROP_0,
   PROP_BACKEND,
   PROP_MODEL_LOCATION
@@ -117,6 +123,8 @@ static void
 gst_video_inference_set_backend (GstVideoInference * self, gint backend);
 static guint gst_video_inference_get_backend_type (GstVideoInference * self);
 
+static guint gst_video_inference_signals[LAST_SIGNAL] = { 0 };
+
 G_DEFINE_TYPE_WITH_CODE (GstVideoInference, gst_video_inference,
     GST_TYPE_ELEMENT,
     GST_DEBUG_CATEGORY_INIT (gst_video_inference_debug_category,
@@ -166,6 +174,11 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
       g_param_spec_string ("model-location", "Model Location",
           "Path to the model to use", DEFAULT_MODEL_LOCATION,
           G_PARAM_READWRITE));
+
+  gst_video_inference_signals[NEW_PREDICTION_SIGNAL] =
+      g_signal_new ("new-prediction", G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_POINTER,
+      G_TYPE_POINTER);
 
   klass->start = NULL;
   klass->stop = NULL;
