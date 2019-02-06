@@ -39,6 +39,7 @@
 #endif
 
 #include "gstinceptionv4.h"
+#include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_inceptionv4_debug_category);
@@ -57,7 +58,8 @@ static void gst_inceptionv4_finalize (GObject * object);
 static gboolean gst_inceptionv4_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_inceptionv4_postprocess (GstVideoInference * vi,
-    GstVideoFrame * outframe, const gpointer prediction, gsize predsize);
+    GstMeta * meta, GstVideoFrame * outframe, const gpointer prediction,
+    gsize predsize);
 static gboolean gst_inceptionv4_start (GstVideoInference * vi);
 static gboolean gst_inceptionv4_stop (GstVideoInference * vi);
 
@@ -128,6 +130,7 @@ gst_inceptionv4_class_init (GstInceptionv4Class * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_inceptionv4_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_inceptionv4_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_inceptionv4_postprocess);
+  vi_class->inference_meta_info = gst_inference_detection_meta_get_info ();
 }
 
 static void
@@ -214,7 +217,7 @@ gst_inceptionv4_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_inceptionv4_postprocess (GstVideoInference * vi,
+gst_inceptionv4_postprocess (GstVideoInference * vi, GstMeta * meta,
     GstVideoFrame * outframe, const gpointer prediction, gsize predsize)
 {
   gint index;

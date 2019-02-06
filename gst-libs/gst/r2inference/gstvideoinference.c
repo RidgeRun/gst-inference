@@ -577,6 +577,7 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   gpointer prediction_data = NULL;
   gsize prediction_size;
   GError *err = NULL;
+  GstMeta *inference_meta;
 
   klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   priv = GST_VIDEO_INFERENCE_PRIVATE (self);
@@ -600,6 +601,8 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   outbuf =
       gst_buffer_new_allocate (NULL,
       gst_buffer_get_size (buffer) * sizeof (gfloat), &params);
+  inference_meta =
+      gst_buffer_add_meta (outbuf, klass->inference_meta_info, NULL);
   gst_video_frame_map (&inframe, &vininfo, buffer, GST_MAP_READ);
   gst_video_frame_map (&outframe, &vininfo, outbuf, GST_MAP_WRITE);
 
@@ -622,7 +625,8 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   }
 
   if (NULL != klass->postprocess) {
-    if (!klass->postprocess (self, &outframe, prediction_data, prediction_size)) {
+    if (!klass->postprocess (self, inference_meta, &outframe, prediction_data,
+            prediction_size)) {
       ret = FALSE;
       GST_ELEMENT_ERROR (self, STREAM, FAILED,
           ("Subclass failed at preprocess"), (NULL));

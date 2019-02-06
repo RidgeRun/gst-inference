@@ -39,6 +39,7 @@
 #endif
 
 #include "gsttinyyolo.h"
+#include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
@@ -82,7 +83,8 @@ static void gst_tinyyolo_finalize (GObject * object);
 static gboolean gst_tinyyolo_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_tinyyolo_postprocess (GstVideoInference * vi,
-    GstVideoFrame * outframe, const gpointer prediction, gsize predsize);
+    GstMeta * meta, GstVideoFrame * outframe, const gpointer prediction,
+    gsize predsize);
 static gboolean gst_tinyyolo_start (GstVideoInference * vi);
 static gboolean gst_tinyyolo_stop (GstVideoInference * vi);
 
@@ -172,6 +174,7 @@ gst_tinyyolo_class_init (GstTinyyoloClass * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_tinyyolo_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_tinyyolo_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_tinyyolo_postprocess);
+  vi_class->inference_meta_info = gst_inference_detection_meta_get_info ();
 }
 
 static void
@@ -450,7 +453,7 @@ gst_tinyyolo_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_tinyyolo_postprocess (GstVideoInference * vi,
+gst_tinyyolo_postprocess (GstVideoInference * vi, GstMeta * meta,
     GstVideoFrame * outframe, const gpointer prediction, gsize predsize)
 {
 
