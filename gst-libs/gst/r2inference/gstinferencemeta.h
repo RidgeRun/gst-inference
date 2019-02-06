@@ -25,12 +25,12 @@ G_BEGIN_DECLS
 typedef struct _BBox BBox;
 struct _BBox
 {
-  gint x;
-  gint y;
-  gint w;
-  gint h;
   gint label;
   gdouble prob;
+  gdouble x;
+  gdouble y;
+  gdouble width;
+  gdouble height;
 };
 
 /**
