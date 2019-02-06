@@ -178,7 +178,7 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
   gst_video_inference_signals[NEW_PREDICTION_SIGNAL] =
       g_signal_new ("new-prediction", G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_POINTER,
-      G_TYPE_POINTER);
+      GST_TYPE_BUFFER);
 
   klass->start = NULL;
   klass->stop = NULL;
@@ -578,12 +578,14 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   gsize prediction_size;
   GError *err = NULL;
   GstMeta *inference_meta;
+  gboolean valid_prediction;
 
   klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   priv = GST_VIDEO_INFERENCE_PRIVATE (self);
 
   outbuf = NULL;
   ret = TRUE;
+  valid_prediction = FALSE;
 
   if (NULL == klass->preprocess) {
     GST_ELEMENT_ERROR (self, STREAM, FAILED,
@@ -597,12 +599,42 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   gst_video_info_from_caps (&vininfo, pad_caps);
   gst_caps_unref (pad_caps);
 
+/*
+ * FIXME:
+ *
+ * This is a temporal hack in order to avoid buffers being unecessarily
+ * copied. It looks like a bug in GstCollectPads that needs to be submited.
+ * After a lot of debugging, I found that it is impossible for this buffer
+ * to have a refcount of 1 at this point since it is referenced by the core
+ * just before calling this function. What this means is that GStreamer will
+ * think another element besides us is using this buffer and, hence, is not
+ * writable. We temporaly unref the buffer to force it to 1,(no copy under
+ * this condition) and return the refcount to its original value.
+ *
+ * Note that this only occurs if we are trying to use the buffer that was
+ * just pushed into the pad. If we are queueing more than one buffer, we are
+ * safe since the buffer has the normal refcount of 1. On the other hand, if
+ * the buffer's refcount is really other than 2, then another element is
+ * indeed using the buffer and hence data will be copied.
+ *
+ * Really, please fix me!
+ *
+ */
+  if (GST_MINI_OBJECT_REFCOUNT_VALUE (buffer) == 2) {
+    gst_buffer_unref (buffer);
+    inference_meta =
+        gst_buffer_add_meta (buffer, klass->inference_meta_info, NULL);
+    gst_buffer_ref (buffer);
+  } else {
+    buffer = gst_buffer_make_writable (buffer);
+    inference_meta =
+        gst_buffer_add_meta (buffer, klass->inference_meta_info, NULL);
+  }
+
   gst_allocation_params_init (&params);
   outbuf =
       gst_buffer_new_allocate (NULL,
       gst_buffer_get_size (buffer) * sizeof (gfloat), &params);
-  inference_meta =
-      gst_buffer_add_meta (outbuf, klass->inference_meta_info, NULL);
   gst_video_frame_map (&inframe, &vininfo, buffer, GST_MAP_READ);
   gst_video_frame_map (&outframe, &vininfo, outbuf, GST_MAP_WRITE);
 
@@ -626,7 +658,7 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
 
   if (NULL != klass->postprocess) {
     if (!klass->postprocess (self, inference_meta, &outframe, prediction_data,
-            prediction_size)) {
+            prediction_size, &valid_prediction)) {
       ret = FALSE;
       GST_ELEMENT_ERROR (self, STREAM, FAILED,
           ("Subclass failed at preprocess"), (NULL));
@@ -639,6 +671,18 @@ free_frames:
     g_free (prediction_data);
   gst_video_frame_unmap (&outframe);
   gst_video_frame_unmap (&inframe);
+  if (valid_prediction) {
+    g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL], 0,
+        inference_meta, buffer);
+  } else {
+    if (GST_MINI_OBJECT_REFCOUNT_VALUE (buffer) == 2) {
+      gst_buffer_unref (buffer);
+      gst_buffer_remove_meta (buffer, inference_meta);
+      gst_buffer_ref (buffer);
+    } else {
+      gst_buffer_remove_meta (buffer, inference_meta);
+    }
+  }
   gst_buffer_unref (outbuf);
 out:
   if (err)
