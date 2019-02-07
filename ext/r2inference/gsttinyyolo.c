@@ -39,6 +39,7 @@
 #endif
 
 #include "gsttinyyolo.h"
+#include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
@@ -60,18 +61,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
 /* Intersection over union threshold */
 #define IOU_THRESH 0.30
 
-typedef struct _Box Box;
-struct _Box
-{
-  const gchar *label;
-  gdouble x_center;
-  gdouble y_center;
-  gdouble width;
-  gdouble height;
-  gdouble prob;
-};
-
-
 static void gst_tinyyolo_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
 static void gst_tinyyolo_get_property (GObject * object,
@@ -82,26 +71,26 @@ static void gst_tinyyolo_finalize (GObject * object);
 static gboolean gst_tinyyolo_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_tinyyolo_postprocess (GstVideoInference * vi,
-    GstVideoFrame * outframe, const gpointer prediction, gsize predsize);
+    GstMeta * meta, GstVideoFrame * outframe, const gpointer prediction,
+    gsize predsize, gboolean * valid_prediction);
 static gboolean gst_tinyyolo_start (GstVideoInference * vi);
 static gboolean gst_tinyyolo_stop (GstVideoInference * vi);
 
-static void print_box (Box in_box);
-
-static void print_top_predictions (gpointer prediction,
-    gint input_image_width, gint input_image_height);
+static void print_top_predictions (GstVideoInference * vi, gpointer prediction,
+    gint input_image_width, gint input_image_height, BBox * resulting_boxes,
+    gint * elements);
 static void get_boxes_from_prediction (gpointer prediction,
-    gint input_image_width, gint input_image_height,
-    Box * boxes, gint * elements);
+    gint input_image_width, gint input_image_height, BBox * boxes,
+    gint * elements);
 
-static void box_to_pixels (Box * normalized_box, gint row, gint col,
+static void box_to_pixels (BBox * normalized_box, gint row, gint col,
     gint image_width, gint image_height);
 
-static void remove_duplicated_boxes (Box * boxes, gint * num_boxes);
+static void remove_duplicated_boxes (BBox * boxes, gint * num_boxes);
 
-static void delete_box (Box * boxes, gint * num_boxes, gint index);
+static void delete_box (BBox * boxes, gint * num_boxes, gint index);
 
-static gdouble intersection_over_union (Box box_1, Box box_2);
+static gdouble intersection_over_union (BBox box_1, BBox box_2);
 
 enum
 {
@@ -172,6 +161,7 @@ gst_tinyyolo_class_init (GstTinyyoloClass * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_tinyyolo_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_tinyyolo_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_tinyyolo_postprocess);
+  vi_class->inference_meta_info = gst_inference_detection_meta_get_info ();
 }
 
 static void
@@ -234,42 +224,30 @@ gst_tinyyolo_finalize (GObject * object)
 }
 
 void
-print_box (Box in_box)
-{
-  g_print ("Box:");
-  g_print ("[class:'%s', ", in_box.label);
-  g_print ("x_center:%f, ", in_box.x_center);
-  g_print ("y_center:%f, ", in_box.y_center);
-  g_print ("width:%f, ", in_box.width);
-  g_print ("height:%f, ", in_box.height);
-  g_print ("prob:%f]\n", in_box.prob);
-}
-
-void
-box_to_pixels (Box * normalized_box, gint row, gint col, gint image_width,
+box_to_pixels (BBox * normalized_box, gint row, gint col, gint image_width,
     gint image_height)
 {
 
   /* adjust the box center according to its cell and grid dim */
-  normalized_box->x_center += col;
-  normalized_box->y_center += row;
-  normalized_box->x_center /= GRID_H;
-  normalized_box->y_center /= GRID_W;
+  normalized_box->x += col;
+  normalized_box->y += row;
+  normalized_box->x /= GRID_H;
+  normalized_box->y /= GRID_W;
 
   /* adjust the lengths and widths */
   normalized_box->width *= normalized_box->width;
   normalized_box->height *= normalized_box->height;
 
   /* scale the boxes to the image size in pixels */
-  normalized_box->x_center *= image_width;
-  normalized_box->y_center *= image_height;
+  normalized_box->x *= image_width;
+  normalized_box->y *= image_height;
   normalized_box->width *= image_width;
   normalized_box->height *= image_height;
 }
 
 void
 get_boxes_from_prediction (gpointer prediction, gint input_image_width,
-    gint input_image_height, Box * boxes, gint * elements)
+    gint input_image_height, BBox * boxes, gint * elements)
 {
 
   gint i;
@@ -283,12 +261,6 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
   gdouble box_prob;
   gdouble prob;
   gint counter = 0;
-
-  const gchar *labels[] = { "aeroplane", "bicycle", "bird", "boat", "bottle",
-    "bus", "car", "cat", "chair", "cow", "diningtable",
-    "dog", "horse", "motorbike", "person", "pottedplant",
-    "sheep", "sofa", "train", "tvmonitor"
-  };
 
   /* Iterate rows */
   for (i = 0; i < GRID_H; i++) {
@@ -304,18 +276,19 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
           prob = class_prob * box_prob;
           /* If the probability is over the threshold add it to the boxes list */
           if (prob > PROB_THRESH) {
-            Box result;
+            BBox result;
             index = ((i * GRID_W + j) * BOXES + b) * BOX_DIM;
-            result.label = labels[c];
-            result.x_center = ((gfloat *) prediction)[all_boxes_start + index];
-            result.y_center =
-                ((gfloat *) prediction)[all_boxes_start + index + 1];
+            result.label = c;
+            result.x = ((gfloat *) prediction)[all_boxes_start + index];
+            result.y = ((gfloat *) prediction)[all_boxes_start + index + 1];
             result.width = ((gfloat *) prediction)[all_boxes_start + index + 2];
             result.height =
                 ((gfloat *) prediction)[all_boxes_start + index + 3];
             result.prob = prob;
             box_to_pixels (&result, i, j, input_image_width,
                 input_image_height);
+            result.x = result.x - result.width * 0.5;
+            result.y = result.y - result.height * 0.5;
             boxes[counter] = result;
             counter = counter + 1;
           }
@@ -329,27 +302,33 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
 }
 
 void
-print_top_predictions (gpointer prediction,
-    gint input_image_width, gint input_image_height)
+print_top_predictions (GstVideoInference * vi, gpointer prediction,
+    gint input_image_width, gint input_image_height, BBox * resulting_boxes,
+    gint * elements)
 {
 
-  Box boxes[GRID_H * GRID_W * BOXES];
-  gint elements = 0;
+  BBox boxes[GRID_H * GRID_W * BOXES];
   gint index = 0;
+  *elements = 0;
 
   get_boxes_from_prediction (prediction, input_image_width, input_image_height,
-      boxes, &elements);
+      boxes, elements);
 
-  remove_duplicated_boxes (boxes, &elements);
+  remove_duplicated_boxes (boxes, elements);
 
-  for (index = 0; index < elements; index = index + 1) {
-    print_box (boxes[index]);
+  resulting_boxes = malloc (*elements * sizeof (BBox));
+  for (index = 0; index < *elements; index = index + 1) {
+    resulting_boxes[index] = boxes[index];
+    GST_LOG_OBJECT (vi,
+        "Box: [class:%d, x:%f, y:%f, width:%f, height:%f, prob:%f]",
+        boxes[index].label, boxes[index].x, boxes[index].y, boxes[index].width,
+        boxes[index].height, boxes[index].prob);
   }
 
 }
 
 gdouble
-intersection_over_union (Box box_1, Box box_2)
+intersection_over_union (BBox box_1, BBox box_2)
 {
 
   /*
@@ -363,16 +342,14 @@ intersection_over_union (Box box_1, Box box_2)
   gdouble union_area;
 
   /* First diminsion of the intersecting box */
-  intersection_dim_1 = MIN (box_1.x_center + 0.5 * box_1.width,
-      box_2.x_center + 0.5 * box_2.width) -
-      MAX (box_1.x_center - 0.5 * box_1.width,
-      box_2.x_center - 0.5 * box_2.width);
+  intersection_dim_1 =
+      MIN (box_1.x + box_1.width, box_2.x + box_2.width) - MAX (box_1.x,
+      box_2.x);
 
   /* Second dimension of the intersecting box */
-  intersection_dim_2 = MIN (box_1.y_center + 0.5 * box_1.height,
-      box_2.y_center + 0.5 * box_2.height) -
-      MAX (box_1.y_center - 0.5 * box_1.height,
-      box_2.y_center - 0.5 * box_2.height);
+  intersection_dim_2 =
+      MIN (box_1.y + box_1.height, box_2.y + box_2.height) - MAX (box_1.y,
+      box_2.y);
 
   if ((intersection_dim_1 < 0) || (intersection_dim_2 < 0)) {
     intersection_area = 0;
@@ -385,7 +362,7 @@ intersection_over_union (Box box_1, Box box_2)
 }
 
 void
-delete_box (Box * boxes, gint * num_boxes, gint index)
+delete_box (BBox * boxes, gint * num_boxes, gint index)
 {
 
   gint i, last_index;
@@ -399,7 +376,7 @@ delete_box (Box * boxes, gint * num_boxes, gint index)
 }
 
 void
-remove_duplicated_boxes (Box * boxes, gint * num_boxes)
+remove_duplicated_boxes (BBox * boxes, gint * num_boxes)
 {
 
   /* Remove duplicated boxes. A box is considered a duplicate if its
@@ -410,7 +387,7 @@ remove_duplicated_boxes (Box * boxes, gint * num_boxes)
 
   for (it1 = 0; it1 < *num_boxes - 1; it1++) {
     for (it2 = it1 + 1; it2 < *num_boxes; it2++) {
-      if (strcmp (boxes[it1].label, boxes[it2].label) == 0) {
+      if (boxes[it1].label == boxes[it2].label) {
         iou = intersection_over_union (boxes[it1], boxes[it2]);
         if (iou > IOU_THRESH) {
           if (boxes[it1].prob > boxes[it2].prob) {
@@ -450,14 +427,17 @@ gst_tinyyolo_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_tinyyolo_postprocess (GstVideoInference * vi,
-    GstVideoFrame * outframe, const gpointer prediction, gsize predsize)
+gst_tinyyolo_postprocess (GstVideoInference * vi, GstMeta * meta,
+    GstVideoFrame * outframe, const gpointer prediction, gsize predsize,
+    gboolean * valid_prediction)
 {
-
+  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta;
   GST_LOG_OBJECT (vi, "Postprocess");
+  detect_meta->num_boxes = 0;
 
-  print_top_predictions (prediction, outframe->info.width,
-      outframe->info.height);
+  print_top_predictions (vi, prediction, outframe->info.width,
+      outframe->info.height, detect_meta->boxes, &detect_meta->num_boxes);
+  *valid_prediction = (detect_meta->num_boxes > 0) ? TRUE : FALSE;
 
   return TRUE;
 }

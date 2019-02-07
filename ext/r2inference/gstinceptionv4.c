@@ -39,6 +39,7 @@
 #endif
 
 #include "gstinceptionv4.h"
+#include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_inceptionv4_debug_category);
@@ -57,7 +58,8 @@ static void gst_inceptionv4_finalize (GObject * object);
 static gboolean gst_inceptionv4_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_inceptionv4_postprocess (GstVideoInference * vi,
-    GstVideoFrame * outframe, const gpointer prediction, gsize predsize);
+    GstMeta * meta, GstVideoFrame * outframe, const gpointer prediction,
+    gsize predsize, gboolean * valid_prediction);
 static gboolean gst_inceptionv4_start (GstVideoInference * vi);
 static gboolean gst_inceptionv4_stop (GstVideoInference * vi);
 
@@ -128,6 +130,7 @@ gst_inceptionv4_class_init (GstInceptionv4Class * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_inceptionv4_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_inceptionv4_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_inceptionv4_postprocess);
+  vi_class->inference_meta_info = gst_inference_detection_meta_get_info ();
 }
 
 static void
@@ -214,27 +217,39 @@ gst_inceptionv4_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_inceptionv4_postprocess (GstVideoInference * vi,
-    GstVideoFrame * outframe, const gpointer prediction, gsize predsize)
+gst_inceptionv4_postprocess (GstVideoInference * vi, GstMeta * meta,
+    GstVideoFrame * outframe, const gpointer prediction, gsize predsize,
+    gboolean * valid_prediction)
 {
+  GstClassificationMeta *class_meta = (GstClassificationMeta *) meta;
   gint index;
-  gint size;
   gdouble max;
+  GstDebugLevel level;
   GST_LOG_OBJECT (vi, "Postprocess");
-  index = 0;
-  max = -1;
-  size = predsize / sizeof (gfloat);
 
-  for (gint i = 0; i < size; ++i) {
-    gfloat current = ((gfloat *) prediction)[i];
-    if (current > max) {
-      max = current;
-      index = i;
-    }
+  class_meta->num_labels = predsize / sizeof (gfloat);
+  class_meta->label_probs =
+      g_malloc (class_meta->num_labels * sizeof (gdouble));
+  for (gint i = 0; i < class_meta->num_labels; ++i) {
+    class_meta->label_probs[i] = (gdouble) ((gfloat *) prediction)[i];
   }
 
-  g_print ("Highest probability is label %i : (%f)\n", index, max);
+  /* Only compute the highest probability is label when debug >= 6 */
+  level = gst_debug_category_get_threshold (gst_inceptionv4_debug_category);
+  if (level >= GST_LEVEL_LOG) {
+    index = 0;
+    max = -1;
+    for (gint i = 0; i < class_meta->num_labels; ++i) {
+      gfloat current = ((gfloat *) prediction)[i];
+      if (current > max) {
+        max = current;
+        index = i;
+      }
+    }
+    GST_LOG_OBJECT (vi, "Highest probability is label %i : (%f)", index, max);
+  }
 
+  *valid_prediction = TRUE;
   return TRUE;
 }
 
