@@ -287,8 +287,8 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
             result.prob = prob;
             box_to_pixels (&result, i, j, input_image_width,
                 input_image_height);
-            result.x = result.x - result.width / 2.0;
-            result.y = result.y - result.height / 2.0;
+            result.x = result.x - result.width * 0.5;
+            result.y = result.y - result.height * 0.5;
             boxes[counter] = result;
             counter = counter + 1;
           }
@@ -342,14 +342,14 @@ intersection_over_union (BBox box_1, BBox box_2)
   gdouble union_area;
 
   /* First diminsion of the intersecting box */
-  intersection_dim_1 = MIN (box_1.x + 0.5 * box_1.width,
-      box_2.x + 0.5 * box_2.width) -
-      MAX (box_1.x - 0.5 * box_1.width, box_2.x - 0.5 * box_2.width);
+  intersection_dim_1 =
+      MIN (box_1.x + box_1.width, box_2.x + box_2.width) - MAX (box_1.x,
+      box_2.x);
 
   /* Second dimension of the intersecting box */
-  intersection_dim_2 = MIN (box_1.y + 0.5 * box_1.height,
-      box_2.y + 0.5 * box_2.height) -
-      MAX (box_1.y - 0.5 * box_1.height, box_2.y - 0.5 * box_2.height);
+  intersection_dim_2 =
+      MIN (box_1.y + box_1.height, box_2.y + box_2.height) - MAX (box_1.y,
+      box_2.y);
 
   if ((intersection_dim_1 < 0) || (intersection_dim_2 < 0)) {
     intersection_area = 0;
