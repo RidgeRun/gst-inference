@@ -465,9 +465,6 @@ gst_classification_handle_message (GstBus * bus, GstMessage * message,
 static gboolean
 onesecond_timer (gpointer priv)
 {
-  //GstClassification *classification = (GstClassification *)priv;
-
-  g_print (".\n");
 
   return TRUE;
 }
