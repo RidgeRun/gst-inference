@@ -8,4 +8,18 @@
 # a software license from RidgeRun.  All source code changes must be provided
 # back to RidgeRun without any encumbrance.
 
-SUBDIRS = classification
+if BUILD_EXAMPLES
+
+noinst_PROGRAMS =                  \
+        classification
+
+# sources used to compile this plug-in
+classification_SOURCES = gstclassification.c
+
+AM_CFLAGS =                        \
+        $(GST_CFLAGS)
+
+AM_LDFLAGS =                       \
+        $(GST_LIBS)
+
+endif # BUILD_EXAMPLES
