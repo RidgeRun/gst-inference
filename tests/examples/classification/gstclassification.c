@@ -187,12 +187,17 @@ gst_classification_create_pipeline (GstClassification * classification)
 
   pipe_desc = g_string_new ("");
 
-  g_string_append (pipe_desc, "videotestsrc name=source num-buffers=100 ! ");
-  g_string_append (pipe_desc, "timeoverlay ! ");
-  g_string_append (pipe_desc, "xvimagesink name=sink ");
+  g_string_append (pipe_desc, "inceptionv4 name=net ");
+  g_string_append (pipe_desc, "model-location=/home/user/graph.pb ");
+  g_string_append (pipe_desc, "backend::input-layer=input ");
   g_string_append (pipe_desc,
-      "audiotestsrc samplesperbuffer=1600 num-buffers=100 ! ");
-  g_string_append (pipe_desc, "alsasink ");
+      "backend::output-layer=InceptionV4/Logits/Predictions ");
+  g_string_append (pipe_desc, "filesrc location=/home/user/cat.mp4 ! ");
+  g_string_append (pipe_desc, "decodebin ! videoconvert ! videoscale ! ");
+  g_string_append (pipe_desc, "video/x-raw, width=299, heigth=299 ! ");
+  g_string_append (pipe_desc, "tee name=t t. ! queue ! videoconvert ! ");
+  g_string_append (pipe_desc, "videoscale ! net.sink_model t. ! queue ! ");
+  g_string_append (pipe_desc, "net.sink_bypass net.src_bypass ! fakesink");
 
   if (verbose)
     g_print ("pipeline: %s\n", pipe_desc->str);
@@ -214,10 +219,6 @@ gst_classification_create_pipeline (GstClassification * classification)
   gst_bus_add_watch (classification->bus, gst_classification_handle_message,
       classification);
 
-  classification->source_element =
-      gst_bin_get_by_name (GST_BIN (pipeline), "source");
-  classification->sink_element =
-      gst_bin_get_by_name (GST_BIN (pipeline), "sink");
 }
 
 void
