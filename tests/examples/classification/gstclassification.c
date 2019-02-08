@@ -41,8 +41,7 @@ struct _GstClassification
   GstBus *bus;
   GMainLoop *main_loop;
 
-  GstElement *source_element;
-  GstElement *sink_element;
+  GstElement *inference_element;
 
   gboolean paused_for_buffering;
   guint timer_id;
@@ -128,13 +127,9 @@ gst_classification_new (void)
 void
 gst_classification_free (GstClassification * classification)
 {
-  if (classification->source_element) {
-    gst_object_unref (classification->source_element);
-    classification->source_element = NULL;
-  }
-  if (classification->sink_element) {
-    gst_object_unref (classification->sink_element);
-    classification->sink_element = NULL;
+  if (classification->inference_element) {
+    gst_object_unref (classification->inference_element);
+    classification->inference_element = NULL;
   }
 
   if (classification->pipeline) {
@@ -170,12 +165,15 @@ gst_classification_create_pipeline_playbin (GstClassification * classification,
   gst_bus_add_watch (classification->bus, gst_classification_handle_message,
       classification);
 
-  classification->source_element =
-      gst_bin_get_by_name (GST_BIN (pipeline), "source");
-  g_print ("source_element is %p\n", classification->source_element);
+}
 
-  g_print ("setting uri to %s\n", uri);
-  g_object_set (classification->source_element, "uri", uri, NULL);
+static void
+process_inference (GstElement * element, gpointer inference_meta,
+    GstBuffer * buffer, gpointer user_data)
+{
+
+  g_print ("Inference signal detected\n");
+
 }
 
 void
@@ -218,6 +216,12 @@ gst_classification_create_pipeline (GstClassification * classification)
   classification->bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
   gst_bus_add_watch (classification->bus, gst_classification_handle_message,
       classification);
+
+  classification->inference_element =
+      gst_bin_get_by_name (GST_BIN (pipeline), "net");
+
+  g_signal_connect (classification->inference_element, "new-prediction",
+      G_CALLBACK (process_inference), NULL);
 
 }
 
