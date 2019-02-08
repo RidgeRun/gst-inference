@@ -316,7 +316,7 @@ dnl FIXME: do we want to rename to GST_ALL_* ?
 dnl prefer internal headers to already installed ones
 dnl also add builddir include for enumtypes and marshal
 dnl add ERROR_CFLAGS, but overridable
-GST_CFLAGS="$GST_CFLAGS -DGST_USE_UNSTABLE_API -Wno-error=missing-include-dirs"
+GST_CFLAGS="-I\$(top_srcdir)/gst-libs $GST_CFLAGS -DGST_USE_UNSTABLE_API -Wno-error=missing-include-dirs"
 GST_CXXFLAGS="-I\$(top_srcdir)/gst-libs $GST_CFLAGS $GLIB_EXTRA_CFLAGS \$(GST_OPTION_CXXFLAGS)"
 GST_OBJCFLAGS="-I\$(top_srcdir)/gst-libs $GST_CFLAGS $GLIB_EXTRA_CFLAGS \$(GST_OPTION_OBJCFLAGS)"
 GST_CFLAGS="-I\$(top_srcdir)/gst-libs $GST_CFLAGS $GLIB_EXTRA_CFLAGS \$(GST_OPTION_CFLAGS)"

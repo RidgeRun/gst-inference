@@ -31,6 +31,8 @@
 #include <gst/gst.h>
 #include <stdlib.h>
 
+#include "gst/r2inference/gstinferencemeta.h"
+
 #define GETTEXT_PACKAGE "classification"
 
 
@@ -172,7 +174,23 @@ process_inference (GstElement * element, gpointer inference_meta,
     GstBuffer * buffer, gpointer user_data)
 {
 
-  g_print ("Inference signal detected\n");
+  GstClassificationMeta *class_meta;
+  gdouble current;
+  gint index;
+  gdouble max;
+
+  class_meta = (GstClassificationMeta *) inference_meta;
+  index = 0;
+  max = -1;
+
+  for (gint i = 0; i < class_meta->num_labels; ++i) {
+    current = (class_meta->label_probs)[i];
+    if (current > max) {
+      max = current;
+      index = i;
+    }
+  }
+  g_print ("Highest probability is label %i : (%f) \n", index, max);
 
 }
 
