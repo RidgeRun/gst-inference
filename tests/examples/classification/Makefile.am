@@ -16,10 +16,11 @@ noinst_PROGRAMS =                  \
 # sources used to compile this plug-in
 classification_SOURCES = gstclassification.c
 
-AM_CFLAGS =                        \
+AM_CFLAGS =                         \
+        -I\$(top_srcdir)/gst-libs   \
         $(GST_CFLAGS)
 
-AM_LDFLAGS =                       \
+AM_LDFLAGS =                        \
         $(GST_LIBS)
 
 endif # BUILD_EXAMPLES

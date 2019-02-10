@@ -8,4 +8,10 @@
 # a software license from RidgeRun.  All source code changes must be provided
 # back to RidgeRun without any encumbrance.
 
-SUBDIRS = classification
+if BUILD_EXAMPLES
+CLASSIFICATION_DIR=classification
+else
+CLASSIFICATION_DIR=
+endif
+
+SUBDIRS = $(CLASSIFICATION_DIR)
