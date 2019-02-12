@@ -240,11 +240,11 @@ gst_backend_get_property (GObject *object, guint property_id,
     switch (pspec->value_type) {
       case G_TYPE_STRING:
         priv->params->Get (pspec->name, string_buffer);
-        g_value_set_enum (value, int_buffer);
+        g_value_set_string (value, string_buffer.c_str());
         break;
       case G_TYPE_INT:
         priv->params->Get (pspec->name, int_buffer);
-        g_value_set_string (value, string_buffer.c_str());
+        g_value_set_int (value, int_buffer);
         break;
     }
   }
