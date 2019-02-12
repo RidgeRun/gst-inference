@@ -266,6 +266,8 @@ echo
 
 AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun's Inference Framework], gstinference, [
   AG_GST_PKG_CHECK_MODULES(R2INFERENCE, r2inference-0.0)
+],[],[],[
+  AC_MSG_ERROR([Please install R2Inference from https://github.com/RidgeRun/r2inference.git])
 ])
 
 else
