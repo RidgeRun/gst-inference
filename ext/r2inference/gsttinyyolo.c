@@ -77,7 +77,7 @@ static gboolean gst_tinyyolo_start (GstVideoInference * vi);
 static gboolean gst_tinyyolo_stop (GstVideoInference * vi);
 
 static void print_top_predictions (GstVideoInference * vi, gpointer prediction,
-    gint input_image_width, gint input_image_height, BBox * resulting_boxes,
+    gint input_image_width, gint input_image_height, BBox ** resulting_boxes,
     gint * elements);
 static void get_boxes_from_prediction (gpointer prediction,
     gint input_image_width, gint input_image_height, BBox * boxes,
@@ -303,7 +303,7 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
 
 void
 print_top_predictions (GstVideoInference * vi, gpointer prediction,
-    gint input_image_width, gint input_image_height, BBox * resulting_boxes,
+    gint input_image_width, gint input_image_height, BBox ** resulting_boxes,
     gint * elements)
 {
 
@@ -316,15 +316,14 @@ print_top_predictions (GstVideoInference * vi, gpointer prediction,
 
   remove_duplicated_boxes (boxes, elements);
 
-  resulting_boxes = malloc (*elements * sizeof (BBox));
-  for (index = 0; index < *elements; index = index + 1) {
-    resulting_boxes[index] = boxes[index];
+  *resulting_boxes = malloc (*elements * sizeof (BBox));
+  memcpy (*resulting_boxes, boxes, *elements * sizeof (BBox));
+  for (index = 0; index < *elements; index++) {
     GST_LOG_OBJECT (vi,
         "Box: [class:%d, x:%f, y:%f, width:%f, height:%f, prob:%f]",
         boxes[index].label, boxes[index].x, boxes[index].y, boxes[index].width,
         boxes[index].height, boxes[index].prob);
   }
-
 }
 
 gdouble
@@ -436,7 +435,7 @@ gst_tinyyolo_postprocess (GstVideoInference * vi, GstMeta * meta,
   detect_meta->num_boxes = 0;
 
   print_top_predictions (vi, prediction, outframe->info.width,
-      outframe->info.height, detect_meta->boxes, &detect_meta->num_boxes);
+      outframe->info.height, &detect_meta->boxes, &detect_meta->num_boxes);
   *valid_prediction = (detect_meta->num_boxes > 0) ? TRUE : FALSE;
 
   return TRUE;
