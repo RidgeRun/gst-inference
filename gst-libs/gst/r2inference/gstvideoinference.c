@@ -552,6 +552,7 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
     GstBuffer * buffer, GstPad * pad)
 {
   GstFlowReturn ret = GST_FLOW_OK;
+  GstDebugLevel level = GST_LEVEL_LOG;
 
   /* User didn't request this pad */
   if (NULL == pad) {
@@ -564,10 +565,13 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
       "Forwarding buffer %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, buffer, pad);
   ret = gst_pad_push (pad, gst_buffer_ref (buffer));
 
-  if (GST_FLOW_OK != ret) {
-    GST_ERROR_OBJECT (self, "Pad %" GST_PTR_FORMAT " returned: (%d) %s",
-        pad, ret, gst_flow_get_name (ret));
+  if (GST_FLOW_OK != ret && GST_FLOW_FLUSHING != ret && GST_FLOW_EOS != ret) {
+    level = GST_LEVEL_ERROR;
   }
+
+  GST_CAT_LEVEL_LOG (GST_CAT_DEFAULT, level, self,
+      "Pad %" GST_PTR_FORMAT " returned: (%d) %s", pad, ret,
+      gst_flow_get_name (ret));
 
   return ret;
 }
