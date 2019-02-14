@@ -9,9 +9,18 @@
 # back to RidgeRun without any encumbrance.
 
 if BUILD_EXAMPLES
-CLASSIFICATION_DIR=classification
-else
-CLASSIFICATION_DIR=
-endif
 
-SUBDIRS = $(CLASSIFICATION_DIR)
+noinst_PROGRAMS =                  \
+        classification
+
+# sources used to compile this plug-in
+classification_SOURCES = gstclassification.c
+
+AM_CFLAGS =                         \
+        -I\$(top_srcdir)/gst-libs   \
+        $(GST_CFLAGS)
+
+AM_LDFLAGS =                        \
+        $(GST_LIBS)
+
+endif # BUILD_EXAMPLES

@@ -356,6 +356,7 @@ ext/Makefile
 ext/r2inference/Makefile
 tests/Makefile
 tests/check/Makefile
+tests/examples/classification/Makefile
 tests/examples/Makefile
 tests/files/Makefile
 )
