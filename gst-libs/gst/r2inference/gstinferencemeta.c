@@ -17,6 +17,8 @@ static void gst_inference_classification_meta_free (GstMeta * meta,
     GstBuffer * buffer);
 static void gst_inference_detection_meta_free (GstMeta * meta,
     GstBuffer * buffer);
+static gboolean gst_inference_meta_init (GstMeta * meta, gpointer params,
+    GstBuffer * buffer);
 
 static void
 gst_inference_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
@@ -53,7 +55,8 @@ gst_inference_classification_meta_get_info (void)
   if (g_once_init_enter (&classification_meta_info)) {
     const GstMetaInfo *meta =
         gst_meta_register (GST_CLASSIFICATION_META_API_TYPE,
-        "GstClassificationMeta", sizeof (GstClassificationMeta), NULL,
+        "GstClassificationMeta", sizeof (GstClassificationMeta),
+        gst_inference_meta_init,
         gst_inference_classification_meta_free, NULL);
     g_once_init_leave (&classification_meta_info, meta);
   }
@@ -95,9 +98,16 @@ gst_inference_detection_meta_get_info (void)
   if (g_once_init_enter (&detection_meta_info)) {
     const GstMetaInfo *meta =
         gst_meta_register (GST_DETECTION_META_API_TYPE, "GstDetectionMeta",
-        sizeof (GstDetectionMeta), NULL, gst_inference_detection_meta_free,
+        sizeof (GstDetectionMeta), gst_inference_meta_init,
+        gst_inference_detection_meta_free,
         NULL);
     g_once_init_leave (&detection_meta_info, meta);
   }
   return detection_meta_info;
+}
+
+static gboolean
+gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
+{
+  return TRUE;
 }
