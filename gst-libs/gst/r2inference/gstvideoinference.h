@@ -28,7 +28,8 @@
 G_BEGIN_DECLS
 
 #define GST_TYPE_VIDEO_INFERENCE gst_video_inference_get_type ()
-G_DECLARE_DERIVABLE_TYPE(GstVideoInference, gst_video_inference, GST, VIDEO_INFERENCE, GstElement);
+G_DECLARE_DERIVABLE_TYPE(GstVideoInference, gst_video_inference, GST,
+  VIDEO_INFERENCE, GstElement);
 
 struct _GstVideoInferenceClass
 {
@@ -38,9 +39,8 @@ struct _GstVideoInferenceClass
   gboolean (* stop) (GstVideoInference *self);
   gboolean (* preprocess) (GstVideoInference *self, GstVideoFrame *inframe,
     GstVideoFrame *outframe);
-  gboolean (* postprocess) (GstVideoInference *self, GstMeta *meta, 
-    GstVideoFrame *outframe, const gpointer prediction, gsize size,
-    gboolean * valid_prediction);
+  gboolean (* postprocess) (GstVideoInference *self, const gpointer prediction,
+    gsize size, GstMeta *meta_model, GstVideoInfo *info_model, gboolean *valid_prediction);
 
   const GstMetaInfo *inference_meta_info;
 };

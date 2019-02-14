@@ -70,9 +70,10 @@ static void gst_tinyyolo_finalize (GObject * object);
 
 static gboolean gst_tinyyolo_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
-static gboolean gst_tinyyolo_postprocess (GstVideoInference * vi,
-    GstMeta * meta, GstVideoFrame * outframe, const gpointer prediction,
-    gsize predsize, gboolean * valid_prediction);
+static gboolean
+gst_tinyyolo_postprocess (GstVideoInference * vi, const gpointer prediction,
+    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
+    gboolean * valid_prediction);
 static gboolean gst_tinyyolo_start (GstVideoInference * vi);
 static gboolean gst_tinyyolo_stop (GstVideoInference * vi);
 
@@ -426,16 +427,16 @@ gst_tinyyolo_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_tinyyolo_postprocess (GstVideoInference * vi, GstMeta * meta,
-    GstVideoFrame * outframe, const gpointer prediction, gsize predsize,
+gst_tinyyolo_postprocess (GstVideoInference * vi, const gpointer prediction,
+    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
-  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta;
+  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
   GST_LOG_OBJECT (vi, "Postprocess");
   detect_meta->num_boxes = 0;
 
-  print_top_predictions (vi, prediction, outframe->info.width,
-      outframe->info.height, &detect_meta->boxes, &detect_meta->num_boxes);
+  print_top_predictions (vi, prediction, info_model->width,
+      info_model->height, &detect_meta->boxes, &detect_meta->num_boxes);
   *valid_prediction = (detect_meta->num_boxes > 0) ? TRUE : FALSE;
 
   return TRUE;
