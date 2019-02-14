@@ -521,7 +521,7 @@ gst_video_inference_release_pad (GstElement * element, GstPad * pad)
   GstPad **ourpad;
   GstCollectData **data;
 
-  GST_INFO_OBJECT (self, "Removing %s:%s", GST_DEBUG_PAD_NAME (pad));
+  GST_INFO_OBJECT (self, "Removing %" GST_PTR_FORMAT, pad);
 
   if (pad == priv->sink_bypass) {
     ourpad = &priv->sink_bypass;
@@ -560,13 +560,13 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
     return ret;
   }
 
-  GST_LOG_OBJECT (self, "Forwarding buffer %" GST_PTR_FORMAT " to %s:%s",
-      buffer, GST_DEBUG_PAD_NAME (pad));
+  GST_LOG_OBJECT (self,
+      "Forwarding buffer %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, buffer, pad);
   ret = gst_pad_push (pad, gst_buffer_ref (buffer));
 
   if (GST_FLOW_OK != ret) {
-    GST_ERROR_OBJECT (self, "Pad %s:%s returned: (%d) %s",
-        GST_DEBUG_PAD_NAME (pad), ret, gst_flow_get_name (ret));
+    GST_ERROR_OBJECT (self, "Pad %" GST_PTR_FORMAT " returned: (%d) %s",
+        pad, ret, gst_flow_get_name (ret));
   }
 
   return ret;
@@ -766,8 +766,7 @@ gst_video_inference_pop_buffer (GstVideoInference * self,
 
   *buffer = gst_collect_pads_pop (cpads, data);
   if (NULL == *buffer) {
-    GST_INFO_OBJECT (self, "EOS requested on %s:%s",
-        GST_DEBUG_PAD_NAME (data->pad));
+    GST_INFO_OBJECT (self, "EOS requested on %" GST_PTR_FORMAT, data->pad);
     return GST_FLOW_EOS;
   }
 
@@ -887,18 +886,18 @@ gst_video_inference_sink_event (GstCollectPads * pads, GstCollectData * pad,
   srcpad = gst_video_inference_get_src_pad (self, priv, pad->pad);
 
   if (NULL != srcpad) {
-    GST_LOG_OBJECT (self, "Forwarding event %s from %s:%s",
-        GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (pad->pad));
+    GST_LOG_OBJECT (self, "Forwarding event %s from %" GST_PTR_FORMAT,
+        GST_EVENT_TYPE_NAME (event), pad->pad);
     /* Collect pads will decrease the refcount of the event when we return */
     gst_event_ref (event);
     if (FALSE == gst_pad_push_event (srcpad, event)) {
-      GST_ERROR_OBJECT (self, "Event %s failed in %s:%s",
-          GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (srcpad));
+      GST_ERROR_OBJECT (self, "Event %s failed in %" GST_PTR_FORMAT,
+          GST_EVENT_TYPE_NAME (event), srcpad);
       goto out;
     }
   } else {
-    GST_LOG_OBJECT (self, "Dropping event %s from %s:%s",
-        GST_EVENT_TYPE_NAME (event), GST_DEBUG_PAD_NAME (pad->pad));
+    GST_LOG_OBJECT (self, "Dropping event %s from %" GST_PTR_FORMAT,
+        GST_EVENT_TYPE_NAME (event), pad->pad);
   }
 
   ret = gst_collect_pads_event_default (priv->cpads, pad, event, FALSE);
