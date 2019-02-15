@@ -266,7 +266,15 @@ echo
 AC_MSG_NOTICE([Checking libraries for plugins in ext/])
 echo
 
-AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun's Inference Framework], gstinference, [
+dnl *** opencv ***
+OPENCV_REQ=2.3.1
+translit(dnm, m, l) AM_CONDITIONAL(USE_OPENCV, true)
+AG_GST_CHECK_FEATURE(OPENCV, [OpenCV computer vision library], opencv, [
+  AG_GST_PKG_CHECK_MODULES(OPENCV, opencv >= $OPENCV_REQ )
+])
+
+dnl *** r2inference ***
+AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun\'s Inference Framework], r2inference, [
   AG_GST_PKG_CHECK_MODULES(R2INFERENCE, r2inference-0.0)
 ],[],[],[
   AC_MSG_ERROR([Please install R2Inference from https://github.com/RidgeRun/r2inference.git])

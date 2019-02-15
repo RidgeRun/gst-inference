@@ -19,6 +19,7 @@ libgstinferenceoverlay_la_CXXFLAGS =		\
 	$(GST_PLUGINS_BASE_CFLAGS)	\
 	$(GST_VIDEO_CFLAGS)	\
 	$(R2INFERENCE_CFLAGS)			\
+	$(OPENCV_CFLAGS)			\
 	-std=c++11
 
 
@@ -26,7 +27,8 @@ libgstinferenceoverlay_la_LIBADD =		\
 	$(GST_LIBS)			\
 	$(GST_BASE_LIBS)		\
 	$(GST_PLUGINS_BASE_LIBS)	\
-	$(GST_VIDEO_LIBS)	\
+	$(GST_VIDEO_LIBS)\
+	$(OPENCV_LIBS)	\
 	$(R2INFERENCE_LIBS)
 
 libgstinferenceoverlay_la_LDFLAGS = 		\
