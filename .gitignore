@@ -40,6 +40,17 @@ gstinference-*.pc
 
 # GtkDoc
 docs/version.entities
+docs/plugins/*.txt
+docs/plugins/*.sgml
+docs/plugins/*.new
+docs/plugins/*.args
+docs/plugins/*.hierarchy
+docs/plugins/*.interfaces
+docs/plugins/*.prerequisites
+docs/plugins/*.signals
+docs/plugins/*.stamp
+docs/plugins/html/
+docs/plugins/xml/
 
 # Tests 
 test-driver
