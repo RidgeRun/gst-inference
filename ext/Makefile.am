@@ -10,12 +10,12 @@ else
 OPENCV_DIR =
 endif
 
-SUBDIRS = \
-  $(R2INFERENCE_DIR) \
-  $(OPENCV_DIR)
+SUBDIRS =				\
+	$(R2INFERENCE_DIR)		\
+	$(OPENCV_DIR)
 
-DIST_SUBDIRS = \
-  r2inference \
-  opencv
+DIST_SUBDIRS =				\
+	r2inference			\
+	opencv
 
 include $(top_srcdir)/common/parallel-subdirs.mak
