@@ -602,9 +602,13 @@ video_inference_map_buffers (GstPad * pad, GstBuffer * inbuf,
   size = gst_buffer_get_size (inbuf);
   outbuf = gst_buffer_new_allocate (NULL, size * sizeof (float), &params);
 
-  /* Map buffers into their respective output frames */
-  gst_video_frame_map (inframe, &info, inbuf, GST_MAP_READ);
-  gst_video_frame_map (outframe, &info, outbuf, GST_MAP_WRITE);
+  /* Map buffers into their respective output frames but dont increase
+   * the refcount so we can add metas later on.
+   */
+  gst_video_frame_map (inframe, &info, inbuf, GST_MAP_READ |
+      GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
+  gst_video_frame_map (outframe, &info, outbuf, GST_MAP_WRITE |
+      GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
 }
 
 static gboolean
@@ -622,6 +626,8 @@ gst_video_inference_preprocess (GstVideoInference * self,
         ("Subclass did not implement preprocess"), (NULL));
     return FALSE;
   }
+
+  GST_LOG_OBJECT (self, "Calling frame preprocess");
 
   if (!klass->preprocess (self, inframe, outframe)) {
     GST_ELEMENT_ERROR (self, STREAM, FAILED,
@@ -664,8 +670,8 @@ gst_video_inference_postprocess (GstVideoInference * self,
     GstVideoInferenceClass * klass, GstVideoFrame * frame, gpointer pred,
     gsize pred_size)
 {
-  GstMeta *meta;
-  gboolean pred_valid;
+  GstMeta *meta = NULL;
+  gboolean pred_valid = FALSE;
 
   g_return_val_if_fail (self, FALSE);
   g_return_val_if_fail (klass, FALSE);
@@ -673,13 +679,16 @@ gst_video_inference_postprocess (GstVideoInference * self,
   g_return_val_if_fail (pred, FALSE);
   g_return_val_if_fail (pred_size, FALSE);
 
+  g_return_val_if_fail (gst_buffer_is_writable (frame->buffer), FALSE);
+
   /* Subclass didn't implement a post-process, dont fail, just ignore */
-  if (NULL != klass->postprocess) {
+  if (NULL == klass->postprocess) {
     return TRUE;
   }
 
   meta = gst_buffer_add_meta (frame->buffer, klass->inference_meta_info, NULL);
 
+  GST_LOG_OBJECT (self, "Calling frame postprocess");
   if (!klass->postprocess (self, meta, frame, pred, pred_size, &pred_valid)) {
     GST_ELEMENT_ERROR (self, STREAM, FAILED,
         ("Subclass failed at preprocess"), (NULL));
@@ -710,8 +719,6 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   g_return_val_if_fail (priv, FALSE);
   g_return_val_if_fail (buffer, FALSE);
   g_return_val_if_fail (meta, FALSE);
-
-  g_return_val_if_fail (gst_buffer_is_writable (buffer), FALSE);
 
   klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   *meta = NULL;
