@@ -29,7 +29,8 @@ libgstinferenceoverlay_la_LIBADD =	\
 	$(GST_PLUGINS_BASE_LIBS)	\
 	$(GST_VIDEO_LIBS)		\
 	$(OPENCV_LIBS)			\
-	$(R2INFERENCE_LIBS)
+	$(R2INFERENCE_LIBS)		\
+	$(top_builddir)/gst-libs/gst/r2inference/libgstinference-@GST_API_VERSION@.la
 
 libgstinferenceoverlay_la_LDFLAGS = 	\
 	$(GST_PLUGIN_LDFLAGS)

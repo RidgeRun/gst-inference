@@ -20,6 +20,8 @@
  */
 
 #include "gstclassificationoverlay.h"
+#include "gst/r2inference/gstinferencemeta.h"
+#include "opencv2/imgproc.hpp"
 
 GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_classification_overlay_debug_category
@@ -36,14 +38,8 @@ static void gst_classification_overlay_finalize (GObject * object);
 
 static gboolean gst_classification_overlay_start (GstBaseTransform * trans);
 static gboolean gst_classification_overlay_stop (GstBaseTransform * trans);
-static gboolean gst_classification_overlay_set_info (GstVideoFilter * filter,
-    GstCaps * incaps, GstVideoInfo * in_info, GstCaps * outcaps,
-    GstVideoInfo * out_info);
-static GstFlowReturn gst_classification_overlay_transform_frame (GstVideoFilter
-    * filter, GstVideoFrame * inframe, GstVideoFrame * outframe);
 static GstFlowReturn
-gst_classification_overlay_transform_frame_ip (GstVideoFilter * filter,
-    GstVideoFrame * frame);
+gst_classification_overlay_transform_frame_ip (GstVideoFilter *trans, GstVideoFrame *frame);
 
 enum
 {
@@ -100,10 +96,6 @@ gst_classification_overlay_class_init (GstClassificationOverlayClass * klass)
       GST_DEBUG_FUNCPTR (gst_classification_overlay_start);
   base_transform_class->stop =
       GST_DEBUG_FUNCPTR (gst_classification_overlay_stop);
-  video_filter_class->set_info =
-      GST_DEBUG_FUNCPTR (gst_classification_overlay_set_info);
-  video_filter_class->transform_frame =
-      GST_DEBUG_FUNCPTR (gst_classification_overlay_transform_frame);
   video_filter_class->transform_frame_ip =
       GST_DEBUG_FUNCPTR (gst_classification_overlay_transform_frame_ip);
 
@@ -195,39 +187,44 @@ gst_classification_overlay_stop (GstBaseTransform * trans)
   return TRUE;
 }
 
-static gboolean
-gst_classification_overlay_set_info (GstVideoFilter * filter, GstCaps * incaps,
-    GstVideoInfo * in_info, GstCaps * outcaps, GstVideoInfo * out_info)
-{
-  GstClassificationOverlay *classification_overlay =
-      GST_CLASSIFICATION_OVERLAY (filter);
-
-  GST_DEBUG_OBJECT (classification_overlay, "set_info");
-
-  return TRUE;
-}
-
 /* transform */
 static GstFlowReturn
-gst_classification_overlay_transform_frame (GstVideoFilter * filter,
-    GstVideoFrame * inframe, GstVideoFrame * outframe)
+gst_classification_overlay_transform_frame_ip (GstVideoFilter *trans, GstVideoFrame *frame)
 {
-  GstClassificationOverlay *classification_overlay =
-      GST_CLASSIFICATION_OVERLAY (filter);
+  GstClassificationMeta * class_meta;
+  gint index, i, width, height;
+  gdouble max, current;
+  cv::Mat cv_mat;
+  cv::String str;
+  cv::Size size;
 
-  GST_DEBUG_OBJECT (classification_overlay, "transform_frame");
+  cv::Scalar color = cv::Scalar(0, 0, 0);
+  gint thickness = 1;
+  gdouble font_scale = 1;
 
-  return GST_FLOW_OK;
-}
+  width = GST_VIDEO_FRAME_WIDTH(frame);
+  height = GST_VIDEO_FRAME_HEIGHT(frame);
 
-static GstFlowReturn
-gst_classification_overlay_transform_frame_ip (GstVideoFilter * filter,
-    GstVideoFrame * frame)
-{
-  GstClassificationOverlay *classification_overlay =
-      GST_CLASSIFICATION_OVERLAY (filter);
-
-  GST_DEBUG_OBJECT (classification_overlay, "transform_frame_ip");
-
+  class_meta = (GstClassificationMeta*) gst_buffer_get_meta(frame->buffer, GST_CLASSIFICATION_META_API_TYPE);
+  if (class_meta != NULL){
+    /* Get the most probable label */
+    index = 0;
+    max = -1;
+    for (i = 0; i < class_meta->num_labels; ++i) {
+      current = class_meta->label_probs[i];
+      if (current > max) {
+        max = current;
+        index = i;
+      }
+    }
+    /* TODO: Get label from index */
+    str = cv::format( "Label #%d prob:%f", index, max);
+    /* Get size of string on screen */
+    int baseline=0;
+    size = cv::getTextSize (str, cv::FONT_HERSHEY_PLAIN, thickness, font_scale, &baseline);
+    /* Put string on screen */
+    cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
+    cv::putText(cv_mat, str, cv::Point(10,size.height+10), cv::FONT_HERSHEY_PLAIN, font_scale, color, thickness);
+  }
   return GST_FLOW_OK;
 }
