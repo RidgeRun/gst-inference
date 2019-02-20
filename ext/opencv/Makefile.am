@@ -1,7 +1,8 @@
 plugin_LTLIBRARIES = libgstinferenceoverlay.la
 
 libgstinferenceoverlay_la_SOURCES =	\
-	gstclassificationoverlay.cc 	\
+	gstclassificationoverlay.cc	\
+	gstdetectionoverlay.cc		\
 	gstinferenceoverlay.c
 
 libgstinferenceoverlay_la_CFLAGS =	\
@@ -39,4 +40,5 @@ libgstinferenceoverlay_la_LIBTOOLFLAGS = \
 	$(GST_PLUGIN_LIBTOOLFLAGS)
 
 noinst_HEADERS =			\
-	gstclassificationoverlay.h
+	gstclassificationoverlay.h 	\
+	gstdetectionoverlay.h
