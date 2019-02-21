@@ -37,7 +37,8 @@ GType
 gst_inference_classification_meta_api_get_type (void)
 {
   static volatile GType type = 0;
-  static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL };
+  static const gchar *tags[] =
+      { GST_META_TAG_MEMORY_STR, GST_META_TAG_VIDEO_STR, NULL };
 
   if (g_once_init_enter (&type)) {
     GType _type = gst_meta_api_type_register ("GstClassificationMetaAPI", tags);
@@ -80,7 +81,8 @@ GType
 gst_inference_detection_meta_api_get_type (void)
 {
   static volatile GType type = 0;
-  static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL };
+  static const gchar *tags[] =
+      { GST_META_TAG_MEMORY_STR, GST_META_TAG_VIDEO_STR, NULL };
 
   if (g_once_init_enter (&type)) {
     GType _type = gst_meta_api_type_register ("GstDetectionMetaAPI", tags);
