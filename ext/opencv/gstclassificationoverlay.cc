@@ -39,7 +39,8 @@ static void gst_classification_overlay_finalize (GObject * object);
 static gboolean gst_classification_overlay_start (GstBaseTransform * trans);
 static gboolean gst_classification_overlay_stop (GstBaseTransform * trans);
 static GstFlowReturn
-gst_classification_overlay_transform_frame_ip (GstVideoFilter *trans, GstVideoFrame *frame);
+gst_classification_overlay_transform_frame_ip (GstVideoFilter * trans,
+    GstVideoFrame * frame);
 
 enum
 {
@@ -189,42 +190,55 @@ gst_classification_overlay_stop (GstBaseTransform * trans)
 
 /* transform */
 static GstFlowReturn
-gst_classification_overlay_transform_frame_ip (GstVideoFilter *trans, GstVideoFrame *frame)
+gst_classification_overlay_transform_frame_ip (GstVideoFilter * trans,
+    GstVideoFrame * frame)
 {
-  GstClassificationMeta * class_meta;
+  GstClassificationMeta *class_meta;
   gint index, i, width, height;
   gdouble max, current;
   cv::Mat cv_mat;
   cv::String str;
   cv::Size size;
+  const gint bpp = 3;
 
-  cv::Scalar color = cv::Scalar(0, 0, 0);
+  cv::Scalar color = cv::Scalar (0, 0, 0);
   gint thickness = 1;
   gdouble font_scale = 1;
 
-  width = GST_VIDEO_FRAME_WIDTH(frame);
-  height = GST_VIDEO_FRAME_HEIGHT(frame);
+  width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / bpp;
+  height = GST_VIDEO_FRAME_HEIGHT (frame);
 
-  class_meta = (GstClassificationMeta*) gst_buffer_get_meta(frame->buffer, GST_CLASSIFICATION_META_API_TYPE);
-  if (class_meta != NULL){
-    /* Get the most probable label */
-    index = 0;
-    max = -1;
-    for (i = 0; i < class_meta->num_labels; ++i) {
-      current = class_meta->label_probs[i];
-      if (current > max) {
-        max = current;
-        index = i;
-      }
-    }
-    /* TODO: Get label from index */
-    str = cv::format( "Label #%d prob:%f", index, max);
-    /* Get size of string on screen */
-    int baseline=0;
-    size = cv::getTextSize (str, cv::FONT_HERSHEY_PLAIN, thickness, font_scale, &baseline);
-    /* Put string on screen */
-    cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
-    cv::putText(cv_mat, str, cv::Point(10,size.height+10), cv::FONT_HERSHEY_PLAIN, font_scale, color, thickness);
+  class_meta =
+      (GstClassificationMeta *) gst_buffer_get_meta (frame->buffer,
+      GST_CLASSIFICATION_META_API_TYPE);
+  if (NULL == class_meta) {
+    GST_LOG_OBJECT (trans, "No classification meta found");
+    return GST_FLOW_OK;
   }
+
+  GST_LOG_OBJECT (trans, "Valid classification meta found");
+
+  /* Get the most probable label */
+  index = 0;
+  max = -1;
+  for (i = 0; i < class_meta->num_labels; ++i) {
+    current = class_meta->label_probs[i];
+    if (current > max) {
+      max = current;
+      index = i;
+    }
+  }
+  /* TODO: Get label from index */
+  str = cv::format ("Label #%d prob:%f", index, max);
+  /* Get size of string on screen */
+  int baseline = 0;
+  size =
+      cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX, thickness, font_scale,
+      &baseline);
+  /* Put string on screen */
+  cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
+  cv::putText (cv_mat, str, cv::Point (10, size.height + 10),
+      cv::FONT_HERSHEY_PLAIN, font_scale, color, thickness);
+
   return GST_FLOW_OK;
 }
