@@ -18,6 +18,8 @@
 #include <glib-unix.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "customlogic.h"
 #include "gst/r2inference/gstinferencemeta.h"
 
 #define GETTEXT_PACKAGE "GstInference"
@@ -168,26 +170,19 @@ static void
 gst_classification_process_inference (GstElement * element,
     GstClassificationMeta * meta, GstBuffer * buffer, gpointer user_data)
 {
-  gdouble current;
-  gint index;
-  gdouble max;
+  GstMapInfo info;
+  const gint width = 0;         //TODO
+  const gint height = 0;        //TODO
 
   g_return_if_fail (element);
   g_return_if_fail (meta);
   g_return_if_fail (buffer);
   g_return_if_fail (user_data);
 
-  index = 0;
-  max = -1;
-
-  for (gint i = 0; i < meta->num_labels; ++i) {
-    current = (meta->label_probs)[i];
-    if (current > max) {
-      max = current;
-      index = i;
-    }
-  }
-  g_print ("Highest probability is label %i : (%f) \n", index, max);
+  gst_buffer_map (buffer, &info, GST_MAP_READ);
+  handle_prediction (info.data, width, height, info.size, meta->label_probs,
+      meta->num_labels);
+  gst_buffer_unmap (buffer, &info);
 }
 
 void

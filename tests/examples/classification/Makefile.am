@@ -14,7 +14,7 @@ noinst_PROGRAMS =                  \
         classification
 
 # sources used to compile this plug-in
-classification_SOURCES = gstclassification.c
+classification_SOURCES = gstclassification.c customlogic.cc customlogic.h
 
 AM_CFLAGS =                         \
         -I\$(top_srcdir)/gst-libs   \
