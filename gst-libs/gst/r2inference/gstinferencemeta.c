@@ -13,19 +13,17 @@
 
 #include <gst/video/video.h>
 
-static void gst_inference_classification_meta_free (GstMeta * meta,
-    GstBuffer * buffer);
-static void gst_inference_detection_meta_free (GstMeta * meta,
-    GstBuffer * buffer);
+static void gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer);
+static void gst_detection_meta_free (GstMeta * meta, GstBuffer * buffer);
 static gboolean gst_inference_meta_init (GstMeta * meta, gpointer params,
     GstBuffer * buffer);
-static gboolean gst_inference_detection_meta_transform (GstBuffer * transbuf,
+static gboolean gst_detection_meta_transform (GstBuffer * transbuf,
     GstMeta * meta, GstBuffer * buffer, GQuark type, gpointer data);
-static gboolean gst_inference_classification_meta_transform (GstBuffer * dest,
+static gboolean gst_classification_meta_transform (GstBuffer * dest,
     GstMeta * meta, GstBuffer * buffer, GQuark type, gpointer data);
 
 static void
-gst_inference_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
+gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
 {
   GstClassificationMeta *class_meta = (GstClassificationMeta *) meta;
 
@@ -38,7 +36,7 @@ gst_inference_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
 }
 
 GType
-gst_inference_classification_meta_api_get_type (void)
+gst_classification_meta_api_get_type (void)
 {
   static volatile GType type = 0;
   static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL };
@@ -52,7 +50,7 @@ gst_inference_classification_meta_api_get_type (void)
 
 /* classification metadata */
 const GstMetaInfo *
-gst_inference_classification_meta_get_info (void)
+gst_classification_meta_get_info (void)
 {
   static const GstMetaInfo *classification_meta_info = NULL;
 
@@ -60,15 +58,15 @@ gst_inference_classification_meta_get_info (void)
     const GstMetaInfo *meta =
         gst_meta_register (GST_CLASSIFICATION_META_API_TYPE,
         "GstClassificationMeta", sizeof (GstClassificationMeta),
-        gst_inference_meta_init, gst_inference_classification_meta_free,
-        gst_inference_classification_meta_transform);
+        gst_inference_meta_init, gst_classification_meta_free,
+        gst_classification_meta_transform);
     g_once_init_leave (&classification_meta_info, meta);
   }
   return classification_meta_info;
 }
 
 static void
-gst_inference_detection_meta_free (GstMeta * meta, GstBuffer * buffer)
+gst_detection_meta_free (GstMeta * meta, GstBuffer * buffer)
 {
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta;
 
@@ -81,7 +79,7 @@ gst_inference_detection_meta_free (GstMeta * meta, GstBuffer * buffer)
 }
 
 GType
-gst_inference_detection_meta_api_get_type (void)
+gst_detection_meta_api_get_type (void)
 {
   static volatile GType type = 0;
   static const gchar *tags[] =
@@ -98,7 +96,7 @@ gst_inference_detection_meta_api_get_type (void)
 
 /* detection metadata */
 const GstMetaInfo *
-gst_inference_detection_meta_get_info (void)
+gst_detection_meta_get_info (void)
 {
   static const GstMetaInfo *detection_meta_info = NULL;
 
@@ -106,8 +104,8 @@ gst_inference_detection_meta_get_info (void)
     const GstMetaInfo *meta =
         gst_meta_register (GST_DETECTION_META_API_TYPE, "GstDetectionMeta",
         sizeof (GstDetectionMeta), gst_inference_meta_init,
-        gst_inference_detection_meta_free,
-        gst_inference_detection_meta_transform);
+        gst_detection_meta_free,
+        gst_detection_meta_transform);
     g_once_init_leave (&detection_meta_info, meta);
   }
   return detection_meta_info;
@@ -120,7 +118,7 @@ gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
 }
 
 static gboolean
-gst_inference_detection_meta_transform (GstBuffer * dest, GstMeta * meta,
+gst_detection_meta_transform (GstBuffer * dest, GstMeta * meta,
     GstBuffer * buffer, GQuark type, gpointer data)
 {
   GstDetectionMeta *dmeta, *smeta;
@@ -153,7 +151,7 @@ gst_inference_detection_meta_transform (GstBuffer * dest, GstMeta * meta,
 }
 
 static gboolean
-gst_inference_classification_meta_transform (GstBuffer * dest, GstMeta * meta,
+gst_classification_meta_transform (GstBuffer * dest, GstMeta * meta,
     GstBuffer * buffer, GQuark type, gpointer data)
 {
   GstClassificationMeta *dmeta, *smeta;

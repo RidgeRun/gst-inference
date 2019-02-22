@@ -161,7 +161,7 @@ gst_tinyyolo_class_init (GstTinyyoloClass * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_tinyyolo_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_tinyyolo_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_tinyyolo_postprocess);
-  vi_class->inference_meta_info = gst_inference_detection_meta_get_info ();
+  vi_class->inference_meta_info = gst_detection_meta_get_info ();
 }
 
 static void

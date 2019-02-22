@@ -15,10 +15,10 @@
 #include <gst/gst.h>
 
 G_BEGIN_DECLS
-#define GST_CLASSIFICATION_META_API_TYPE (gst_inference_classification_meta_api_get_type())
-#define GST_CLASSIFICATION_META_INFO  (gst_inference_classification_meta_get_info())
-#define GST_DETECTION_META_API_TYPE (gst_inference_detection_meta_api_get_type())
-#define GST_DETECTION_META_INFO  (gst_inference_detection_meta_get_info())
+#define GST_CLASSIFICATION_META_API_TYPE (gst_classification_meta_api_get_type())
+#define GST_CLASSIFICATION_META_INFO  (gst_classification_meta_get_info())
+#define GST_DETECTION_META_API_TYPE (gst_detection_meta_api_get_type())
+#define GST_DETECTION_META_INFO  (gst_detection_meta_get_info())
 /**
  * Basic bounding box structure for detection
  */
@@ -55,11 +55,11 @@ struct _GstDetectionMeta
   BBox *boxes;
 };
 
-GType gst_inference_classification_meta_api_get_type (void);
-const GstMetaInfo *gst_inference_classification_meta_get_info (void);
+GType gst_classification_meta_api_get_type (void);
+const GstMetaInfo *gst_classification_meta_get_info (void);
 
-GType gst_inference_detection_meta_api_get_type (void);
-const GstMetaInfo *gst_inference_detection_meta_get_info (void);
+GType gst_detection_meta_api_get_type (void);
+const GstMetaInfo *gst_detection_meta_get_info (void);
 
 G_END_DECLS
 #endif // GST_INFERENCE_META_H
