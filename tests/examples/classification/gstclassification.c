@@ -62,7 +62,7 @@ main (int argc, char *argv[])
   GstClassification *classification;
   GMainLoop *main_loop;
 
-  context = g_option_context_new ("GstInference Classification Example");
+  context = g_option_context_new (" - GstInference Classification Example");
   g_option_context_add_main_entries (context, entries, GETTEXT_PACKAGE);
   g_option_context_add_group (context, gst_init_get_option_group ());
   if (!g_option_context_parse (context, &argc, &argv, &error)) {
@@ -217,7 +217,10 @@ gst_classification_create_pipeline (GstClassification * classification)
   g_string_append (pipe_desc, " video/x-raw, width=299, heigth=299 ! ");
   g_string_append (pipe_desc, " tee name=t t. ! queue ! videoconvert ! ");
   g_string_append (pipe_desc, " videoscale ! net.sink_model t.! queue ! ");
-  g_string_append (pipe_desc, " net.sink_bypass net.src_bypass ! fakesink ");
+  g_string_append (pipe_desc, " videoconvert ! video/x-raw,format=RGB ! ");
+  g_string_append (pipe_desc,
+      " net.sink_bypass net.src_bypass ! classificationoverlay ! ");
+  g_string_append (pipe_desc, " autovideosink sync=false");
 
   if (verbose)
     g_print ("pipeline: %s\n", pipe_desc->str);
