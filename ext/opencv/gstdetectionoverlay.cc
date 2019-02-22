@@ -39,7 +39,8 @@ static void gst_detection_overlay_finalize (GObject * object);
 static gboolean gst_detection_overlay_start (GstBaseTransform * trans);
 static gboolean gst_detection_overlay_stop (GstBaseTransform * trans);
 static GstFlowReturn
-gst_detection_overlay_transform_frame_ip (GstVideoFilter *trans, GstVideoFrame *frame);
+gst_detection_overlay_transform_frame_ip (GstVideoFilter * trans,
+    GstVideoFrame * frame);
 
 enum
 {
@@ -92,18 +93,15 @@ gst_detection_overlay_class_init (GstDetectionOverlayClass * klass)
   gobject_class->get_property = gst_detection_overlay_get_property;
   gobject_class->dispose = gst_detection_overlay_dispose;
   gobject_class->finalize = gst_detection_overlay_finalize;
-  base_transform_class->start =
-      GST_DEBUG_FUNCPTR (gst_detection_overlay_start);
-  base_transform_class->stop =
-      GST_DEBUG_FUNCPTR (gst_detection_overlay_stop);
+  base_transform_class->start = GST_DEBUG_FUNCPTR (gst_detection_overlay_start);
+  base_transform_class->stop = GST_DEBUG_FUNCPTR (gst_detection_overlay_stop);
   video_filter_class->transform_frame_ip =
       GST_DEBUG_FUNCPTR (gst_detection_overlay_transform_frame_ip);
 
 }
 
 static void
-gst_detection_overlay_init (GstDetectionOverlay *
-    detection_overlay)
+gst_detection_overlay_init (GstDetectionOverlay * detection_overlay)
 {
 }
 
@@ -111,8 +109,7 @@ void
 gst_detection_overlay_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstDetectionOverlay *detection_overlay =
-      GST_DETECTION_OVERLAY (object);
+  GstDetectionOverlay *detection_overlay = GST_DETECTION_OVERLAY (object);
 
   GST_DEBUG_OBJECT (detection_overlay, "set_property");
 
@@ -127,8 +124,7 @@ void
 gst_detection_overlay_get_property (GObject * object, guint property_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstDetectionOverlay *detection_overlay =
-      GST_DETECTION_OVERLAY (object);
+  GstDetectionOverlay *detection_overlay = GST_DETECTION_OVERLAY (object);
 
   GST_DEBUG_OBJECT (detection_overlay, "get_property");
 
@@ -142,8 +138,7 @@ gst_detection_overlay_get_property (GObject * object, guint property_id,
 void
 gst_detection_overlay_dispose (GObject * object)
 {
-  GstDetectionOverlay *detection_overlay =
-      GST_DETECTION_OVERLAY (object);
+  GstDetectionOverlay *detection_overlay = GST_DETECTION_OVERLAY (object);
 
   GST_DEBUG_OBJECT (detection_overlay, "dispose");
 
@@ -155,8 +150,7 @@ gst_detection_overlay_dispose (GObject * object)
 void
 gst_detection_overlay_finalize (GObject * object)
 {
-  GstDetectionOverlay *detection_overlay =
-      GST_DETECTION_OVERLAY (object);
+  GstDetectionOverlay *detection_overlay = GST_DETECTION_OVERLAY (object);
 
   GST_DEBUG_OBJECT (detection_overlay, "finalize");
 
@@ -168,8 +162,7 @@ gst_detection_overlay_finalize (GObject * object)
 static gboolean
 gst_detection_overlay_start (GstBaseTransform * trans)
 {
-  GstDetectionOverlay *detection_overlay =
-      GST_DETECTION_OVERLAY (trans);
+  GstDetectionOverlay *detection_overlay = GST_DETECTION_OVERLAY (trans);
 
   GST_DEBUG_OBJECT (detection_overlay, "start");
 
@@ -179,8 +172,7 @@ gst_detection_overlay_start (GstBaseTransform * trans)
 static gboolean
 gst_detection_overlay_stop (GstBaseTransform * trans)
 {
-  GstDetectionOverlay *detection_overlay =
-      GST_DETECTION_OVERLAY (trans);
+  GstDetectionOverlay *detection_overlay = GST_DETECTION_OVERLAY (trans);
 
   GST_DEBUG_OBJECT (detection_overlay, "stop");
 
@@ -189,33 +181,44 @@ gst_detection_overlay_stop (GstBaseTransform * trans)
 
 /* transform */
 static GstFlowReturn
-gst_detection_overlay_transform_frame_ip (GstVideoFilter *trans, GstVideoFrame *frame)
+gst_detection_overlay_transform_frame_ip (GstVideoFilter * trans,
+    GstVideoFrame * frame)
 {
-  GstDetectionMeta * detect_meta;
+  GstDetectionMeta *detect_meta;
   gint i, width, height;
   cv::Mat cv_mat;
   cv::String str;
   cv::Size size;
   BBox box;
+  const gint bpp = 3;
 
   gdouble font_scale = 1;
-  cv::Scalar color = cv::Scalar(0, 0, 0);
+  cv::Scalar color = cv::Scalar (0, 0, 0);
   gint thickness = 1;
 
-  width = GST_VIDEO_FRAME_WIDTH(frame);
-  height = GST_VIDEO_FRAME_HEIGHT(frame);
+  width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / bpp;
+  height = GST_VIDEO_FRAME_HEIGHT (frame);
 
-  detect_meta = (GstDetectionMeta*) gst_buffer_get_meta(frame->buffer, GST_DETECTION_META_API_TYPE);
-  if (detect_meta != NULL){
-    cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
-    for (i = 0; i < detect_meta->num_boxes; ++i) {
-      box = detect_meta->boxes[i];
-      /* TODO: Get label from index */
-      str = cv::format( "#%d", box.label);
-      /* Put string on screen */
-      cv::putText(cv_mat, str, cv::Point(box.x,box.y), cv::FONT_HERSHEY_PLAIN, font_scale, color, thickness);
-      cv::rectangle(cv_mat, cv::Point(box.x,box.y), cv::Point(box.x+box.width,box.y+box.height), color, thickness);
-    }
+  detect_meta =
+      (GstDetectionMeta *) gst_buffer_get_meta (frame->buffer,
+      GST_DETECTION_META_API_TYPE);
+  if (NULL == detect_meta) {
+    GST_LOG_OBJECT (trans, "No detection meta found");
+    return GST_FLOW_OK;
+  }
+
+  GST_LOG_OBJECT (trans, "Valid detection meta found");
+
+  cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
+  for (i = 0; i < detect_meta->num_boxes; ++i) {
+    box = detect_meta->boxes[i];
+    /* TODO: Get label from index */
+    str = cv::format ("#%d", box.label);
+    /* Put string on screen */
+    cv::putText (cv_mat, str, cv::Point (box.x, box.y), cv::FONT_HERSHEY_PLAIN,
+        font_scale, color, thickness);
+    cv::rectangle (cv_mat, cv::Point (box.x, box.y),
+        cv::Point (box.x + box.width, box.y + box.height), color, thickness);
   }
 
   return GST_FLOW_OK;
