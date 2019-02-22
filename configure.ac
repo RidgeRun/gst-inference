@@ -20,6 +20,7 @@ AS_NANO(GST_GIT="no", GST_GIT="yes")
 
 dnl can autoconf find the source ?
 AC_CONFIG_SRCDIR([ext/r2inference/gstinference.c])
+AC_CONFIG_SRCDIR([ext/opencv/gstinferenceoverlay.c])
 
 dnl define the output header for config
 AC_CONFIG_HEADERS([config.h])
@@ -155,6 +156,7 @@ AG_GST_CHECK_GST_BASE($GST_API_VERSION, [$GST_REQ], yes)
 AG_GST_CHECK_GST_CONTROLLER($GST_API_VERSION, [$GST_REQ], yes)
 AG_GST_CHECK_GST_CHECK($GST_API_VERSION, [$GST_REQ], no)
 AG_GST_CHECK_GST_PLUGINS_BASE($GST_API_VERSION, [$GSTPB_REQ], yes)
+AG_GST_CHECK_MODULES(GST_VIDEO, gstreamer-video-[$GST_API_VERSION], [$GST_REQ], [GStreamer Video], yes)
 
 GST_TOOLS_DIR=`$PKG_CONFIG --variable=toolsdir gstreamer-$GST_API_VERSION`
 if test -z $GST_TOOLS_DIR; then
@@ -264,7 +266,15 @@ echo
 AC_MSG_NOTICE([Checking libraries for plugins in ext/])
 echo
 
-AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun's Inference Framework], gstinference, [
+dnl *** opencv ***
+OPENCV_REQ=2.3.1
+translit(dnm, m, l) AM_CONDITIONAL(USE_OPENCV, true)
+AG_GST_CHECK_FEATURE(OPENCV, [OpenCV computer vision library], opencv, [
+  AG_GST_PKG_CHECK_MODULES(OPENCV, opencv >= $OPENCV_REQ )
+])
+
+dnl *** r2inference ***
+AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun\'s Inference Framework], r2inference, [
   AG_GST_PKG_CHECK_MODULES(R2INFERENCE, r2inference-0.0)
 ],[],[],[
   AC_MSG_ERROR([Please install R2Inference from https://github.com/RidgeRun/r2inference.git])
@@ -356,6 +366,7 @@ gst-libs/gst/r2inference/Makefile
 m4/Makefile
 ext/Makefile
 ext/r2inference/Makefile
+ext/opencv/Makefile
 tests/Makefile
 tests/check/Makefile
 tests/examples/classification/Makefile
