@@ -13,15 +13,24 @@
 
 #include <gst/video/video.h>
 
-static void gst_inference_classification_meta_free (GstMeta * meta,
-    GstBuffer * buffer);
-static void gst_inference_detection_meta_free (GstMeta * meta,
-    GstBuffer * buffer);
+static void gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer);
+static void gst_detection_meta_free (GstMeta * meta, GstBuffer * buffer);
 static gboolean gst_inference_meta_init (GstMeta * meta, gpointer params,
     GstBuffer * buffer);
+static gboolean gst_detection_meta_transform (GstBuffer * transbuf,
+    GstMeta * meta, GstBuffer * buffer, GQuark type, gpointer data);
+static gboolean gst_classification_meta_transform (GstBuffer * dest,
+    GstMeta * meta, GstBuffer * buffer, GQuark type, gpointer data);
+
+static gboolean gst_detection_meta_copy (GstBuffer * transbuf,
+    GstMeta * meta, GstBuffer * buffer);
+static gboolean gst_detection_meta_scale (GstBuffer * transbuf,
+    GstMeta * meta, GstBuffer * buffer, GstVideoMetaTransform * data);
+static gboolean gst_classification_meta_copy (GstBuffer * transbuf,
+    GstMeta * meta, GstBuffer * buffer);
 
 static void
-gst_inference_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
+gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
 {
   GstClassificationMeta *class_meta = (GstClassificationMeta *) meta;
 
@@ -34,11 +43,10 @@ gst_inference_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
 }
 
 GType
-gst_inference_classification_meta_api_get_type (void)
+gst_classification_meta_api_get_type (void)
 {
   static volatile GType type = 0;
-  static const gchar *tags[] =
-      { GST_META_TAG_MEMORY_STR, GST_META_TAG_VIDEO_STR, NULL };
+  static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL };
 
   if (g_once_init_enter (&type)) {
     GType _type = gst_meta_api_type_register ("GstClassificationMetaAPI", tags);
@@ -49,7 +57,7 @@ gst_inference_classification_meta_api_get_type (void)
 
 /* classification metadata */
 const GstMetaInfo *
-gst_inference_classification_meta_get_info (void)
+gst_classification_meta_get_info (void)
 {
   static const GstMetaInfo *classification_meta_info = NULL;
 
@@ -57,15 +65,15 @@ gst_inference_classification_meta_get_info (void)
     const GstMetaInfo *meta =
         gst_meta_register (GST_CLASSIFICATION_META_API_TYPE,
         "GstClassificationMeta", sizeof (GstClassificationMeta),
-        gst_inference_meta_init,
-        gst_inference_classification_meta_free, NULL);
+        gst_inference_meta_init, gst_classification_meta_free,
+        gst_classification_meta_transform);
     g_once_init_leave (&classification_meta_info, meta);
   }
   return classification_meta_info;
 }
 
 static void
-gst_inference_detection_meta_free (GstMeta * meta, GstBuffer * buffer)
+gst_detection_meta_free (GstMeta * meta, GstBuffer * buffer)
 {
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta;
 
@@ -78,11 +86,13 @@ gst_inference_detection_meta_free (GstMeta * meta, GstBuffer * buffer)
 }
 
 GType
-gst_inference_detection_meta_api_get_type (void)
+gst_detection_meta_api_get_type (void)
 {
   static volatile GType type = 0;
   static const gchar *tags[] =
-      { GST_META_TAG_MEMORY_STR, GST_META_TAG_VIDEO_STR, NULL };
+      { GST_META_TAG_VIDEO_STR, GST_META_TAG_VIDEO_ORIENTATION_STR,
+    GST_META_TAG_VIDEO_SIZE_STR, NULL
+  };
 
   if (g_once_init_enter (&type)) {
     GType _type = gst_meta_api_type_register ("GstDetectionMetaAPI", tags);
@@ -93,7 +103,7 @@ gst_inference_detection_meta_api_get_type (void)
 
 /* detection metadata */
 const GstMetaInfo *
-gst_inference_detection_meta_get_info (void)
+gst_detection_meta_get_info (void)
 {
   static const GstMetaInfo *detection_meta_info = NULL;
 
@@ -101,8 +111,8 @@ gst_inference_detection_meta_get_info (void)
     const GstMetaInfo *meta =
         gst_meta_register (GST_DETECTION_META_API_TYPE, "GstDetectionMeta",
         sizeof (GstDetectionMeta), gst_inference_meta_init,
-        gst_inference_detection_meta_free,
-        NULL);
+        gst_detection_meta_free,
+        gst_detection_meta_transform);
     g_once_init_leave (&detection_meta_info, meta);
   }
   return detection_meta_info;
@@ -112,4 +122,147 @@ static gboolean
 gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
 {
   return TRUE;
+}
+
+static gboolean
+gst_detection_meta_copy (GstBuffer * dest, GstMeta * meta, GstBuffer * buffer)
+{
+  GstDetectionMeta *dmeta, *smeta;
+  gsize raw_size;
+
+  g_return_val_if_fail (dest, FALSE);
+  g_return_val_if_fail (meta, FALSE);
+  g_return_val_if_fail (buffer, FALSE);
+
+  smeta = (GstDetectionMeta *) meta;
+  dmeta =
+      (GstDetectionMeta *) gst_buffer_add_meta (dest, GST_DETECTION_META_INFO,
+      NULL);
+  if (!dmeta) {
+    GST_ERROR ("Unable to add meta to buffer");
+    return FALSE;
+  }
+
+  dmeta->num_boxes = smeta->num_boxes;
+  raw_size = dmeta->num_boxes * sizeof (BBox);
+  dmeta->boxes = (BBox *) g_malloc (raw_size);
+  memcpy (dmeta->boxes, smeta->boxes, raw_size);
+
+  return TRUE;
+}
+
+static gboolean
+gst_detection_meta_scale (GstBuffer * dest,
+    GstMeta * meta, GstBuffer * buffer, GstVideoMetaTransform * trans)
+{
+  GstDetectionMeta *dmeta, *smeta;
+  gsize raw_size;
+  gint ow, oh, nw, nh;
+  gdouble hfactor, vfactor;
+
+  g_return_val_if_fail (dest, FALSE);
+  g_return_val_if_fail (meta, FALSE);
+  g_return_val_if_fail (buffer, FALSE);
+  g_return_val_if_fail (trans, FALSE);
+
+  smeta = (GstDetectionMeta *) meta;
+  dmeta =
+      (GstDetectionMeta *) gst_buffer_add_meta (dest, GST_DETECTION_META_INFO,
+      NULL);
+
+  if (!dmeta) {
+    GST_ERROR ("Unable to add meta to buffer");
+    return FALSE;
+  }
+
+  ow = GST_VIDEO_INFO_WIDTH (trans->in_info);
+  nw = GST_VIDEO_INFO_WIDTH (trans->out_info);
+  oh = GST_VIDEO_INFO_HEIGHT (trans->in_info);
+  nh = GST_VIDEO_INFO_HEIGHT (trans->out_info);
+
+  g_return_val_if_fail (ow, FALSE);
+  g_return_val_if_fail (oh, FALSE);
+
+  dmeta->num_boxes = smeta->num_boxes;
+  raw_size = dmeta->num_boxes * sizeof (BBox);
+  dmeta->boxes = (BBox *) g_malloc (raw_size);
+
+  hfactor = nw * 1.0 / ow;
+  vfactor = nh * 1.0 / oh;
+
+  GST_DEBUG ("Scaling detection metadata %dx%d -> %dx%d", ow, oh, nw, nh);
+  for (gint i = 0; i < dmeta->num_boxes; ++i) {
+    dmeta->boxes[i].x = smeta->boxes[i].x * hfactor;
+    dmeta->boxes[i].y = smeta->boxes[i].y * vfactor;
+
+    dmeta->boxes[i].width = smeta->boxes[i].width * hfactor;
+    dmeta->boxes[i].height = smeta->boxes[i].height * vfactor;
+
+    dmeta->boxes[i].label = smeta->boxes[i].label;
+    dmeta->boxes[i].prob = smeta->boxes[i].prob;
+
+    GST_LOG ("scaled bbox %d: %fx%f@%fx%f -> %fx%f@%fx%f",
+        smeta->boxes[i].label, smeta->boxes[i].x, smeta->boxes[i].y,
+        smeta->boxes[i].width, smeta->boxes[i].height, dmeta->boxes[i].x,
+        dmeta->boxes[i].y, dmeta->boxes[i].width, dmeta->boxes[i].height);
+  }
+  return TRUE;
+}
+
+static gboolean
+gst_detection_meta_transform (GstBuffer * dest, GstMeta * meta,
+    GstBuffer * buffer, GQuark type, gpointer data)
+{
+  GST_LOG ("Transforming detection metadata");
+
+  if (GST_META_TRANSFORM_IS_COPY (type)) {
+    GST_LOG ("Copy detection metadata");
+    return gst_detection_meta_copy (dest, meta, buffer);
+  }
+
+  if (GST_VIDEO_META_TRANSFORM_IS_SCALE (type)) {
+    GstVideoMetaTransform *trans = (GstVideoMetaTransform *) data;
+    return gst_detection_meta_scale (dest, meta, buffer, trans);
+  }
+
+  /* No transform supported */
+  return FALSE;
+}
+
+static gboolean
+gst_classification_meta_copy (GstBuffer * dest,
+    GstMeta * meta, GstBuffer * buffer)
+{
+  GstClassificationMeta *dmeta, *smeta;
+  gsize raw_size;
+
+  smeta = (GstClassificationMeta *) meta;
+  dmeta =
+      (GstClassificationMeta *) gst_buffer_add_meta (dest,
+      GST_CLASSIFICATION_META_INFO, NULL);
+  if (!dmeta) {
+    return FALSE;
+  }
+
+  GST_LOG ("Copy classification metadata");
+  dmeta->num_labels = smeta->num_labels;
+  raw_size = dmeta->num_labels * sizeof (gdouble);
+  dmeta->label_probs = (gdouble *) g_malloc (raw_size);
+  memcpy (dmeta->label_probs, smeta->label_probs, raw_size);
+
+  return TRUE;
+}
+
+static gboolean
+gst_classification_meta_transform (GstBuffer * dest, GstMeta * meta,
+    GstBuffer * buffer, GQuark type, gpointer data)
+{
+  GST_LOG ("Transforming detection metadata");
+
+  if (GST_META_TRANSFORM_IS_COPY (type)) {
+    return gst_classification_meta_copy (dest, meta, buffer);
+  }
+
+  /* No transform supported */
+  return FALSE;
 }
