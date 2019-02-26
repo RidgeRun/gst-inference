@@ -370,6 +370,7 @@ ext/opencv/Makefile
 tests/Makefile
 tests/check/Makefile
 tests/examples/classification/Makefile
+tests/examples/detection/Makefile
 tests/examples/Makefile
 tests/files/Makefile
 )
