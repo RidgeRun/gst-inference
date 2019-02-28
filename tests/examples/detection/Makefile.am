@@ -14,7 +14,7 @@ noinst_PROGRAMS =                  \
         detection
 
 # sources used to compile this plug-in
-detection_SOURCES = gstdetection.c
+detection_SOURCES = gstdetection.c customlogic.cc customlogic.h
 
 AM_CFLAGS =                         \
         -I\$(top_srcdir)/gst-libs   \

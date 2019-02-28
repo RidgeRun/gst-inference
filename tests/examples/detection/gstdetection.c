@@ -20,6 +20,8 @@
 #include <string.h>
 #include "gst/r2inference/gstinferencemeta.h"
 
+#include "customlogic.h"
+
 #define GETTEXT_PACKAGE "GstInference"
 
 typedef struct _GstDetection GstDetection;
@@ -174,20 +176,30 @@ gst_detection_process_inference (GstElement * element,
     GstDetectionMeta * meta, GstBuffer * buffer, gpointer user_data)
 {
   gint index;
+  BoundingBox *boxes;
+  GstMapInfo info;
 
   g_return_if_fail (element);
   g_return_if_fail (meta);
   g_return_if_fail (buffer);
   g_return_if_fail (user_data);
 
-  index = 0;
+  boxes = (BoundingBox *) g_malloc (meta->num_boxes * sizeof (BoundingBox));
 
   for (index = 0; index < meta->num_boxes; index++) {
-    g_print ("Box: [class:%d, x:%f, y:%f, width:%f, height:%f, prob:%f]\n",
-        meta->boxes[index].label, meta->boxes[index].x, meta->boxes[index].y,
-        meta->boxes[index].width, meta->boxes[index].height,
-        meta->boxes[index].prob);
+    boxes[index].category = meta->boxes[index].label;
+    boxes[index].x = meta->boxes[index].x;
+    boxes[index].y = meta->boxes[index].y;
+    boxes[index].width = meta->boxes[index].width;
+    boxes[index].height = meta->boxes[index].height;
+    boxes[index].probability = meta->boxes[index].prob;
   }
+
+  gst_buffer_map (buffer, &info, GST_MAP_READ);
+  handle_prediction (info.data, 0, 0, info.maxsize, boxes, meta->num_boxes);
+  gst_buffer_unmap (buffer, &info);
+
+  g_free (boxes);
 }
 
 void
