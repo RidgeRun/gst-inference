@@ -711,6 +711,7 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
 {
   GstVideoInferenceClass *klass;
   GstVideoFrame inframe, outframe;
+  GstBuffer *outbuf;
   gboolean ret;
   gpointer prediction_data;
   gsize prediction_size;
@@ -729,6 +730,7 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
     ret = FALSE;
     goto free_frames;
   }
+  outbuf = outframe.buffer;
 
   if (!gst_video_inference_predict (self, priv, &outframe, &prediction_data,
           &prediction_size)) {
@@ -746,8 +748,9 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   g_free (prediction_data);
 
 free_frames:
-  gst_video_frame_unmap (&outframe);
   gst_video_frame_unmap (&inframe);
+  gst_video_frame_unmap (&outframe);
+  gst_buffer_unref (outbuf);
 
   return ret;
 }
