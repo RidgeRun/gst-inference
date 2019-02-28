@@ -949,9 +949,6 @@ gst_video_inference_finalize (GObject * object)
 
   g_clear_object (&priv->backend);
 
-  if (priv->backend)
-    g_object_unref (priv->backend);
-
   G_OBJECT_CLASS (gst_video_inference_parent_class)->finalize (object);
 }
 
