@@ -563,7 +563,7 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
 
   GST_LOG_OBJECT (self,
       "Forwarding buffer %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, buffer, pad);
-  ret = gst_pad_push (pad, gst_buffer_ref (buffer));
+  ret = gst_pad_push (pad, buffer);
 
   if (GST_FLOW_OK != ret && GST_FLOW_FLUSHING != ret && GST_FLOW_EOS != ret) {
     level = GST_LEVEL_ERROR;
