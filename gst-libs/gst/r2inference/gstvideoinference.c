@@ -563,7 +563,7 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
 
   GST_LOG_OBJECT (self,
       "Forwarding buffer %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, buffer, pad);
-  ret = gst_pad_push (pad, gst_buffer_ref (buffer));
+  ret = gst_pad_push (pad, buffer);
 
   if (GST_FLOW_OK != ret && GST_FLOW_FLUSHING != ret && GST_FLOW_EOS != ret) {
     level = GST_LEVEL_ERROR;
@@ -711,6 +711,7 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
 {
   GstVideoInferenceClass *klass;
   GstVideoFrame inframe, outframe;
+  GstBuffer *outbuf;
   gboolean ret;
   gpointer prediction_data;
   gsize prediction_size;
@@ -729,6 +730,7 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
     ret = FALSE;
     goto free_frames;
   }
+  outbuf = outframe.buffer;
 
   if (!gst_video_inference_predict (self, priv, &outframe, &prediction_data,
           &prediction_size)) {
@@ -746,8 +748,9 @@ gst_video_inference_model_buffer_process (GstVideoInference * self,
   g_free (prediction_data);
 
 free_frames:
-  gst_video_frame_unmap (&outframe);
   gst_video_frame_unmap (&inframe);
+  gst_video_frame_unmap (&outframe);
+  gst_buffer_unref (outbuf);
 
   return ret;
 }
@@ -945,9 +948,6 @@ gst_video_inference_finalize (GObject * object)
   priv->model_location = NULL;
 
   g_clear_object (&priv->backend);
-
-  if (priv->backend)
-    g_object_unref (priv->backend);
 
   G_OBJECT_CLASS (gst_video_inference_parent_class)->finalize (object);
 }

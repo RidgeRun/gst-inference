@@ -132,6 +132,14 @@ gst_backend_finalize (GObject *obj) {
   GstBackend *self = GST_BACKEND (obj);
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   g_mutex_clear (&priv->backend_mutex);
+
+  priv->engine = nullptr;
+  priv->loader = nullptr;
+  priv->model = nullptr;
+  priv->params = nullptr;
+  priv->factory = nullptr;
+  priv-> property_list = nullptr;
+
   G_OBJECT_CLASS (gst_backend_parent_class)->finalize (obj);
 }
 
@@ -429,6 +437,9 @@ gst_backend_process_frame (GstBackend *self, GstVideoFrame *input_frame,
 
   GST_LOG_OBJECT (self, "Size of prediction %p is %lu",
                   *prediction_data, *prediction_size);
+
+  frame = nullptr;
+  prediction = nullptr;
 
   return TRUE;
 error:
