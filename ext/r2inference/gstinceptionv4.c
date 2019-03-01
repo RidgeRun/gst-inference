@@ -58,8 +58,8 @@ static void gst_inceptionv4_finalize (GObject * object);
 static gboolean gst_inceptionv4_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_inceptionv4_postprocess (GstVideoInference * vi,
-    GstMeta * meta, GstVideoFrame * outframe, const gpointer prediction,
-    gsize predsize, gboolean * valid_prediction);
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    GstVideoInfo * info_model, gboolean * valid_prediction);
 static gboolean gst_inceptionv4_start (GstVideoInference * vi);
 static gboolean gst_inceptionv4_stop (GstVideoInference * vi);
 
@@ -217,11 +217,11 @@ gst_inceptionv4_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_inceptionv4_postprocess (GstVideoInference * vi, GstMeta * meta,
-    GstVideoFrame * outframe, const gpointer prediction, gsize predsize,
+gst_inceptionv4_postprocess (GstVideoInference * vi, const gpointer prediction,
+    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
-  GstClassificationMeta *class_meta = (GstClassificationMeta *) meta;
+  GstClassificationMeta *class_meta = (GstClassificationMeta *) meta_model;
   gint index;
   gdouble max;
   GstDebugLevel level;

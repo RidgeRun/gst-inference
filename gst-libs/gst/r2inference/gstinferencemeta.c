@@ -12,11 +12,14 @@
 #include "gstinferencemeta.h"
 
 #include <gst/video/video.h>
+#include <string.h>
 
+static gboolean gst_classification_meta_init (GstMeta * meta,
+    gpointer params, GstBuffer * buffer);
 static void gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer);
 static void gst_detection_meta_free (GstMeta * meta, GstBuffer * buffer);
-static gboolean gst_inference_meta_init (GstMeta * meta, gpointer params,
-    GstBuffer * buffer);
+static gboolean gst_detection_meta_init (GstMeta * meta,
+    gpointer params, GstBuffer * buffer);
 static gboolean gst_detection_meta_transform (GstBuffer * transbuf,
     GstMeta * meta, GstBuffer * buffer, GQuark type, gpointer data);
 static gboolean gst_classification_meta_transform (GstBuffer * dest,
@@ -28,19 +31,6 @@ static gboolean gst_detection_meta_scale (GstBuffer * transbuf,
     GstMeta * meta, GstBuffer * buffer, GstVideoMetaTransform * data);
 static gboolean gst_classification_meta_copy (GstBuffer * transbuf,
     GstMeta * meta, GstBuffer * buffer);
-
-static void
-gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
-{
-  GstClassificationMeta *class_meta = (GstClassificationMeta *) meta;
-
-  g_return_if_fail (meta != NULL);
-  g_return_if_fail (buffer != NULL);
-
-  if (class_meta->num_labels != 0) {
-    g_free (class_meta->label_probs);
-  }
-}
 
 GType
 gst_classification_meta_api_get_type (void)
@@ -65,24 +55,11 @@ gst_classification_meta_get_info (void)
     const GstMetaInfo *meta =
         gst_meta_register (GST_CLASSIFICATION_META_API_TYPE,
         "GstClassificationMeta", sizeof (GstClassificationMeta),
-        gst_inference_meta_init, gst_classification_meta_free,
+        gst_classification_meta_init, gst_classification_meta_free,
         gst_classification_meta_transform);
     g_once_init_leave (&classification_meta_info, meta);
   }
   return classification_meta_info;
-}
-
-static void
-gst_detection_meta_free (GstMeta * meta, GstBuffer * buffer)
-{
-  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta;
-
-  g_return_if_fail (meta != NULL);
-  g_return_if_fail (buffer != NULL);
-
-  if (detect_meta->num_boxes != 0) {
-    g_free (detect_meta->boxes);
-  }
 }
 
 GType
@@ -110,7 +87,7 @@ gst_detection_meta_get_info (void)
   if (g_once_init_enter (&detection_meta_info)) {
     const GstMetaInfo *meta =
         gst_meta_register (GST_DETECTION_META_API_TYPE, "GstDetectionMeta",
-        sizeof (GstDetectionMeta), gst_inference_meta_init,
+        sizeof (GstDetectionMeta), gst_detection_meta_init,
         gst_detection_meta_free,
         gst_detection_meta_transform);
     g_once_init_leave (&detection_meta_info, meta);
@@ -119,9 +96,52 @@ gst_detection_meta_get_info (void)
 }
 
 static gboolean
-gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
+gst_classification_meta_init (GstMeta * meta, gpointer params,
+    GstBuffer * buffer)
 {
+  GstClassificationMeta *cmeta = (GstClassificationMeta *) meta;
+
+  cmeta->label_probs = NULL;
+  cmeta->num_labels = 0;
+
   return TRUE;
+}
+
+static void
+gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
+{
+  GstClassificationMeta *class_meta = (GstClassificationMeta *) meta;
+
+  g_return_if_fail (meta != NULL);
+  g_return_if_fail (buffer != NULL);
+
+  if (class_meta->num_labels != 0) {
+    g_free (class_meta->label_probs);
+  }
+}
+
+static gboolean
+gst_detection_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
+{
+  GstDetectionMeta *dmeta = (GstDetectionMeta *) meta;
+
+  dmeta->boxes = NULL;
+  dmeta->num_boxes = 0;
+
+  return TRUE;
+}
+
+static void
+gst_detection_meta_free (GstMeta * meta, GstBuffer * buffer)
+{
+  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta;
+
+  g_return_if_fail (meta != NULL);
+  g_return_if_fail (buffer != NULL);
+
+  if (detect_meta->num_boxes != 0) {
+    g_free (detect_meta->boxes);
+  }
 }
 
 static gboolean

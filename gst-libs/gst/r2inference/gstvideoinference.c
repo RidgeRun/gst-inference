@@ -59,12 +59,20 @@ enum
 };
 
 
+typedef struct _GstVideoInferencePad GstVideoInferencePad;
+struct _GstVideoInferencePad
+{
+  GstCollectData data;
+
+  GstVideoInfo info;
+};
+
 typedef struct _GstVideoInferencePrivate GstVideoInferencePrivate;
 struct _GstVideoInferencePrivate
 {
   GstCollectPads *cpads;
-  GstCollectData *sink_bypass_data;
-  GstCollectData *sink_model_data;
+  GstVideoInferencePad *sink_bypass_data;
+  GstVideoInferencePad *sink_model_data;
 
   GstPad *sink_bypass;
   GstPad *src_bypass;
@@ -104,7 +112,7 @@ static guint gst_video_inference_get_children_count (GstChildProxy * parent);
 static gboolean gst_video_inference_start (GstVideoInference * self);
 static gboolean gst_video_inference_stop (GstVideoInference * self);
 static GstPad *gst_video_inference_create_pad (GstVideoInference * self,
-    GstPadTemplate * templ, const gchar * name, GstCollectData ** data);
+    GstPadTemplate * templ, const gchar * name, GstVideoInferencePad ** data);
 static GstFlowReturn gst_video_inference_collected (GstCollectPads * pads,
     gpointer user_data);
 static GstFlowReturn gst_video_inference_pop_buffer (GstVideoInference * self,
@@ -112,19 +120,21 @@ static GstFlowReturn gst_video_inference_pop_buffer (GstVideoInference * self,
 static GstFlowReturn gst_video_inference_forward_buffer (GstVideoInference *
     self, GstBuffer * buffer, GstPad * pad);
 static gboolean gst_video_inference_model_buffer_process (GstVideoInference *
-    self, GstVideoInferencePrivate * priv, GstBuffer * buffer, GstMeta ** meta);
-static gboolean gst_video_inference_bypass_buffer_process (GstVideoInference *
-    self, GstBuffer * buffer_bypass, GstBuffer * buffer_model);
+    self, GstVideoInferenceClass * klass, GstVideoInferencePrivate * priv,
+    GstBuffer * buffer, gpointer * prediction_data, gsize * prediction_size);
+
 static gboolean gst_video_inference_preprocess (GstVideoInference * self,
     GstVideoInferenceClass * klass, GstVideoFrame * inframe,
     GstVideoFrame * outframe);
 static gboolean gst_video_inference_predict (GstVideoInference * self,
     GstVideoInferencePrivate * priv, GstVideoFrame * frame, gpointer * pred,
     gsize * pred_size);
-static gboolean gst_video_inference_postprocess (GstVideoInference * self,
-    GstVideoInferenceClass * klass, GstVideoFrame * frame, gpointer pred,
-    gsize pred_size);
 
+static gboolean gst_video_inference_postprocess (GstVideoInference * self,
+    GstVideoInferenceClass * klass, const gpointer prediction_data,
+    gsize prediction_size, GstBuffer * buffer_model,
+    GstVideoInferencePad * pad_model, GstBuffer * buffer_bypass,
+    GstVideoInferencePad * pad_bypass);
 
 static gboolean gst_video_inference_sink_event (GstCollectPads * pads,
     GstCollectData * pad, GstEvent * event, gpointer user_data);
@@ -135,9 +145,21 @@ static GstPad *gst_video_inference_get_src_pad (GstVideoInference * self,
 static void
 gst_video_inference_set_backend (GstVideoInference * self, gint backend);
 static guint gst_video_inference_get_backend_type (GstVideoInference * self);
+static void gst_video_inference_set_caps (GstVideoInference * self,
+    GstVideoInferencePrivate * priv, GstCollectData * pad, GstEvent * event);
 
-static void video_inference_map_buffers (GstPad * pad, GstBuffer * buffer,
-    GstVideoFrame * inframe, GstVideoFrame * outframe);
+static void video_inference_map_buffers (GstVideoInferencePad * data,
+    GstBuffer * inbuf, GstVideoFrame * inframe, GstVideoFrame * outframe);
+static gboolean video_inference_prepare_postprocess (const GstMetaInfo *
+    meta_info, GstBuffer * buffer, GstVideoInfo * video_info,
+    GstVideoFrame * out_frame, GstMeta ** out_meta);
+static void video_inference_buffer_unref (GstBuffer * buffer);
+static void video_inference_frame_unmap (GstBuffer * buffer,
+    GstVideoFrame * frame);
+static void video_inference_remove_meta (GstBuffer * buffer, GstMeta * meta);
+static GstMeta *video_inference_transform_meta (GstBuffer * buffer_model,
+    GstVideoInfo * info_model, GstMeta * meta_model, GstBuffer * buffer_bypass,
+    GstVideoInfo * info_bypass);
 
 static guint gst_video_inference_signals[LAST_SIGNAL] = { 0 };
 
@@ -193,8 +215,8 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
 
   gst_video_inference_signals[NEW_PREDICTION_SIGNAL] =
       g_signal_new ("new-prediction", G_TYPE_FROM_CLASS (klass),
-      G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_POINTER,
-      GST_TYPE_BUFFER);
+      G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 4, G_TYPE_POINTER,
+      G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
 
   klass->start = NULL;
   klass->stop = NULL;
@@ -437,7 +459,7 @@ out:
 
 static GstPad *
 gst_video_inference_create_pad (GstVideoInference * self,
-    GstPadTemplate * templ, const gchar * name, GstCollectData ** data)
+    GstPadTemplate * templ, const gchar * name, GstVideoInferencePad ** data)
 {
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstElement *element = GST_ELEMENT (self);
@@ -450,8 +472,8 @@ gst_video_inference_create_pad (GstVideoInference * self,
     g_return_val_if_fail (data, NULL);
 
     *data =
-        gst_collect_pads_add_pad (priv->cpads, pad, sizeof (GstCollectData),
-        NULL, TRUE);
+        (GstVideoInferencePad *) gst_collect_pads_add_pad (priv->cpads, pad,
+        sizeof (GstVideoInferencePad), NULL, TRUE);
     if (NULL == *data) {
       GST_ERROR_OBJECT (self, "Unable to add pad %s to collect pads", name);
       goto free_pad;
@@ -483,7 +505,7 @@ gst_video_inference_request_new_pad (GstElement * element,
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   const gchar *tname;
   GstPad **pad;
-  GstCollectData **data;
+  GstVideoInferencePad **data;
 
   tname = GST_PAD_TEMPLATE_NAME_TEMPLATE (templ);
 
@@ -519,7 +541,7 @@ gst_video_inference_release_pad (GstElement * element, GstPad * pad)
   GstVideoInference *self = GST_VIDEO_INFERENCE (element);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstPad **ourpad;
-  GstCollectData **data;
+  GstVideoInferencePad **data;
 
   GST_INFO_OBJECT (self, "Removing %" GST_PTR_FORMAT, pad);
 
@@ -554,6 +576,13 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
   GstFlowReturn ret = GST_FLOW_OK;
   GstDebugLevel level = GST_LEVEL_LOG;
 
+  g_return_val_if_fail (self, GST_FLOW_ERROR);
+
+  /* No buffer to forward */
+  if (NULL == buffer) {
+    return ret;
+  }
+
   /* User didn't request this pad */
   if (NULL == pad) {
     GST_LOG_OBJECT (self, "Dropping buffer %" GST_PTR_FORMAT, buffer);
@@ -577,25 +606,22 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
 }
 
 static void
-video_inference_map_buffers (GstPad * pad, GstBuffer * inbuf,
+video_inference_map_buffers (GstVideoInferencePad * cpad, GstBuffer * inbuf,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-  GstCaps *caps;
-  GstVideoInfo info;
+  GstVideoInfo *info;
   GstAllocationParams params;
   GstBuffer *outbuf;
   gsize size;
+  GstMapFlags inflags;
+  GstMapFlags outflags;
 
-  g_return_if_fail (pad);
+  g_return_if_fail (cpad);
   g_return_if_fail (inbuf);
   g_return_if_fail (inframe);
   g_return_if_fail (outframe);
 
-  /* Generate a new video info based on our caps */
-  gst_video_info_init (&info);
-  caps = gst_pad_get_current_caps (pad);
-  gst_video_info_from_caps (&info, caps);
-  gst_caps_unref (caps);
+  info = &(cpad->info);
 
   /* Allocate an output buffer for the pre-processed data */
   gst_allocation_params_init (&params);
@@ -605,10 +631,11 @@ video_inference_map_buffers (GstPad * pad, GstBuffer * inbuf,
   /* Map buffers into their respective output frames but dont increase
    * the refcount so we can add metas later on.
    */
-  gst_video_frame_map (inframe, &info, inbuf, GST_MAP_READ |
-      GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
-  gst_video_frame_map (outframe, &info, outbuf, GST_MAP_WRITE |
-      GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
+  inflags = (GstMapFlags) (GST_MAP_READ | GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
+  gst_video_frame_map (inframe, info, inbuf, inflags);
+
+  outflags = (GstMapFlags) (GST_MAP_WRITE | GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
+  gst_video_frame_map (outframe, info, outbuf, outflags);
 }
 
 static gboolean
@@ -666,86 +693,37 @@ gst_video_inference_predict (GstVideoInference * self,
 }
 
 static gboolean
-gst_video_inference_postprocess (GstVideoInference * self,
-    GstVideoInferenceClass * klass, GstVideoFrame * frame, gpointer pred,
-    gsize pred_size)
-{
-  GstMeta *meta = NULL;
-  gboolean pred_valid = FALSE;
-
-  g_return_val_if_fail (self, FALSE);
-  g_return_val_if_fail (klass, FALSE);
-  g_return_val_if_fail (frame, FALSE);
-  g_return_val_if_fail (pred, FALSE);
-  g_return_val_if_fail (pred_size, FALSE);
-
-  g_return_val_if_fail (gst_buffer_is_writable (frame->buffer), FALSE);
-
-  /* Subclass didn't implement a post-process, dont fail, just ignore */
-  if (NULL == klass->postprocess) {
-    return TRUE;
-  }
-
-  meta = gst_buffer_add_meta (frame->buffer, klass->inference_meta_info, NULL);
-
-  GST_LOG_OBJECT (self, "Calling frame postprocess");
-  if (!klass->postprocess (self, meta, frame, pred, pred_size, &pred_valid)) {
-    GST_ELEMENT_ERROR (self, STREAM, FAILED,
-        ("Subclass failed at preprocess"), (NULL));
-    return FALSE;
-  }
-
-  if (pred_valid) {
-    g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL], 0,
-        meta, frame->buffer);
-  } else {
-    gst_buffer_remove_meta (frame->buffer, meta);
-  }
-
-  return TRUE;
-}
-
-static gboolean
 gst_video_inference_model_buffer_process (GstVideoInference * self,
-    GstVideoInferencePrivate * priv, GstBuffer * buffer, GstMeta ** meta)
+    GstVideoInferenceClass * klass, GstVideoInferencePrivate * priv,
+    GstBuffer * buffer, gpointer * prediction_data, gsize * prediction_size)
 {
-  GstVideoInferenceClass *klass;
   GstVideoFrame inframe, outframe;
   GstBuffer *outbuf;
   gboolean ret;
-  gpointer prediction_data;
-  gsize prediction_size;
 
   g_return_val_if_fail (self, FALSE);
+  g_return_val_if_fail (klass, FALSE);
   g_return_val_if_fail (priv, FALSE);
   g_return_val_if_fail (buffer, FALSE);
-  g_return_val_if_fail (meta, FALSE);
+  g_return_val_if_fail (prediction_data, FALSE);
+  g_return_val_if_fail (prediction_size, FALSE);
 
-  klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
-  *meta = NULL;
-
-  video_inference_map_buffers (priv->sink_model, buffer, &inframe, &outframe);
+  video_inference_map_buffers (priv->sink_model_data, buffer, &inframe,
+      &outframe);
+  outbuf = outframe.buffer;
 
   if (!gst_video_inference_preprocess (self, klass, &inframe, &outframe)) {
     ret = FALSE;
     goto free_frames;
   }
-  outbuf = outframe.buffer;
 
-  if (!gst_video_inference_predict (self, priv, &outframe, &prediction_data,
-          &prediction_size)) {
-    ret = FALSE;
-    goto free_frames;
-  }
-
-  if (!gst_video_inference_postprocess (self, klass, &inframe, prediction_data,
+  if (!gst_video_inference_predict (self, priv, &outframe, prediction_data,
           prediction_size)) {
     ret = FALSE;
     goto free_frames;
   }
 
   ret = TRUE;
-  g_free (prediction_data);
 
 free_frames:
   gst_video_frame_unmap (&inframe);
@@ -756,11 +734,152 @@ free_frames:
 }
 
 static gboolean
-gst_video_inference_bypass_buffer_process (GstVideoInference * self,
-    GstBuffer * buffer_bypass, GstBuffer * buffer_model)
+video_inference_prepare_postprocess (const GstMetaInfo * meta_info,
+    GstBuffer * buffer, GstVideoInfo * video_info, GstVideoFrame * out_frame,
+    GstMeta ** out_meta)
 {
-  /* TODO: Get GstMetas from Model buffer and attach them to the
-     Bypass Buffer */
+  GstMapFlags flags;
+
+  g_return_val_if_fail (meta_info, FALSE);
+  g_return_val_if_fail (out_frame, FALSE);
+
+  /* No pad requested, continue without meta */
+  if (NULL == buffer || NULL == video_info) {
+    return TRUE;
+  }
+
+  if (out_meta) {
+    g_return_val_if_fail (gst_buffer_is_writable (buffer), FALSE);
+    *out_meta = gst_buffer_add_meta (buffer, meta_info, NULL);
+  }
+
+  flags = (GstMapFlags) (GST_MAP_READ | GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
+  gst_video_frame_map (out_frame, video_info, buffer, flags);
+
+  return TRUE;
+}
+
+static void
+video_inference_frame_unmap (GstBuffer * buffer, GstVideoFrame * frame)
+{
+  g_return_if_fail (frame);
+
+  if (NULL != buffer) {
+    gst_video_frame_unmap (frame);
+  }
+}
+
+static void
+video_inference_remove_meta (GstBuffer * buffer, GstMeta * meta)
+{
+  if (NULL != buffer && NULL != meta) {
+    g_return_if_fail (gst_buffer_is_writable (buffer));
+    gst_buffer_remove_meta (buffer, meta);
+  }
+}
+
+static GstMeta *
+video_inference_transform_meta (GstBuffer * buffer_model,
+    GstVideoInfo * info_model, GstMeta * meta_model, GstBuffer * buffer_bypass,
+    GstVideoInfo * info_bypass)
+{
+  GstMeta *meta_bypass = NULL;
+  const GstMetaInfo *info;
+  GQuark size_quark = g_quark_from_static_string (GST_META_TAG_VIDEO_SIZE_STR);
+  GQuark orientation_quark =
+      g_quark_from_static_string (GST_META_TAG_VIDEO_ORIENTATION_STR);
+  GQuark scale_quark = gst_video_meta_transform_scale_get_quark ();
+  GQuark copy_quark = g_quark_from_static_string ("gst-copy");
+
+  g_return_val_if_fail (buffer_model, NULL);
+  g_return_val_if_fail (info_model, NULL);
+  g_return_val_if_fail (meta_model, NULL);
+
+  if (NULL == info_bypass || NULL == buffer_bypass) {
+    return meta_bypass;
+  }
+
+  info = meta_model->info;
+
+  if (gst_meta_api_type_has_tag (info->api, size_quark) ||
+      gst_meta_api_type_has_tag (info->api, orientation_quark)) {
+    GstVideoMetaTransform trans = { info_model, info_bypass };
+
+    info->transform_func (buffer_bypass, meta_model, buffer_model,
+        scale_quark, &trans);
+  } else {
+    info->transform_func (buffer_bypass, meta_model, buffer_model,
+        copy_quark, NULL);
+  }
+  meta_bypass = gst_buffer_get_meta (buffer_bypass, info->type);
+
+  return meta_bypass;
+}
+
+static gboolean
+gst_video_inference_postprocess (GstVideoInference * self,
+    GstVideoInferenceClass * klass, const gpointer prediction_data,
+    gsize prediction_size, GstBuffer * buffer_model,
+    GstVideoInferencePad * pad_model, GstBuffer * buffer_bypass,
+    GstVideoInferencePad * pad_bypass)
+{
+  GstMeta *meta_model = NULL;
+  GstMeta *meta_bypass = NULL;
+  GstVideoFrame frame_model;
+  GstVideoFrame frame_bypass;
+  GstVideoInfo *info_model = NULL;
+  GstVideoInfo *info_bypass = NULL;
+  gboolean pred_valid = FALSE;
+
+  g_return_val_if_fail (self, FALSE);
+  g_return_val_if_fail (klass, FALSE);
+  g_return_val_if_fail (prediction_data, FALSE);
+  g_return_val_if_fail (prediction_size, FALSE);
+  g_return_val_if_fail (buffer_model, FALSE);
+  g_return_val_if_fail (pad_model, FALSE);
+
+  /* Subclass didn't implement a post-process, dont fail, just ignore */
+  if (NULL == klass->postprocess) {
+    return TRUE;
+  }
+
+  info_model = &(pad_model->info);
+  info_bypass = pad_bypass ? &(pad_bypass->info) : NULL;
+
+  if (!video_inference_prepare_postprocess (klass->inference_meta_info,
+          buffer_model, info_model, &frame_model, &meta_model)) {
+    return FALSE;
+  }
+
+  if (!video_inference_prepare_postprocess (klass->inference_meta_info,
+          buffer_bypass, info_bypass, &frame_bypass, NULL)) {
+    return FALSE;
+  }
+
+  GST_LOG_OBJECT (self, "Calling frame postprocess");
+  if (!klass->postprocess (self, prediction_data, prediction_size, meta_model,
+          info_model, &pred_valid)) {
+    GST_ELEMENT_ERROR (self, STREAM, FAILED, ("Subclass failed at preprocess"),
+        (NULL));
+    return FALSE;
+  }
+
+  if (pred_valid) {
+    GstVideoFrame *pbpass = buffer_bypass ? &frame_bypass : NULL;
+
+    meta_bypass =
+        video_inference_transform_meta (buffer_model, info_model, meta_model,
+        buffer_bypass, info_bypass);
+
+    g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL], 0,
+        meta_model, &frame_bypass, meta_bypass, pbpass);
+  } else {
+    video_inference_remove_meta (buffer_model, meta_model);
+    video_inference_remove_meta (buffer_bypass, meta_bypass);
+  }
+
+  video_inference_frame_unmap (buffer_model, &frame_model);
+  video_inference_frame_unmap (buffer_bypass, &frame_bypass);
 
   return TRUE;
 }
@@ -784,90 +903,92 @@ gst_video_inference_pop_buffer (GstVideoInference * self,
     return GST_FLOW_EOS;
   }
 
+  *buffer = gst_buffer_make_writable (*buffer);
+
   GST_LOG_OBJECT (self, "Popped %" GST_PTR_FORMAT " from %" GST_PTR_FORMAT,
       *buffer, data->pad);
   return GST_FLOW_OK;
+}
+
+static void
+video_inference_buffer_unref (GstBuffer * buffer)
+{
+  if (NULL != buffer) {
+    gst_buffer_unref (buffer);
+  }
 }
 
 static GstFlowReturn
 gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
 {
   GstVideoInference *self = GST_VIDEO_INFERENCE (user_data);
+  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstFlowReturn ret = GST_FLOW_OK;
   GstBuffer *buffer_model = NULL;
   GstBuffer *buffer_bypass = NULL;
-  GstMeta *meta = NULL;
+  gpointer prediction_data = NULL;
+  gsize prediction_size;
 
   ret =
-      gst_video_inference_pop_buffer (self, pads, priv->sink_model_data,
-      &buffer_model);
+      gst_video_inference_pop_buffer (self, pads,
+      (GstCollectData *) priv->sink_model_data, &buffer_model);
   if (GST_FLOW_OK != ret) {
     goto out;
   }
 
-  if (buffer_model) {
-    buffer_model = gst_buffer_make_writable (buffer_model);
-
-    if (!gst_video_inference_model_buffer_process (self, priv, buffer_model,
-            &meta)) {
-      ret = GST_FLOW_ERROR;
-      goto model_free;
-    }
-  }
-
   ret =
-      gst_video_inference_pop_buffer (self, pads, priv->sink_bypass_data,
-      &buffer_bypass);
+      gst_video_inference_pop_buffer (self, pads,
+      (GstCollectData *) priv->sink_bypass_data, &buffer_bypass);
   if (GST_FLOW_OK != ret) {
     goto model_free;
   }
 
-  if (buffer_bypass) {
-    if (!gst_video_inference_bypass_buffer_process (self, buffer_bypass,
-            buffer_model)) {
+  if (buffer_model) {
+    /* Run preprocess and inference on the model and generate prediction */
+    if (!gst_video_inference_model_buffer_process (self, klass, priv,
+            buffer_model, &prediction_data, &prediction_size)) {
+      ret = GST_FLOW_ERROR;
+      goto bypass_free;
+    }
+
+    /* Have the subclass analyze the prediction and generate model and bypass metas */
+    if (!gst_video_inference_postprocess (self, klass, prediction_data,
+            prediction_size, buffer_model, priv->sink_model_data, buffer_bypass,
+            priv->sink_bypass_data)) {
       ret = GST_FLOW_ERROR;
       goto bypass_free;
     }
   }
 
-  /* Forward buffers to src pads */
-  if (NULL != buffer_model) {
-    ret =
-        gst_video_inference_forward_buffer (self, buffer_model,
-        priv->src_model);
+  /* Forward buffer to model src pad */
+  ret = gst_video_inference_forward_buffer (self, buffer_model,
+      priv->src_model);
 
-    /* We don't own this buffer anymore, don't free it */
-    buffer_model = NULL;
-
-    if (GST_FLOW_OK != ret) {
-      goto bypass_free;
-    }
+  /* We don't own this buffer anymore, don't free it */
+  buffer_model = NULL;
+  if (GST_FLOW_OK != ret) {
+    goto bypass_free;
   }
 
-  if (NULL != buffer_bypass) {
-    ret =
-        gst_video_inference_forward_buffer (self,
-        buffer_bypass, priv->src_bypass);
-    if (GST_FLOW_OK != ret) {
-      /* No need to free bypass buffer */
-      goto model_free;
-    }
-  }
+  /* Forward buffer to bypass src pad */
+  ret = gst_video_inference_forward_buffer (self,
+      buffer_bypass, priv->src_bypass);
+
+  /* We don't own this buffer anymore, don't free it */
+  buffer_bypass = NULL;
 
   goto out;
 
 bypass_free:
-  if (buffer_bypass) {
-    gst_buffer_unref (buffer_bypass);
-  }
+  video_inference_buffer_unref (buffer_bypass);
 
 model_free:
-  if (buffer_model) {
-    gst_buffer_unref (buffer_model);
-  }
+  video_inference_buffer_unref (buffer_model);
 
 out:
+  g_free (prediction_data);
+
   return ret;
 }
 
@@ -888,6 +1009,33 @@ gst_video_inference_get_src_pad (GstVideoInference * self,
   return pad;
 }
 
+static void
+gst_video_inference_set_caps (GstVideoInference * self,
+    GstVideoInferencePrivate * priv, GstCollectData * data, GstEvent * event)
+{
+  GstCaps *caps;
+  GstVideoInferencePad *cpad;
+
+  g_return_if_fail (self);
+  g_return_if_fail (priv);
+  g_return_if_fail (data);
+  g_return_if_fail (event);
+
+  cpad = (GstVideoInferencePad *) data;
+
+  gst_event_parse_caps (event, &caps);
+
+  if (gst_caps_is_fixed (caps)) {
+    GstVideoInfo *info = &(cpad->info);
+
+    GST_INFO_OBJECT (self,
+        "Updating caps in %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, data->pad,
+        caps);
+    gst_video_info_init (info);
+    gst_video_info_from_caps (info, caps);
+  }
+}
+
 static gboolean
 gst_video_inference_sink_event (GstCollectPads * pads, GstCollectData * pad,
     GstEvent * event, gpointer user_data)
@@ -898,6 +1046,14 @@ gst_video_inference_sink_event (GstCollectPads * pads, GstCollectData * pad,
   GstPad *srcpad;
 
   srcpad = gst_video_inference_get_src_pad (self, priv, pad->pad);
+
+  switch (GST_EVENT_TYPE (event)) {
+    case GST_EVENT_CAPS:
+      gst_video_inference_set_caps (self, priv, pad, event);
+      break;
+    default:
+      break;
+  }
 
   if (NULL != srcpad) {
     GST_LOG_OBJECT (self, "Forwarding event %s from %" GST_PTR_FORMAT,
