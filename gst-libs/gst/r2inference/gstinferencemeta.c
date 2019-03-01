@@ -12,6 +12,7 @@
 #include "gstinferencemeta.h"
 
 #include <gst/video/video.h>
+#include <string.h>
 
 static gboolean gst_classification_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);

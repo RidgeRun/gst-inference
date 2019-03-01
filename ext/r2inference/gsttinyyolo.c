@@ -317,7 +317,7 @@ print_top_predictions (GstVideoInference * vi, gpointer prediction,
 
   remove_duplicated_boxes (boxes, elements);
 
-  *resulting_boxes = malloc (*elements * sizeof (BBox));
+  *resulting_boxes = g_malloc (*elements * sizeof (BBox));
   memcpy (*resulting_boxes, boxes, *elements * sizeof (BBox));
   for (index = 0; index < *elements; index++) {
     GST_LOG_OBJECT (vi,
