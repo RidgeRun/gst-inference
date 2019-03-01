@@ -15,6 +15,7 @@
 #endif
 
 #include <gst/gst.h>
+#include <gst/video/video.h>
 #include <glib-unix.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +39,9 @@ void gst_classification_create_pipeline (GstClassification * classification);
 void gst_classification_start (GstClassification * classification);
 void gst_classification_stop (GstClassification * classification);
 static void gst_classification_process_inference (GstElement * element,
-    GstClassificationMeta * meta, GstBuffer * buffer, gpointer user_data);
+    GstClassificationMeta * model_meta, GstVideoFrame * model_frame,
+    GstClassificationMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    gpointer user_data);
 static gboolean gst_classification_exit_handler (gpointer user_data);
 static gboolean gst_classification_handle_message (GstBus * bus,
     GstMessage * message, gpointer data);
@@ -168,21 +171,20 @@ gst_classification_free (GstClassification * classification)
 
 static void
 gst_classification_process_inference (GstElement * element,
-    GstClassificationMeta * meta, GstBuffer * buffer, gpointer user_data)
+    GstClassificationMeta * model_meta, GstVideoFrame * model_frame,
+    GstClassificationMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    gpointer user_data)
 {
-  GstMapInfo info;
-  const gint width = 0;         //TODO
-  const gint height = 0;        //TODO
-
   g_return_if_fail (element);
-  g_return_if_fail (meta);
-  g_return_if_fail (buffer);
+  g_return_if_fail (model_meta);
+  g_return_if_fail (model_frame);
+  g_return_if_fail (bypass_meta);
+  g_return_if_fail (bypass_frame);
   g_return_if_fail (user_data);
 
-  gst_buffer_map (buffer, &info, GST_MAP_READ);
-  handle_prediction (info.data, width, height, info.size, meta->label_probs,
-      meta->num_labels);
-  gst_buffer_unmap (buffer, &info);
+  handle_prediction (bypass_frame->data[0], bypass_frame->info.width,
+      bypass_frame->info.height, bypass_frame->info.size,
+      bypass_meta->label_probs, bypass_meta->num_labels);
 }
 
 void

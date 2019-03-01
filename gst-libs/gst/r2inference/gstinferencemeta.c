@@ -260,7 +260,9 @@ gst_classification_meta_copy (GstBuffer * dest,
   dmeta =
       (GstClassificationMeta *) gst_buffer_add_meta (dest,
       GST_CLASSIFICATION_META_INFO, NULL);
+  g_print ("GRUNER: %s:%d %p\n", __FUNCTION__, __LINE__, dmeta);
   if (!dmeta) {
+    g_print ("GRUNER: %s:%d\n", __FUNCTION__, __LINE__);
     return FALSE;
   }
 

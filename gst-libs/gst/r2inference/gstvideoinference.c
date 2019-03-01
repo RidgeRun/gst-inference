@@ -870,7 +870,6 @@ gst_video_inference_postprocess (GstVideoInference * self,
     meta_bypass =
         video_inference_transform_meta (buffer_model, info_model, meta_model,
         buffer_bypass, info_bypass);
-
     g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL], 0,
         meta_model, &frame_bypass, meta_bypass, pbpass);
   } else {

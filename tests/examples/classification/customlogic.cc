@@ -15,12 +15,9 @@
 #include <iostream>
 
 void
-handle_prediction (unsigned char *image, 
-                   int width, 
-                   int height,
-                   int size,
-                   double *probabilities,
-                   int num_probabilities)
+handle_prediction (unsigned char *image,
+    int width,
+    int height, unsigned int size, double *probabilities, int num_probabilities)
 {
   /* FILLME:
    * Put here your custom logic, you may use C++ here.
@@ -28,7 +25,7 @@ handle_prediction (unsigned char *image,
 
   double max = 0;
   double imax = 0;
-  
+
   for (int i = 0; i < num_probabilities; ++i) {
     double current = probabilities[i];
 
@@ -39,5 +36,5 @@ handle_prediction (unsigned char *image,
   }
 
   std::cout << "Highest probability is label " << imax
-	    << ": (" << max << ")" << std::endl;
+      << ": (" << max << ")" << std::endl;
 }

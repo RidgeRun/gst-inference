@@ -21,7 +21,7 @@ void
 handle_prediction (unsigned char *image, 
                    int width, 
                    int height,
-                   int size,
+                   unsigned int size,
                    double *probabilities,
                    int num_probabilities);
 
