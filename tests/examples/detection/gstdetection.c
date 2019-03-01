@@ -15,6 +15,7 @@
 #endif
 
 #include <gst/gst.h>
+#include <gst/video/video.h>
 #include <glib-unix.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +39,9 @@ void gst_detection_create_pipeline (GstDetection * detection);
 void gst_detection_start (GstDetection * detection);
 void gst_detection_stop (GstDetection * detection);
 static void gst_detection_process_inference (GstElement * element,
-    GstDetectionMeta * meta, GstBuffer * buffer, gpointer user_data);
+    GstDetectionMeta * model_meta, GstVideoFrame * model_frame,
+    GstDetectionMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    gpointer user_data);
 static gboolean gst_detection_exit_handler (gpointer user_data);
 static gboolean gst_detection_handle_message (GstBus * bus,
     GstMessage * message, gpointer data);
@@ -173,32 +176,35 @@ gst_detection_free (GstDetection * detection)
 
 static void
 gst_detection_process_inference (GstElement * element,
-    GstDetectionMeta * meta, GstBuffer * buffer, gpointer user_data)
+    GstDetectionMeta * model_meta, GstVideoFrame * model_frame,
+    GstDetectionMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    gpointer user_data)
 {
   gint index;
   BoundingBox *boxes;
-  GstMapInfo info;
 
   g_return_if_fail (element);
-  g_return_if_fail (meta);
-  g_return_if_fail (buffer);
+  g_return_if_fail (model_meta);
+  g_return_if_fail (model_frame);
+  g_return_if_fail (bypass_meta);
+  g_return_if_fail (bypass_frame);
   g_return_if_fail (user_data);
 
-  boxes = (BoundingBox *) g_malloc (meta->num_boxes * sizeof (BoundingBox));
+  boxes =
+      (BoundingBox *) g_malloc (bypass_meta->num_boxes * sizeof (BoundingBox));
 
-  for (index = 0; index < meta->num_boxes; index++) {
-    boxes[index].category = meta->boxes[index].label;
-    boxes[index].x = meta->boxes[index].x;
-    boxes[index].y = meta->boxes[index].y;
-    boxes[index].width = meta->boxes[index].width;
-    boxes[index].height = meta->boxes[index].height;
-    boxes[index].probability = meta->boxes[index].prob;
+  for (index = 0; index < bypass_meta->num_boxes; index++) {
+    boxes[index].category = bypass_meta->boxes[index].label;
+    boxes[index].x = bypass_meta->boxes[index].x;
+    boxes[index].y = bypass_meta->boxes[index].y;
+    boxes[index].width = bypass_meta->boxes[index].width;
+    boxes[index].height = bypass_meta->boxes[index].height;
+    boxes[index].probability = bypass_meta->boxes[index].prob;
   }
 
-  gst_buffer_map (buffer, &info, GST_MAP_READ);
-  handle_prediction (info.data, 0, 0, info.maxsize, boxes, meta->num_boxes);
-  gst_buffer_unmap (buffer, &info);
-
+  handle_prediction (bypass_frame->data[0], bypass_frame->info.width,
+      bypass_frame->info.height, bypass_frame->info.size, boxes,
+      bypass_meta->num_boxes);
   g_free (boxes);
 }
 

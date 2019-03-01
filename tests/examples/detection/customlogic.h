@@ -31,7 +31,7 @@ void
 handle_prediction (unsigned char *image, 
                    int width, 
                    int height,
-                   int size,
+                   unsigned int size,
                    BoundingBox *boxes,
                    int num_boxes);
 
