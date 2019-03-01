@@ -208,11 +208,11 @@ gst_classification_create_pipeline (GstClassification * classification)
   }
   g_string_append (pipe_desc, " filesrc location=");
   g_string_append (pipe_desc, file_path);
-  g_string_append (pipe_desc, " ! decodebin ! videoconvert ! videoscale ! ");
-  g_string_append (pipe_desc, " video/x-raw, width=299, heigth=299 ! ");
-  g_string_append (pipe_desc, " tee name=t t. ! queue ! videoconvert ! ");
-  g_string_append (pipe_desc, " videoscale ! net.sink_model t.! queue ! ");
-  g_string_append (pipe_desc, " videoconvert ! video/x-raw,format=RGB ! ");
+  g_string_append (pipe_desc, " ! decodebin ! tee name=t ");
+  g_string_append (pipe_desc,
+      "t. ! queue ! videoconvert ! videoscale ! net.sink_model ");
+  g_string_append (pipe_desc,
+      "t. ! queue ! videoconvert ! video/x-raw,format=RGB ! ");
   g_string_append (pipe_desc,
       " net.sink_bypass net.src_bypass ! classificationoverlay ! ");
   g_string_append (pipe_desc, " autovideosink sync=false");
