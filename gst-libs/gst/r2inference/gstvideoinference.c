@@ -811,7 +811,7 @@ video_inference_transform_meta (GstBuffer * buffer_model,
     info->transform_func (buffer_bypass, meta_model, buffer_model,
         copy_quark, NULL);
   }
-  meta_bypass = gst_buffer_get_meta (buffer_bypass, info->type);
+  meta_bypass = gst_buffer_get_meta (buffer_bypass, info->api);
 
   return meta_bypass;
 }
