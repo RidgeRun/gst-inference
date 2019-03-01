@@ -15,10 +15,8 @@
 
 static gboolean gst_classification_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
-static void gst_classification_meta_free (GstMeta * meta,
-    GstBuffer * buffer);
-static void gst_detection_meta_free (GstMeta * meta,
-    GstBuffer * buffer);
+static void gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer);
+static void gst_detection_meta_free (GstMeta * meta, GstBuffer * buffer);
 static gboolean gst_detection_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static gboolean gst_detection_meta_transform (GstBuffer * transbuf,
@@ -122,8 +120,7 @@ gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
 }
 
 static gboolean
-gst_detection_meta_init (GstMeta * meta, gpointer params,
-    GstBuffer * buffer)
+gst_detection_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
 {
   GstDetectionMeta *dmeta = (GstDetectionMeta *) meta;
 
@@ -288,4 +285,3 @@ gst_classification_meta_transform (GstBuffer * dest, GstMeta * meta,
   /* No transform supported */
   return FALSE;
 }
-
