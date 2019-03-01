@@ -109,7 +109,7 @@ enum
 
 /* pad templates */
 
-#define CAPS "video/x-raw,format=BGR,width=448,height=448"
+#define CAPS "video/x-raw,format=BGR,width=416,height=416"
 
 static GstStaticPadTemplate sink_model_factory =
 GST_STATIC_PAD_TEMPLATE ("sink_model",
