@@ -15,9 +15,12 @@
 #endif
 
 #include <gst/gst.h>
+#include <gst/video/video.h>
 #include <glib-unix.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "customlogic.h"
 #include "gst/r2inference/gstinferencemeta.h"
 
 #define GETTEXT_PACKAGE "GstInference"
@@ -36,7 +39,9 @@ void gst_classification_create_pipeline (GstClassification * classification);
 void gst_classification_start (GstClassification * classification);
 void gst_classification_stop (GstClassification * classification);
 static void gst_classification_process_inference (GstElement * element,
-    GstClassificationMeta * meta, GstBuffer * buffer, gpointer user_data);
+    GstClassificationMeta * model_meta, GstVideoFrame * model_frame,
+    GstClassificationMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    gpointer user_data);
 static gboolean gst_classification_exit_handler (gpointer user_data);
 static gboolean gst_classification_handle_message (GstBus * bus,
     GstMessage * message, gpointer data);
@@ -48,7 +53,8 @@ static const gchar *backend = NULL;
 static GOptionEntry entries[] = {
   {"verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL},
   {"model", 'm', 0, G_OPTION_ARG_STRING, &model_path, "Model path", NULL},
-  {"file", 'f', 0, G_OPTION_ARG_STRING, &file_path, "File path", NULL},
+  {"file", 'f', 0, G_OPTION_ARG_STRING, &file_path,
+      "File path (or camera, if omitted)", NULL},
   {"backend", 'b', 0, G_OPTION_ARG_STRING, &backend,
       "Backend used for inference, example: tensorflow", NULL},
   {NULL}
@@ -62,7 +68,7 @@ main (int argc, char *argv[])
   GstClassification *classification;
   GMainLoop *main_loop;
 
-  context = g_option_context_new ("GstInference Classification Example");
+  context = g_option_context_new (" - GstInference Classification Example");
   g_option_context_add_main_entries (context, entries, GETTEXT_PACKAGE);
   g_option_context_add_group (context, gst_init_get_option_group ());
   if (!g_option_context_parse (context, &argc, &argv, &error)) {
@@ -75,7 +81,7 @@ main (int argc, char *argv[])
 
   if (verbose) {
     g_print ("Model Path: %s \n", model_path);
-    g_print ("File path: %s \n", file_path);
+    g_print ("File path: %s \n", file_path ? file_path : "camera");
     g_print ("Backend: %s \n", backend);
   }
 
@@ -86,11 +92,6 @@ main (int argc, char *argv[])
 
   if (!model_path) {
     g_printerr ("Model path is required (-m <path>) \n");
-    exit (1);
-  }
-
-  if (!file_path) {
-    g_printerr ("File path is required (-f <path>) \n");
     exit (1);
   }
 
@@ -166,28 +167,20 @@ gst_classification_free (GstClassification * classification)
 
 static void
 gst_classification_process_inference (GstElement * element,
-    GstClassificationMeta * meta, GstBuffer * buffer, gpointer user_data)
+    GstClassificationMeta * model_meta, GstVideoFrame * model_frame,
+    GstClassificationMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    gpointer user_data)
 {
-  gdouble current;
-  gint index;
-  gdouble max;
-
   g_return_if_fail (element);
-  g_return_if_fail (meta);
-  g_return_if_fail (buffer);
+  g_return_if_fail (model_meta);
+  g_return_if_fail (model_frame);
+  g_return_if_fail (bypass_meta);
+  g_return_if_fail (bypass_frame);
   g_return_if_fail (user_data);
 
-  index = 0;
-  max = -1;
-
-  for (gint i = 0; i < meta->num_labels; ++i) {
-    current = (meta->label_probs)[i];
-    if (current > max) {
-      max = current;
-      index = i;
-    }
-  }
-  g_print ("Highest probability is label %i : (%f) \n", index, max);
+  handle_prediction (bypass_frame->data[0], bypass_frame->info.width,
+      bypass_frame->info.height, bypass_frame->info.size,
+      bypass_meta->label_probs, bypass_meta->num_labels);
 }
 
 void
@@ -211,13 +204,19 @@ gst_classification_create_pipeline (GstClassification * classification)
     g_string_append (pipe_desc,
         " backend::output-layer=InceptionV4/Logits/Predictions ");
   }
-  g_string_append (pipe_desc, " filesrc location=");
-  g_string_append (pipe_desc, file_path);
-  g_string_append (pipe_desc, " ! decodebin ! videoconvert ! videoscale ! ");
-  g_string_append (pipe_desc, " video/x-raw, width=299, heigth=299 ! ");
-  g_string_append (pipe_desc, " tee name=t t. ! queue ! videoconvert ! ");
-  g_string_append (pipe_desc, " videoscale ! net.sink_model t.! queue ! ");
-  g_string_append (pipe_desc, " net.sink_bypass net.src_bypass ! fakesink ");
+  if (file_path) {
+    g_string_append (pipe_desc, " filesrc location=");
+    g_string_append (pipe_desc, file_path);
+    g_string_append (pipe_desc, " ! decodebin ! ");
+  } else {
+    g_string_append (pipe_desc, "autovideosrc !  ");
+  }
+  g_string_append (pipe_desc, "tee name=t t. ! queue ! videoconvert ! ");
+  g_string_append (pipe_desc, "videoscale ! net.sink_model t. ! ");
+  g_string_append (pipe_desc, "queue ! videoconvert ! ");
+  g_string_append (pipe_desc, "video/x-raw,format=RGB ! net.sink_bypass ");
+  g_string_append (pipe_desc, "net.src_bypass ! classificationoverlay ! ");
+  g_string_append (pipe_desc, " autovideosink sync=false");
 
   if (verbose)
     g_print ("pipeline: %s\n", pipe_desc->str);

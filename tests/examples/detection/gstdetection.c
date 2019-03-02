@@ -15,10 +15,13 @@
 #endif
 
 #include <gst/gst.h>
+#include <gst/video/video.h>
 #include <glib-unix.h>
 #include <stdlib.h>
 #include <string.h>
 #include "gst/r2inference/gstinferencemeta.h"
+
+#include "customlogic.h"
 
 #define GETTEXT_PACKAGE "GstInference"
 
@@ -36,7 +39,9 @@ void gst_detection_create_pipeline (GstDetection * detection);
 void gst_detection_start (GstDetection * detection);
 void gst_detection_stop (GstDetection * detection);
 static void gst_detection_process_inference (GstElement * element,
-    GstDetectionMeta * meta, GstBuffer * buffer, gpointer user_data);
+    GstDetectionMeta * model_meta, GstVideoFrame * model_frame,
+    GstDetectionMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    gpointer user_data);
 static gboolean gst_detection_exit_handler (gpointer user_data);
 static gboolean gst_detection_handle_message (GstBus * bus,
     GstMessage * message, gpointer data);
@@ -48,7 +53,8 @@ static const gchar *backend = NULL;
 static GOptionEntry entries[] = {
   {"verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL},
   {"model", 'm', 0, G_OPTION_ARG_STRING, &model_path, "Model path", NULL},
-  {"file", 'f', 0, G_OPTION_ARG_STRING, &file_path, "File path", NULL},
+  {"file", 'f', 0, G_OPTION_ARG_STRING, &file_path,
+      "File path (or camera, if omitted)", NULL},
   {"backend", 'b', 0, G_OPTION_ARG_STRING, &backend,
       "Backend used for inference, example: tensorflow", NULL},
   {NULL}
@@ -62,7 +68,7 @@ main (int argc, char *argv[])
   GstDetection *detection;
   GMainLoop *main_loop;
 
-  context = g_option_context_new ("GstInference Detection Example");
+  context = g_option_context_new (" - GstInference Detection Example");
   g_option_context_add_main_entries (context, entries, GETTEXT_PACKAGE);
   g_option_context_add_group (context, gst_init_get_option_group ());
   if (!g_option_context_parse (context, &argc, &argv, &error)) {
@@ -75,7 +81,7 @@ main (int argc, char *argv[])
 
   if (verbose) {
     g_print ("Model Path: %s \n", model_path);
-    g_print ("File path: %s \n", file_path);
+    g_print ("File path: %s \n", file_path ? file_path : "camera");
     g_print ("Backend: %s \n", backend);
   }
 
@@ -86,11 +92,6 @@ main (int argc, char *argv[])
 
   if (!model_path) {
     g_printerr ("Model path is required (-m <path>) \n");
-    exit (1);
-  }
-
-  if (!file_path) {
-    g_printerr ("File path is required (-f <path>) \n");
     exit (1);
   }
 
@@ -171,23 +172,36 @@ gst_detection_free (GstDetection * detection)
 
 static void
 gst_detection_process_inference (GstElement * element,
-    GstDetectionMeta * meta, GstBuffer * buffer, gpointer user_data)
+    GstDetectionMeta * model_meta, GstVideoFrame * model_frame,
+    GstDetectionMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    gpointer user_data)
 {
   gint index;
+  BoundingBox *boxes;
 
   g_return_if_fail (element);
-  g_return_if_fail (meta);
-  g_return_if_fail (buffer);
+  g_return_if_fail (model_meta);
+  g_return_if_fail (model_frame);
+  g_return_if_fail (bypass_meta);
+  g_return_if_fail (bypass_frame);
   g_return_if_fail (user_data);
 
-  index = 0;
+  boxes =
+      (BoundingBox *) g_malloc (bypass_meta->num_boxes * sizeof (BoundingBox));
 
-  for (index = 0; index < meta->num_boxes; index++) {
-    g_print ("Box: [class:%d, x:%f, y:%f, width:%f, height:%f, prob:%f]\n",
-        meta->boxes[index].label, meta->boxes[index].x, meta->boxes[index].y,
-        meta->boxes[index].width, meta->boxes[index].height,
-        meta->boxes[index].prob);
+  for (index = 0; index < bypass_meta->num_boxes; index++) {
+    boxes[index].category = bypass_meta->boxes[index].label;
+    boxes[index].x = bypass_meta->boxes[index].x;
+    boxes[index].y = bypass_meta->boxes[index].y;
+    boxes[index].width = bypass_meta->boxes[index].width;
+    boxes[index].height = bypass_meta->boxes[index].height;
+    boxes[index].probability = bypass_meta->boxes[index].prob;
   }
+
+  handle_prediction (bypass_frame->data[0], bypass_frame->info.width,
+      bypass_frame->info.height, bypass_frame->info.size, boxes,
+      bypass_meta->num_boxes);
+  g_free (boxes);
 }
 
 void
@@ -206,10 +220,19 @@ gst_detection_create_pipeline (GstDetection * detection)
   g_string_append (pipe_desc, backend);
   g_string_append (pipe_desc, " model-location=");
   g_string_append (pipe_desc, model_path);
-  g_string_append (pipe_desc, " filesrc location=");
-  g_string_append (pipe_desc, file_path);
-  g_string_append (pipe_desc, " ! decodebin ! videoconvert ! videoscale ! ");
-  g_string_append (pipe_desc, " net.sink_model  net.src_model ! fakesink ");
+  if (file_path) {
+    g_string_append (pipe_desc, " filesrc location=");
+    g_string_append (pipe_desc, file_path);
+    g_string_append (pipe_desc, " ! decodebin ! ");
+  } else {
+    g_string_append (pipe_desc, "autovideosrc ! ");
+  }
+  g_string_append (pipe_desc,
+      " tee name=t t. ! queue ! videoconvert ! videoscale ! ");
+  g_string_append (pipe_desc, " net.sink_model t. ! queue ! videoconvert ! ");
+  g_string_append (pipe_desc, "video/x-raw,format=RGB ! net.sink_bypass ");
+  g_string_append (pipe_desc, " net.src_bypass ! detection_overlay ! ");
+  g_string_append (pipe_desc, " videoconvert ! autovideosink sync=false ");
 
   if (verbose)
     g_print ("pipeline: %s\n", pipe_desc->str);
