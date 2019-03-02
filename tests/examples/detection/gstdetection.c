@@ -226,8 +226,12 @@ gst_detection_create_pipeline (GstDetection * detection)
   g_string_append (pipe_desc, model_path);
   g_string_append (pipe_desc, " filesrc location=");
   g_string_append (pipe_desc, file_path);
-  g_string_append (pipe_desc, " ! decodebin ! videoconvert ! videoscale ! ");
-  g_string_append (pipe_desc, " net.sink_model  net.src_model ! fakesink ");
+  g_string_append (pipe_desc, " ! decodebin ! tee name=t ");
+  g_string_append (pipe_desc, " t. ! queue ! videoconvert ! videoscale ! ");
+  g_string_append (pipe_desc, " net.sink_model t. ! queue ! videoconvert ! ");
+  g_string_append (pipe_desc, "video/x-raw,format=RGB ! net.sink_bypass ");
+  g_string_append (pipe_desc, " net.src_bypass ! detection_overlay ! ");
+  g_string_append (pipe_desc, " videoconvert ! autovideosink sync=false ");
 
   if (verbose)
     g_print ("pipeline: %s\n", pipe_desc->str);
