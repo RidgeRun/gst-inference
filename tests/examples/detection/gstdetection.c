@@ -53,7 +53,8 @@ static const gchar *backend = NULL;
 static GOptionEntry entries[] = {
   {"verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL},
   {"model", 'm', 0, G_OPTION_ARG_STRING, &model_path, "Model path", NULL},
-  {"file", 'f', 0, G_OPTION_ARG_STRING, &file_path, "File path", NULL},
+  {"file", 'f', 0, G_OPTION_ARG_STRING, &file_path,
+      "File path (or camera, if omitted)", NULL},
   {"backend", 'b', 0, G_OPTION_ARG_STRING, &backend,
       "Backend used for inference, example: tensorflow", NULL},
   {NULL}
@@ -67,7 +68,7 @@ main (int argc, char *argv[])
   GstDetection *detection;
   GMainLoop *main_loop;
 
-  context = g_option_context_new ("GstInference Detection Example");
+  context = g_option_context_new (" - GstInference Detection Example");
   g_option_context_add_main_entries (context, entries, GETTEXT_PACKAGE);
   g_option_context_add_group (context, gst_init_get_option_group ());
   if (!g_option_context_parse (context, &argc, &argv, &error)) {
@@ -80,7 +81,7 @@ main (int argc, char *argv[])
 
   if (verbose) {
     g_print ("Model Path: %s \n", model_path);
-    g_print ("File path: %s \n", file_path);
+    g_print ("File path: %s \n", file_path ? file_path : "camera");
     g_print ("Backend: %s \n", backend);
   }
 
@@ -91,11 +92,6 @@ main (int argc, char *argv[])
 
   if (!model_path) {
     g_printerr ("Model path is required (-m <path>) \n");
-    exit (1);
-  }
-
-  if (!file_path) {
-    g_printerr ("File path is required (-f <path>) \n");
     exit (1);
   }
 
@@ -224,10 +220,15 @@ gst_detection_create_pipeline (GstDetection * detection)
   g_string_append (pipe_desc, backend);
   g_string_append (pipe_desc, " model-location=");
   g_string_append (pipe_desc, model_path);
-  g_string_append (pipe_desc, " filesrc location=");
-  g_string_append (pipe_desc, file_path);
-  g_string_append (pipe_desc, " ! decodebin ! tee name=t ");
-  g_string_append (pipe_desc, " t. ! queue ! videoconvert ! videoscale ! ");
+  if (file_path) {
+    g_string_append (pipe_desc, " filesrc location=");
+    g_string_append (pipe_desc, file_path);
+    g_string_append (pipe_desc, " ! decodebin ! ");
+  } else {
+    g_string_append (pipe_desc, "autovideosrc ! ");
+  }
+  g_string_append (pipe_desc,
+      " tee name=t t. ! queue ! videoconvert ! videoscale ! ");
   g_string_append (pipe_desc, " net.sink_model t. ! queue ! videoconvert ! ");
   g_string_append (pipe_desc, "video/x-raw,format=RGB ! net.sink_bypass ");
   g_string_append (pipe_desc, " net.src_bypass ! detection_overlay ! ");
