@@ -41,6 +41,7 @@
 #include "gsttinyyolo.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
+#include <math.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
 #define GST_CAT_DEFAULT gst_tinyyolo_debug_category
@@ -70,6 +71,9 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
 /* Intersection over union threshold */
 #define IOU_THRESH 0.30
 
+const gfloat box_anchors[] =
+    { 1.08, 1.19, 3.42, 4.41, 6.63, 11.38, 9.42, 5.11, 16.62, 10.52 };
+
 static void gst_tinyyolo_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
 static void gst_tinyyolo_get_property (GObject * object,
@@ -94,13 +98,14 @@ static void get_boxes_from_prediction (gpointer prediction,
     gint * elements);
 
 static void box_to_pixels (BBox * normalized_box, gint row, gint col,
-    gint image_width, gint image_height);
+    gint image_width, gint image_height, gint box);
 
 static void remove_duplicated_boxes (BBox * boxes, gint * num_boxes);
 
 static void delete_box (BBox * boxes, gint * num_boxes, gint index);
 
 static gdouble intersection_over_union (BBox box_1, BBox box_2);
+static gdouble sigmoid (gdouble x);
 
 enum
 {
@@ -235,24 +240,17 @@ gst_tinyyolo_finalize (GObject * object)
 
 void
 box_to_pixels (BBox * normalized_box, gint row, gint col, gint image_width,
-    gint image_height)
+    gint image_height, gint box)
 {
-
   /* adjust the box center according to its cell and grid dim */
-  normalized_box->x += col;
-  normalized_box->y += row;
-  normalized_box->x /= GRID_H;
-  normalized_box->y /= GRID_W;
+  normalized_box->x = (col + sigmoid (normalized_box->x)) * 32.0;
+  normalized_box->y = (row + sigmoid (normalized_box->y)) * 32.0;
 
   /* adjust the lengths and widths */
-  normalized_box->width *= normalized_box->width;
-  normalized_box->height *= normalized_box->height;
-
-  /* scale the boxes to the image size in pixels */
-  normalized_box->x *= image_width;
-  normalized_box->y *= image_height;
-  normalized_box->width *= image_width;
-  normalized_box->height *= image_height;
+  normalized_box->width =
+      pow (M_E, normalized_box->width) * box_anchors[2 * box] * 32.0;
+  normalized_box->height =
+      pow (M_E, normalized_box->height) * box_anchors[2 * box + 1] * 32.0;
 }
 
 void
@@ -296,7 +294,7 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
             result.width = ((gfloat *) prediction)[index + 2];
             result.height = ((gfloat *) prediction)[index + 3];
             box_to_pixels (&result, i, j, input_image_width,
-                input_image_height);
+                input_image_height, b);
             result.x = result.x - result.width * 0.5;
             result.y = result.y - result.height * 0.5;
             boxes[counter] = result;
@@ -366,6 +364,13 @@ intersection_over_union (BBox box_1, BBox box_2)
   union_area = box_1.width * box_1.height + box_2.width * box_2.height -
       intersection_area;
   return intersection_area / union_area;
+}
+
+/* sigmoid approximation as a lineal function */
+static gdouble
+sigmoid (gdouble x)
+{
+  return 1.0 / (1.0 + pow (M_E, -1.0 * x));
 }
 
 void
