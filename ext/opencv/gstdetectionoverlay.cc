@@ -40,6 +40,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_detection_overlay_debug_category);
 #define MIN_BOX_THICKNESS 1
 #define DEFAULT_BOX_THICKNESS 2
 #define MAX_BOX_THICKNESS 100
+#define DEFAULT_LABELS NULL
+#define DEFAULT_NUM_LABELS 0
 
 #define N_C 20
 const cv::Scalar colors[] = {
@@ -53,11 +55,6 @@ const cv::Scalar colors[] = {
   cv::Scalar (56, 42, 0), cv::Scalar (42, 0, 254),
   cv::Scalar (28, 42, 127), cv::Scalar (14, 84, 0),
   cv::Scalar (0, 254, 254), cv::Scalar (14, 211, 127)
-};
-const cv::String classes[] = {
-  "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat",
-  "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person",
-  "pottedplant", "sheep", "sofa", "train", "tvmonitor"
 };
 
 /* prototypes */
@@ -79,7 +76,8 @@ gst_detection_overlay_transform_frame_ip (GstVideoFilter *trans,
 enum {
   PROP_0,
   PROP_FONT_SCALE,
-  PROP_BOX_THICKNESS
+  PROP_BOX_THICKNESS,
+  PROP_LABELS
 };
 
 /* pad templates */
@@ -102,8 +100,7 @@ G_DEFINE_TYPE_WITH_CODE (GstDetectionOverlay, gst_detection_overlay,
 static void
 gst_detection_overlay_class_init (GstDetectionOverlayClass *klass) {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
-  GstBaseTransformClass *base_transform_class =
-    GST_BASE_TRANSFORM_CLASS (klass);
+  GstBaseTransformClass *base_transform_class = GST_BASE_TRANSFORM_CLASS (klass);
   GstVideoFilterClass *video_filter_class = GST_VIDEO_FILTER_CLASS (klass);
 
   gst_element_class_add_pad_template (GST_ELEMENT_CLASS (klass),
@@ -134,13 +131,18 @@ gst_detection_overlay_class_init (GstDetectionOverlayClass *klass) {
 
   g_object_class_install_property (gobject_class, PROP_BOX_THICKNESS,
                                    g_param_spec_int ("thickness", "thickness", "Box line thickness in pixels",
-                                       MIN_BOX_THICKNESS,
-                                       MAX_BOX_THICKNESS, DEFAULT_BOX_THICKNESS, G_PARAM_READWRITE));
+                                       MIN_BOX_THICKNESS, MAX_BOX_THICKNESS, DEFAULT_BOX_THICKNESS,
+                                       G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_LABELS,
+                                   g_param_spec_string ("labels", "labels",
+                                       "Semicolon separated string containing inference labels", DEFAULT_LABELS,
+                                       G_PARAM_READWRITE));
 
   base_transform_class->start = GST_DEBUG_FUNCPTR (gst_detection_overlay_start);
   base_transform_class->stop = GST_DEBUG_FUNCPTR (gst_detection_overlay_stop);
-  video_filter_class->transform_frame_ip =
-    GST_DEBUG_FUNCPTR (gst_detection_overlay_transform_frame_ip);
+  video_filter_class->transform_frame_ip = GST_DEBUG_FUNCPTR (
+        gst_detection_overlay_transform_frame_ip);
 
 }
 
@@ -148,6 +150,9 @@ static void
 gst_detection_overlay_init (GstDetectionOverlay *detection_overlay) {
   detection_overlay->font_scale = DEFAULT_FONT_SCALE;
   detection_overlay->box_thickness = DEFAULT_BOX_THICKNESS;
+  detection_overlay->labels = DEFAULT_LABELS;
+  detection_overlay->labels_list = DEFAULT_LABELS;
+  detection_overlay->num_labels = DEFAULT_NUM_LABELS;
 }
 
 void
@@ -167,6 +172,16 @@ gst_detection_overlay_set_property (GObject *object, guint property_id,
       detection_overlay->box_thickness = g_value_get_int (value);
       GST_DEBUG_OBJECT (detection_overlay, "Changed box thickness to %d",
                         detection_overlay->box_thickness);
+      break;
+    case PROP_LABELS:
+      detection_overlay->labels = g_value_get_string (value);
+      if (detection_overlay->labels_list != NULL) {
+        g_strfreev (detection_overlay->labels_list);
+      }
+      detection_overlay->labels_list = g_strsplit (detection_overlay->labels, ";", 0);
+      detection_overlay->num_labels = g_strv_length (detection_overlay->labels_list);
+      GST_DEBUG_OBJECT (detection_overlay, "Changed inference labels %s",
+                        detection_overlay->labels);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -188,6 +203,9 @@ gst_detection_overlay_get_property (GObject *object, guint property_id,
     case PROP_BOX_THICKNESS:
       g_value_set_int (value, detection_overlay->box_thickness);
       break;
+    case PROP_LABELS:
+      g_value_set_string (value, detection_overlay->labels);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -201,6 +219,9 @@ gst_detection_overlay_dispose (GObject *object) {
   GST_DEBUG_OBJECT (detection_overlay, "dispose");
 
   /* clean up as possible.  may be called multiple times */
+  if (detection_overlay->labels_list != NULL) {
+    g_strfreev (detection_overlay->labels_list);
+  }
 
   G_OBJECT_CLASS (gst_detection_overlay_parent_class)->dispose (object);
 }
@@ -243,6 +264,7 @@ gst_detection_overlay_transform_frame_ip (GstVideoFilter *trans,
   gint i, width, height;
   cv::Mat cv_mat;
   cv::Size size;
+  cv::String str;
   BBox box;
   const gint bpp = 3;
 
@@ -262,14 +284,19 @@ gst_detection_overlay_transform_frame_ip (GstVideoFilter *trans,
   cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
   for (i = 0; i < detect_meta->num_boxes; ++i) {
     box = detect_meta->boxes[i];
+
+    if (detection_overlay->num_labels > box.label) {
+      str = detection_overlay->labels_list[box.label];
+    } else {
+      str = cv::format ("Label #%d", box.label);
+    }
+
     /* Put string on screen */
-    cv::putText (cv_mat, classes[box.label % N_C], cv::Point (box.x, box.y - 5),
-                 cv::FONT_HERSHEY_PLAIN,
+    cv::putText (cv_mat, str, cv::Point (box.x, box.y - 5), cv::FONT_HERSHEY_PLAIN,
                  detection_overlay->font_scale, colors[box.label % N_C],
                  detection_overlay->box_thickness);
-    cv::rectangle (cv_mat, cv::Point (box.x, box.y),
-                   cv::Point (box.x + box.width, box.y + box.height), colors[box.label % N_C],
-                   detection_overlay->box_thickness);
+    cv::rectangle (cv_mat, cv::Point (box.x, box.y), cv::Point (box.x + box.width,
+                   box.y + box.height), colors[box.label % N_C], detection_overlay->box_thickness);
   }
 
   return GST_FLOW_OK;

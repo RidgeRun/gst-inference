@@ -43,7 +43,9 @@ struct _GstDetectionOverlay
 
   gdouble font_scale;
   gint box_thickness;
-
+  const gchar* labels;
+  gchar** labels_list;
+  gint num_labels;
 };
 
 struct _GstDetectionOverlayClass
