@@ -34,6 +34,13 @@
 GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_classification_overlay_debug_category
 
+#define MIN_FONT_SCALE 0
+#define DEFAULT_FONT_SCALE 1.5
+#define MAX_FONT_SCALE 100
+#define MIN_BOX_THICKNESS 1
+#define DEFAULT_BOX_THICKNESS 2
+#define MAX_BOX_THICKNESS 100
+
 /* prototypes */
 
 
@@ -50,9 +57,10 @@ static GstFlowReturn
 gst_classification_overlay_transform_frame_ip (GstVideoFilter * trans,
     GstVideoFrame * frame);
 
-enum
-{
-  PROP_0
+enum {
+  PROP_0,
+  PROP_FONT_SCALE,
+  PROP_BOX_THICKNESS
 };
 
 /* pad templates */
@@ -101,6 +109,16 @@ gst_classification_overlay_class_init (GstClassificationOverlayClass * klass)
   gobject_class->get_property = gst_classification_overlay_get_property;
   gobject_class->dispose = gst_classification_overlay_dispose;
   gobject_class->finalize = gst_classification_overlay_finalize;
+
+  g_object_class_install_property (gobject_class, PROP_FONT_SCALE,
+                                   g_param_spec_double ("font-scale", "font", "Font scale", MIN_FONT_SCALE,
+                                       MAX_FONT_SCALE, DEFAULT_FONT_SCALE, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_BOX_THICKNESS,
+                                   g_param_spec_int ("thickness", "thickness", "Box line thickness in pixels",
+                                       MIN_BOX_THICKNESS,
+                                       MAX_BOX_THICKNESS, DEFAULT_BOX_THICKNESS, G_PARAM_READWRITE));
+
   base_transform_class->start =
       GST_DEBUG_FUNCPTR (gst_classification_overlay_start);
   base_transform_class->stop =
@@ -114,6 +132,8 @@ static void
 gst_classification_overlay_init (GstClassificationOverlay *
     classification_overlay)
 {
+  classification_overlay->font_scale = DEFAULT_FONT_SCALE;
+  classification_overlay->box_thickness = DEFAULT_BOX_THICKNESS;
 }
 
 void
@@ -126,6 +146,16 @@ gst_classification_overlay_set_property (GObject * object, guint property_id,
   GST_DEBUG_OBJECT (classification_overlay, "set_property");
 
   switch (property_id) {
+    case PROP_FONT_SCALE:
+      classification_overlay->font_scale = g_value_get_double (value);
+      GST_DEBUG_OBJECT (classification_overlay, "Changed font scale to %lf",
+                        classification_overlay->font_scale);
+      break;
+    case PROP_BOX_THICKNESS:
+      classification_overlay->box_thickness = g_value_get_int (value);
+      GST_DEBUG_OBJECT (classification_overlay, "Changed box thickness to %d",
+                        classification_overlay->box_thickness);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -142,6 +172,12 @@ gst_classification_overlay_get_property (GObject * object, guint property_id,
   GST_DEBUG_OBJECT (classification_overlay, "get_property");
 
   switch (property_id) {
+    case PROP_FONT_SCALE:
+      g_value_set_double (value, classification_overlay->font_scale);
+      break;
+    case PROP_BOX_THICKNESS:
+      g_value_set_int (value, classification_overlay->box_thickness);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -201,6 +237,8 @@ static GstFlowReturn
 gst_classification_overlay_transform_frame_ip (GstVideoFilter * trans,
     GstVideoFrame * frame)
 {
+  GstClassificationOverlay *classification_overlay =
+      GST_CLASSIFICATION_OVERLAY (trans);
   GstClassificationMeta *class_meta;
   gint index, i, width, height;
   gdouble max, current;
@@ -208,10 +246,7 @@ gst_classification_overlay_transform_frame_ip (GstVideoFilter * trans,
   cv::String str;
   cv::Size size;
   const gint bpp = 3;
-
   cv::Scalar color = cv::Scalar (0, 0, 0);
-  gint thickness = 1;
-  gdouble font_scale = 1;
 
   width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / bpp;
   height = GST_VIDEO_FRAME_HEIGHT (frame);
@@ -241,12 +276,12 @@ gst_classification_overlay_transform_frame_ip (GstVideoFilter * trans,
   /* Get size of string on screen */
   int baseline = 0;
   size =
-      cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX, thickness, font_scale,
+      cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX, classification_overlay->box_thickness, classification_overlay->font_scale,
       &baseline);
   /* Put string on screen */
   cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
-  cv::putText (cv_mat, str, cv::Point (10, size.height + 10),
-      cv::FONT_HERSHEY_PLAIN, font_scale, color, thickness);
+  cv::putText (cv_mat, str, cv::Point (0, size.height),
+      cv::FONT_HERSHEY_PLAIN, classification_overlay->font_scale, color, classification_overlay->box_thickness);
 
   return GST_FLOW_OK;
 }
