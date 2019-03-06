@@ -51,6 +51,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
 #define CHANNELS 3
 #define GRID_H 13
 #define GRID_W 13
+/* Grid cell size in pixels */
+#define GRID_SIZE 32
 /* Number of classes */
 #define CLASSES 20
 /* Number of boxes per cell */
@@ -243,14 +245,14 @@ box_to_pixels (BBox * normalized_box, gint row, gint col, gint image_width,
     gint image_height, gint box)
 {
   /* adjust the box center according to its cell and grid dim */
-  normalized_box->x = (col + sigmoid (normalized_box->x)) * 32.0;
-  normalized_box->y = (row + sigmoid (normalized_box->y)) * 32.0;
+  normalized_box->x = (col + sigmoid (normalized_box->x)) * GRID_SIZE;
+  normalized_box->y = (row + sigmoid (normalized_box->y)) * GRID_SIZE;
 
   /* adjust the lengths and widths */
   normalized_box->width =
-      pow (M_E, normalized_box->width) * box_anchors[2 * box] * 32.0;
+      pow (M_E, normalized_box->width) * box_anchors[2 * box] * GRID_SIZE;
   normalized_box->height =
-      pow (M_E, normalized_box->height) * box_anchors[2 * box + 1] * 32.0;
+      pow (M_E, normalized_box->height) * box_anchors[2 * box + 1] * GRID_SIZE;
 }
 
 void
