@@ -19,16 +19,16 @@
  *
  */
 
-#ifndef _GST_TINYYOLO_H_
-#define _GST_TINYYOLO_H_
+#ifndef _GST_TINYYOLOV2_H_
+#define _GST_TINYYOLOV2_H_
 
 #include <gst/r2inference/gstvideoinference.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_TINYYOLO gst_tinyyolo_get_type ()
-G_DECLARE_FINAL_TYPE (GstTinyyolo, gst_tinyyolo, GST, TINYYOLO, GstVideoInference)
+#define GST_TYPE_TINYYOLOV2 gst_tinyyolov2_get_type ()
+G_DECLARE_FINAL_TYPE (GstTinyyolov2, gst_tinyyolov2, GST, TINYYOLOV2, GstVideoInference)
 
 G_END_DECLS
 
-#endif /* _GST_TINYYOLO_H_ */
+#endif /* _GST_TINYYOLOV2_H_ */

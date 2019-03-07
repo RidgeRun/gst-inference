@@ -24,7 +24,7 @@
 #endif
 
 #include "gstinceptionv4.h"
-#include "gsttinyyolo.h"
+#include "gsttinyyolov2.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
@@ -40,8 +40,8 @@ plugin_init (GstPlugin * plugin)
     goto out;
   }
 
-  ret = gst_element_register (plugin, "tinyyolo", GST_RANK_NONE,
-      GST_TYPE_TINYYOLO);
+  ret = gst_element_register (plugin, "tinyyolov2", GST_RANK_NONE,
+      GST_TYPE_TINYYOLOV2);
   if (!ret) {
     goto out;
   }
