@@ -3,7 +3,7 @@ plugin_LTLIBRARIES = libgstinference.la
 libgstinference_la_SOURCES =		\
 	gstinceptionv4.c 			\
 	gstinference.c			\
-	gsttinyyolo.c
+	gsttinyyolov2.c
 
 libgstinference_la_CFLAGS =		\
 	$(GST_CFLAGS)			\
@@ -36,4 +36,4 @@ libgstinference_la_LIBTOOLFLAGS = 	\
 
 noinst_HEADERS =			\
 	gstinceptionv4.h			\
-	gsttinyyolo.h
+	gsttinyyolov2.h

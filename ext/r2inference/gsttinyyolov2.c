@@ -20,15 +20,15 @@
  */
 
 /**
- * SECTION:element-gsttinyyolo
+ * SECTION:element-gsttinyyolov2
  *
- * The tinyyolo element allows the user to infer/execute a pretrained model
+ * The tinyyolov2 element allows the user to infer/execute a pretrained model
  * based on the TinyYolo architecture on incoming image frames.
  *
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch-1.0 -v videotestsrc ! tinyyolo ! xvimagesink
+ * gst-launch-1.0 -v videotestsrc ! tinyyolov2 ! xvimagesink
  * ]|
  * Process video frames from the camera using a TinyYolo model.
  * </refsect2>
@@ -38,13 +38,13 @@
 #include "config.h"
 #endif
 
-#include "gsttinyyolo.h"
+#include "gsttinyyolov2.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 #include <math.h>
 
-GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
-#define GST_CAT_DEFAULT gst_tinyyolo_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov2_debug_category);
+#define GST_CAT_DEFAULT gst_tinyyolov2_debug_category
 
 /* prototypes */
 
@@ -76,21 +76,21 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
 const gfloat box_anchors[] =
     { 1.08, 1.19, 3.42, 4.41, 6.63, 11.38, 9.42, 5.11, 16.62, 10.52 };
 
-static void gst_tinyyolo_set_property (GObject * object,
+static void gst_tinyyolov2_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
-static void gst_tinyyolo_get_property (GObject * object,
+static void gst_tinyyolov2_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
-static void gst_tinyyolo_dispose (GObject * object);
-static void gst_tinyyolo_finalize (GObject * object);
+static void gst_tinyyolov2_dispose (GObject * object);
+static void gst_tinyyolov2_finalize (GObject * object);
 
-static gboolean gst_tinyyolo_preprocess (GstVideoInference * vi,
+static gboolean gst_tinyyolov2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean
-gst_tinyyolo_postprocess (GstVideoInference * vi, const gpointer prediction,
+gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction);
-static gboolean gst_tinyyolo_start (GstVideoInference * vi);
-static gboolean gst_tinyyolo_stop (GstVideoInference * vi);
+static gboolean gst_tinyyolov2_start (GstVideoInference * vi);
+static gboolean gst_tinyyolov2_stop (GstVideoInference * vi);
 
 static void print_top_predictions (GstVideoInference * vi, gpointer prediction,
     gint input_image_width, gint input_image_height, BBox ** resulting_boxes,
@@ -132,24 +132,25 @@ GST_STATIC_PAD_TEMPLATE ("src_model",
     GST_STATIC_CAPS (CAPS)
     );
 
-struct _GstTinyyolo
+struct _GstTinyyolov2
 {
   GstVideoInference parent;
 };
 
-struct _GstTinyyoloClass
+struct _GstTinyyolov2Class
 {
   GstVideoInferenceClass parent;
 };
 
 /* class initialization */
 
-G_DEFINE_TYPE_WITH_CODE (GstTinyyolo, gst_tinyyolo, GST_TYPE_VIDEO_INFERENCE,
-    GST_DEBUG_CATEGORY_INIT (gst_tinyyolo_debug_category, "tinyyolo", 0,
-        "debug category for tinyyolo element"));
+G_DEFINE_TYPE_WITH_CODE (GstTinyyolov2, gst_tinyyolov2,
+    GST_TYPE_VIDEO_INFERENCE,
+    GST_DEBUG_CATEGORY_INIT (gst_tinyyolov2_debug_category, "tinyyolov2", 0,
+        "debug category for tinyyolov2 element"));
 
 static void
-gst_tinyyolo_class_init (GstTinyyoloClass * klass)
+gst_tinyyolov2_class_init (GstTinyyolov2Class * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
@@ -160,7 +161,7 @@ gst_tinyyolo_class_init (GstTinyyoloClass * klass)
   gst_element_class_add_static_pad_template (element_class, &src_model_factory);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-      "tinyyolo", "Filter",
+      "tinyyolov2", "Filter",
       "Infers incoming image frames using a pretrained TinyYolo model",
       "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
       "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
@@ -169,30 +170,30 @@ gst_tinyyolo_class_init (GstTinyyoloClass * klass)
       "   Miguel Taylor <miguel.taylor@ridgerun.com> \n\t\t\t"
       "   Greivin Fallas <greivin.fallas@ridgerun.com>");
 
-  gobject_class->set_property = gst_tinyyolo_set_property;
-  gobject_class->get_property = gst_tinyyolo_get_property;
-  gobject_class->dispose = gst_tinyyolo_dispose;
-  gobject_class->finalize = gst_tinyyolo_finalize;
+  gobject_class->set_property = gst_tinyyolov2_set_property;
+  gobject_class->get_property = gst_tinyyolov2_get_property;
+  gobject_class->dispose = gst_tinyyolov2_dispose;
+  gobject_class->finalize = gst_tinyyolov2_finalize;
 
-  vi_class->start = GST_DEBUG_FUNCPTR (gst_tinyyolo_start);
-  vi_class->stop = GST_DEBUG_FUNCPTR (gst_tinyyolo_stop);
-  vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_tinyyolo_preprocess);
-  vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_tinyyolo_postprocess);
+  vi_class->start = GST_DEBUG_FUNCPTR (gst_tinyyolov2_start);
+  vi_class->stop = GST_DEBUG_FUNCPTR (gst_tinyyolov2_stop);
+  vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_tinyyolov2_preprocess);
+  vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_tinyyolov2_postprocess);
   vi_class->inference_meta_info = gst_detection_meta_get_info ();
 }
 
 static void
-gst_tinyyolo_init (GstTinyyolo * tinyyolo)
+gst_tinyyolov2_init (GstTinyyolov2 * tinyyolov2)
 {
 }
 
 void
-gst_tinyyolo_set_property (GObject * object, guint property_id,
+gst_tinyyolov2_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstTinyyolo *tinyyolo = GST_TINYYOLO (object);
+  GstTinyyolov2 *tinyyolov2 = GST_TINYYOLOV2 (object);
 
-  GST_DEBUG_OBJECT (tinyyolo, "set_property");
+  GST_DEBUG_OBJECT (tinyyolov2, "set_property");
 
   switch (property_id) {
     default:
@@ -202,12 +203,12 @@ gst_tinyyolo_set_property (GObject * object, guint property_id,
 }
 
 void
-gst_tinyyolo_get_property (GObject * object, guint property_id,
+gst_tinyyolov2_get_property (GObject * object, guint property_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstTinyyolo *tinyyolo = GST_TINYYOLO (object);
+  GstTinyyolov2 *tinyyolov2 = GST_TINYYOLOV2 (object);
 
-  GST_DEBUG_OBJECT (tinyyolo, "get_property");
+  GST_DEBUG_OBJECT (tinyyolov2, "get_property");
 
   switch (property_id) {
     default:
@@ -217,27 +218,27 @@ gst_tinyyolo_get_property (GObject * object, guint property_id,
 }
 
 void
-gst_tinyyolo_dispose (GObject * object)
+gst_tinyyolov2_dispose (GObject * object)
 {
-  GstTinyyolo *tinyyolo = GST_TINYYOLO (object);
+  GstTinyyolov2 *tinyyolov2 = GST_TINYYOLOV2 (object);
 
-  GST_DEBUG_OBJECT (tinyyolo, "dispose");
+  GST_DEBUG_OBJECT (tinyyolov2, "dispose");
 
   /* clean up as possible.  may be called multiple times */
 
-  G_OBJECT_CLASS (gst_tinyyolo_parent_class)->dispose (object);
+  G_OBJECT_CLASS (gst_tinyyolov2_parent_class)->dispose (object);
 }
 
 void
-gst_tinyyolo_finalize (GObject * object)
+gst_tinyyolov2_finalize (GObject * object)
 {
-  GstTinyyolo *tinyyolo = GST_TINYYOLO (object);
+  GstTinyyolov2 *tinyyolov2 = GST_TINYYOLOV2 (object);
 
-  GST_DEBUG_OBJECT (tinyyolo, "finalize");
+  GST_DEBUG_OBJECT (tinyyolov2, "finalize");
 
   /* clean up object here */
 
-  G_OBJECT_CLASS (gst_tinyyolo_parent_class)->finalize (object);
+  G_OBJECT_CLASS (gst_tinyyolov2_parent_class)->finalize (object);
 }
 
 void
@@ -419,7 +420,7 @@ remove_duplicated_boxes (BBox * boxes, gint * num_boxes)
 }
 
 static gboolean
-gst_tinyyolo_preprocess (GstVideoInference * vi,
+gst_tinyyolov2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
 
@@ -441,7 +442,7 @@ gst_tinyyolo_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_tinyyolo_postprocess (GstVideoInference * vi, const gpointer prediction,
+gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
@@ -457,7 +458,7 @@ gst_tinyyolo_postprocess (GstVideoInference * vi, const gpointer prediction,
 }
 
 static gboolean
-gst_tinyyolo_start (GstVideoInference * vi)
+gst_tinyyolov2_start (GstVideoInference * vi)
 {
   GST_INFO_OBJECT (vi, "Starting TinyYolo");
 
@@ -465,7 +466,7 @@ gst_tinyyolo_start (GstVideoInference * vi)
 }
 
 static gboolean
-gst_tinyyolo_stop (GstVideoInference * vi)
+gst_tinyyolov2_stop (GstVideoInference * vi)
 {
   GST_INFO_OBJECT (vi, "Stopping TinyYolo");
 
