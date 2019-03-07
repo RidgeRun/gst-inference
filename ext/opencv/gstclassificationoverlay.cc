@@ -44,8 +44,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 #define DEFAULT_NUM_LABELS 0
 
 /* prototypes */
-
-
 static void gst_classification_overlay_set_property (GObject *object,
     guint property_id, const GValue *value, GParamSpec *pspec);
 static void gst_classification_overlay_get_property (GObject *object,
@@ -165,12 +163,16 @@ gst_classification_overlay_set_property (GObject *object, guint property_id,
                         classification_overlay->box_thickness);
       break;
     case PROP_LABELS:
-      classification_overlay->labels = g_value_get_string (value);
+      if (classification_overlay->labels != NULL) {
+        g_free (classification_overlay->labels);
+      }
       if (classification_overlay->labels_list != NULL) {
         g_strfreev (classification_overlay->labels_list);
       }
-      classification_overlay->labels_list = g_strsplit (
-                                              classification_overlay->labels, ";", 0);
+      classification_overlay->labels = g_value_dup_string (value);
+      classification_overlay->labels_list =
+          g_strsplit (g_value_get_string (value), ";", 0);
+      classification_overlay->labels_list = g_strsplit ( g_value_get_string (value), ";", 0);
       classification_overlay->num_labels = g_strv_length (classification_overlay->labels_list);
       GST_DEBUG_OBJECT (classification_overlay, "Changed inference labels %s",
                         classification_overlay->labels);
@@ -215,6 +217,9 @@ gst_classification_overlay_dispose (GObject *object) {
   /* clean up as possible.  may be called multiple times */
   if (classification_overlay->labels_list != NULL) {
     g_strfreev (classification_overlay->labels_list);
+  }
+  if (classification_overlay->labels != NULL) {
+    g_free (classification_overlay->labels);
   }
 
   G_OBJECT_CLASS (gst_classification_overlay_parent_class)->dispose (object);

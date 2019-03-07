@@ -43,7 +43,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_detection_overlay_debug_category);
 #define DEFAULT_LABELS NULL
 #define DEFAULT_NUM_LABELS 0
 
-#define N_C 20
 const cv::Scalar colors[] = {
   cv::Scalar (254, 254, 254), cv::Scalar (239, 211, 127),
   cv::Scalar (225, 169, 0), cv::Scalar (211, 127, 254),
@@ -56,6 +55,7 @@ const cv::Scalar colors[] = {
   cv::Scalar (28, 42, 127), cv::Scalar (14, 84, 0),
   cv::Scalar (0, 254, 254), cv::Scalar (14, 211, 127)
 };
+#define N_C (sizeof (colors)/sizeof (cv::Scalar))
 
 /* prototypes */
 
@@ -174,11 +174,14 @@ gst_detection_overlay_set_property (GObject *object, guint property_id,
                         detection_overlay->box_thickness);
       break;
     case PROP_LABELS:
-      detection_overlay->labels = g_value_get_string (value);
+      if (detection_overlay->labels != NULL) {
+        g_free (detection_overlay->labels);
+      }
       if (detection_overlay->labels_list != NULL) {
         g_strfreev (detection_overlay->labels_list);
       }
-      detection_overlay->labels_list = g_strsplit (detection_overlay->labels, ";", 0);
+      detection_overlay->labels = g_value_dup_string (value);
+      detection_overlay->labels_list = g_strsplit (g_value_get_string (value), ";", 0);
       detection_overlay->num_labels = g_strv_length (detection_overlay->labels_list);
       GST_DEBUG_OBJECT (detection_overlay, "Changed inference labels %s",
                         detection_overlay->labels);
@@ -221,6 +224,9 @@ gst_detection_overlay_dispose (GObject *object) {
   /* clean up as possible.  may be called multiple times */
   if (detection_overlay->labels_list != NULL) {
     g_strfreev (detection_overlay->labels_list);
+  }
+  if (detection_overlay->labels != NULL) {
+    g_free (detection_overlay->labels);
   }
 
   G_OBJECT_CLASS (gst_detection_overlay_parent_class)->dispose (object);
