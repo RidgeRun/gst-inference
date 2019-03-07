@@ -41,6 +41,7 @@
 #include "gsttinyyolo.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
+#include <math.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
 #define GST_CAT_DEFAULT gst_tinyyolo_debug_category
@@ -48,18 +49,32 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolo_debug_category);
 /* prototypes */
 
 #define CHANNELS 3
-#define GRID_H 7
-#define GRID_W 7
+#define GRID_H 13
+#define GRID_W 13
+/* Grid cell size in pixels */
+#define GRID_SIZE 32
 /* Number of classes */
 #define CLASSES 20
 /* Number of boxes per cell */
-#define BOXES 2
-/* Box dim */
-#define BOX_DIM 4
+#define BOXES 5
+/* 
+ * Box dim 
+ * [0]: x (center)
+ * [0]: y (center)
+ * [2]: height
+ * [3]: width
+ * [4]: Objectness score
+ */
+#define BOX_DIM 5
+/* Objectness threshold */
+#define OBJ_THRESH 0.08
 /* Probability threshold */
 #define PROB_THRESH 0.08
 /* Intersection over union threshold */
 #define IOU_THRESH 0.30
+
+const gfloat box_anchors[] =
+    { 1.08, 1.19, 3.42, 4.41, 6.63, 11.38, 9.42, 5.11, 16.62, 10.52 };
 
 static void gst_tinyyolo_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
@@ -85,13 +100,14 @@ static void get_boxes_from_prediction (gpointer prediction,
     gint * elements);
 
 static void box_to_pixels (BBox * normalized_box, gint row, gint col,
-    gint image_width, gint image_height);
+    gint image_width, gint image_height, gint box);
 
 static void remove_duplicated_boxes (BBox * boxes, gint * num_boxes);
 
 static void delete_box (BBox * boxes, gint * num_boxes, gint index);
 
 static gdouble intersection_over_union (BBox box_1, BBox box_2);
+static gdouble sigmoid (gdouble x);
 
 enum
 {
@@ -100,7 +116,7 @@ enum
 
 /* pad templates */
 
-#define CAPS "video/x-raw,format=BGR,width=448,height=448"
+#define CAPS "video/x-raw,format=BGR,width=416,height=416"
 
 static GstStaticPadTemplate sink_model_factory =
 GST_STATIC_PAD_TEMPLATE ("sink_model",
@@ -226,24 +242,17 @@ gst_tinyyolo_finalize (GObject * object)
 
 void
 box_to_pixels (BBox * normalized_box, gint row, gint col, gint image_width,
-    gint image_height)
+    gint image_height, gint box)
 {
-
   /* adjust the box center according to its cell and grid dim */
-  normalized_box->x += col;
-  normalized_box->y += row;
-  normalized_box->x /= GRID_H;
-  normalized_box->y /= GRID_W;
+  normalized_box->x = (col + sigmoid (normalized_box->x)) * GRID_SIZE;
+  normalized_box->y = (row + sigmoid (normalized_box->y)) * GRID_SIZE;
 
   /* adjust the lengths and widths */
-  normalized_box->width *= normalized_box->width;
-  normalized_box->height *= normalized_box->height;
-
-  /* scale the boxes to the image size in pixels */
-  normalized_box->x *= image_width;
-  normalized_box->y *= image_height;
-  normalized_box->width *= image_width;
-  normalized_box->height *= image_height;
+  normalized_box->width =
+      pow (M_E, normalized_box->width) * box_anchors[2 * box] * GRID_SIZE;
+  normalized_box->height =
+      pow (M_E, normalized_box->height) * box_anchors[2 * box + 1] * GRID_SIZE;
 }
 
 void
@@ -251,43 +260,43 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
     gint input_image_height, BBox * boxes, gint * elements)
 {
 
-  gint i;
-  gint j;
-  gint c;
-  gint b;
-  gint box_probs_start = GRID_H * GRID_W * CLASSES;
-  gint all_boxes_start = GRID_H * GRID_W * CLASSES + GRID_H * GRID_W * BOXES;
+  gint i, j, c, b;
   gint index;
-  gdouble class_prob;
-  gdouble box_prob;
-  gdouble prob;
+  gdouble obj_prob;
+  gdouble cur_class_prob, max_class_prob;
+  gint max_class_prob_index;
   gint counter = 0;
 
   /* Iterate rows */
   for (i = 0; i < GRID_H; i++) {
     /* Iterate colums */
     for (j = 0; j < GRID_W; j++) {
-      /* Iterate classes */
-      for (c = 0; c < CLASSES; c++) {
-        index = (i * GRID_W + j) * CLASSES + c;
-        class_prob = ((gfloat *) prediction)[index];
-        for (b = 0; b < BOXES; b++) {
-          index = (i * GRID_W + j) * BOXES + b;
-          box_prob = ((gfloat *) prediction)[box_probs_start + index];
-          prob = class_prob * box_prob;
-          /* If the probability is over the threshold add it to the boxes list */
-          if (prob > PROB_THRESH) {
+      /* Iterate boxes */
+      for (b = 0; b < BOXES; b++) {
+        /* TODO: check if is it worth it to add sigmoid */
+        index = ((i * GRID_W + j) * BOXES + b) * (BOX_DIM + CLASSES);
+        obj_prob = ((gfloat *) prediction)[index + 4];
+        /* If the Objectness score is over the threshold add it to the boxes list */
+        if (obj_prob > OBJ_THRESH) {
+          max_class_prob = 0;
+          max_class_prob_index = 0;
+          for (c = 0; c < CLASSES; c++) {
+            cur_class_prob = ((gfloat *) prediction)[index + BOX_DIM + c];
+            if (cur_class_prob > max_class_prob) {
+              max_class_prob = cur_class_prob;
+              max_class_prob_index = c;
+            }
+          }
+          if (max_class_prob > PROB_THRESH) {
             BBox result;
-            index = ((i * GRID_W + j) * BOXES + b) * BOX_DIM;
-            result.label = c;
-            result.x = ((gfloat *) prediction)[all_boxes_start + index];
-            result.y = ((gfloat *) prediction)[all_boxes_start + index + 1];
-            result.width = ((gfloat *) prediction)[all_boxes_start + index + 2];
-            result.height =
-                ((gfloat *) prediction)[all_boxes_start + index + 3];
-            result.prob = prob;
+            result.label = max_class_prob_index;
+            result.prob = max_class_prob;
+            result.x = ((gfloat *) prediction)[index];
+            result.y = ((gfloat *) prediction)[index + 1];
+            result.width = ((gfloat *) prediction)[index + 2];
+            result.height = ((gfloat *) prediction)[index + 3];
             box_to_pixels (&result, i, j, input_image_width,
-                input_image_height);
+                input_image_height, b);
             result.x = result.x - result.width * 0.5;
             result.y = result.y - result.height * 0.5;
             boxes[counter] = result;
@@ -296,9 +305,7 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
         }
       }
     }
-
     *elements = counter;
-
   }
 }
 
@@ -359,6 +366,13 @@ intersection_over_union (BBox box_1, BBox box_2)
   union_area = box_1.width * box_1.height + box_2.width * box_2.height -
       intersection_area;
   return intersection_area / union_area;
+}
+
+/* sigmoid approximation as a lineal function */
+static gdouble
+sigmoid (gdouble x)
+{
+  return 1.0 / (1.0 + pow (M_E, -1.0 * x));
 }
 
 void
