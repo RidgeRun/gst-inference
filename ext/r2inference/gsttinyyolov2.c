@@ -67,11 +67,17 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov2_debug_category);
  */
 #define BOX_DIM 5
 /* Objectness threshold */
-#define OBJ_THRESH 0.08
-/* Probability threshold */
-#define PROB_THRESH 0.08
+#define MAX_OBJ_THRESH 1
+#define MIN_OBJ_THRESH 0
+#define DEFAULT_OBJ_THRESH 0.08
+/* Class probability threshold */
+#define MAX_PROB_THRESH 1
+#define MIN_PROB_THRESH 0
+#define DEFAULT_PROB_THRESH 0.08
 /* Intersection over union threshold */
-#define IOU_THRESH 0.30
+#define MAX_IOU_THRESH 1
+#define MIN_IOU_THRESH 0
+#define DEFAULT_IOU_THRESH 0.30
 
 const gfloat box_anchors[] =
     { 1.08, 1.19, 3.42, 4.41, 6.63, 11.38, 9.42, 5.11, 16.62, 10.52 };
@@ -95,14 +101,13 @@ static gboolean gst_tinyyolov2_stop (GstVideoInference * vi);
 static void print_top_predictions (GstVideoInference * vi, gpointer prediction,
     gint input_image_width, gint input_image_height, BBox ** resulting_boxes,
     gint * elements);
-static void get_boxes_from_prediction (gpointer prediction,
-    gint input_image_width, gint input_image_height, BBox * boxes,
-    gint * elements);
+static void gst_tinyyolov2_get_boxes_from_prediction (GstTinyyolov2 *
+    tinyyolov2, gpointer prediction, BBox * boxes, gint * elements);
 
-static void box_to_pixels (BBox * normalized_box, gint row, gint col,
-    gint image_width, gint image_height, gint box);
+static void box_to_pixels (BBox * normalized_box, gint row, gint col, gint box);
 
-static void remove_duplicated_boxes (BBox * boxes, gint * num_boxes);
+static void gst_tinyyolov2_remove_duplicated_boxes (GstTinyyolov2 * tinyyolov2,
+    BBox * boxes, gint * num_boxes);
 
 static void delete_box (BBox * boxes, gint * num_boxes, gint index);
 
@@ -111,7 +116,10 @@ static gdouble sigmoid (gdouble x);
 
 enum
 {
-  PROP_0
+  PROP_0,
+  PROP_OBJ_THRESH,
+  PROP_PROB_THRESH,
+  PROP_IOU_THRESH,
 };
 
 /* pad templates */
@@ -135,6 +143,10 @@ GST_STATIC_PAD_TEMPLATE ("src_model",
 struct _GstTinyyolov2
 {
   GstVideoInference parent;
+
+  gdouble obj_thresh;
+  gdouble prob_thresh;
+  gdouble iou_thresh;
 };
 
 struct _GstTinyyolov2Class
@@ -175,6 +187,20 @@ gst_tinyyolov2_class_init (GstTinyyolov2Class * klass)
   gobject_class->dispose = gst_tinyyolov2_dispose;
   gobject_class->finalize = gst_tinyyolov2_finalize;
 
+  g_object_class_install_property (gobject_class, PROP_OBJ_THRESH,
+      g_param_spec_double ("object-threshold", "obj-thresh",
+          "Objectness threshold", MIN_OBJ_THRESH, MAX_OBJ_THRESH,
+          DEFAULT_OBJ_THRESH, G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_PROB_THRESH,
+      g_param_spec_double ("probability-threshold", "prob-thresh",
+          "Class probability threshold", MIN_PROB_THRESH, MAX_PROB_THRESH,
+          DEFAULT_PROB_THRESH, G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_IOU_THRESH,
+      g_param_spec_double ("iou-threshold", "iou-thresh",
+          "Intersection over union threshold to merge similar boxes",
+          MIN_IOU_THRESH, MAX_IOU_THRESH, DEFAULT_IOU_THRESH,
+          G_PARAM_READWRITE));
+
   vi_class->start = GST_DEBUG_FUNCPTR (gst_tinyyolov2_start);
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_tinyyolov2_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_tinyyolov2_preprocess);
@@ -185,6 +211,9 @@ gst_tinyyolov2_class_init (GstTinyyolov2Class * klass)
 static void
 gst_tinyyolov2_init (GstTinyyolov2 * tinyyolov2)
 {
+  tinyyolov2->obj_thresh = DEFAULT_OBJ_THRESH;
+  tinyyolov2->prob_thresh = DEFAULT_PROB_THRESH;
+  tinyyolov2->iou_thresh = DEFAULT_IOU_THRESH;
 }
 
 void
@@ -196,6 +225,22 @@ gst_tinyyolov2_set_property (GObject * object, guint property_id,
   GST_DEBUG_OBJECT (tinyyolov2, "set_property");
 
   switch (property_id) {
+    case PROP_OBJ_THRESH:
+      tinyyolov2->obj_thresh = g_value_get_double (value);
+      GST_DEBUG_OBJECT (tinyyolov2,
+          "Changed objectness threshold to %lf", tinyyolov2->obj_thresh);
+      break;
+    case PROP_PROB_THRESH:
+      tinyyolov2->prob_thresh = g_value_get_double (value);
+      GST_DEBUG_OBJECT (tinyyolov2,
+          "Changed probability threshold to %lf", tinyyolov2->prob_thresh);
+      break;
+    case PROP_IOU_THRESH:
+      tinyyolov2->iou_thresh = g_value_get_double (value);
+      GST_DEBUG_OBJECT (tinyyolov2,
+          "Changed intersection over union threshold to %lf",
+          tinyyolov2->iou_thresh);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -211,6 +256,15 @@ gst_tinyyolov2_get_property (GObject * object, guint property_id,
   GST_DEBUG_OBJECT (tinyyolov2, "get_property");
 
   switch (property_id) {
+    case PROP_OBJ_THRESH:
+      g_value_set_double (value, tinyyolov2->obj_thresh);
+      break;
+    case PROP_PROB_THRESH:
+      g_value_set_double (value, tinyyolov2->prob_thresh);
+      break;
+    case PROP_IOU_THRESH:
+      g_value_set_double (value, tinyyolov2->iou_thresh);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -242,8 +296,7 @@ gst_tinyyolov2_finalize (GObject * object)
 }
 
 void
-box_to_pixels (BBox * normalized_box, gint row, gint col, gint image_width,
-    gint image_height, gint box)
+box_to_pixels (BBox * normalized_box, gint row, gint col, gint box)
 {
   /* adjust the box center according to its cell and grid dim */
   normalized_box->x = (col + sigmoid (normalized_box->x)) * GRID_SIZE;
@@ -257,8 +310,8 @@ box_to_pixels (BBox * normalized_box, gint row, gint col, gint image_width,
 }
 
 void
-get_boxes_from_prediction (gpointer prediction, gint input_image_width,
-    gint input_image_height, BBox * boxes, gint * elements)
+gst_tinyyolov2_get_boxes_from_prediction (GstTinyyolov2 * tinyyolov2,
+    gpointer prediction, BBox * boxes, gint * elements)
 {
 
   gint i, j, c, b;
@@ -274,11 +327,10 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
     for (j = 0; j < GRID_W; j++) {
       /* Iterate boxes */
       for (b = 0; b < BOXES; b++) {
-        /* TODO: check if is it worth it to add sigmoid */
         index = ((i * GRID_W + j) * BOXES + b) * (BOX_DIM + CLASSES);
         obj_prob = ((gfloat *) prediction)[index + 4];
         /* If the Objectness score is over the threshold add it to the boxes list */
-        if (obj_prob > OBJ_THRESH) {
+        if (obj_prob > tinyyolov2->obj_thresh) {
           max_class_prob = 0;
           max_class_prob_index = 0;
           for (c = 0; c < CLASSES; c++) {
@@ -288,7 +340,7 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
               max_class_prob_index = c;
             }
           }
-          if (max_class_prob > PROB_THRESH) {
+          if (max_class_prob > tinyyolov2->prob_thresh) {
             BBox result;
             result.label = max_class_prob_index;
             result.prob = max_class_prob;
@@ -296,8 +348,7 @@ get_boxes_from_prediction (gpointer prediction, gint input_image_width,
             result.y = ((gfloat *) prediction)[index + 1];
             result.width = ((gfloat *) prediction)[index + 2];
             result.height = ((gfloat *) prediction)[index + 3];
-            box_to_pixels (&result, i, j, input_image_width,
-                input_image_height, b);
+            box_to_pixels (&result, i, j, b);
             result.x = result.x - result.width * 0.5;
             result.y = result.y - result.height * 0.5;
             boxes[counter] = result;
@@ -315,15 +366,14 @@ print_top_predictions (GstVideoInference * vi, gpointer prediction,
     gint input_image_width, gint input_image_height, BBox ** resulting_boxes,
     gint * elements)
 {
-
+  GstTinyyolov2 *tinyyolov2 = GST_TINYYOLOV2 (vi);
   BBox boxes[GRID_H * GRID_W * BOXES];
   gint index = 0;
   *elements = 0;
 
-  get_boxes_from_prediction (prediction, input_image_width, input_image_height,
-      boxes, elements);
-
-  remove_duplicated_boxes (boxes, elements);
+  gst_tinyyolov2_get_boxes_from_prediction (tinyyolov2, prediction, boxes,
+      elements);
+  gst_tinyyolov2_remove_duplicated_boxes (tinyyolov2, boxes, elements);
 
   *resulting_boxes = g_malloc (*elements * sizeof (BBox));
   memcpy (*resulting_boxes, boxes, *elements * sizeof (BBox));
@@ -391,7 +441,8 @@ delete_box (BBox * boxes, gint * num_boxes, gint index)
 }
 
 void
-remove_duplicated_boxes (BBox * boxes, gint * num_boxes)
+gst_tinyyolov2_remove_duplicated_boxes (GstTinyyolov2 * tinyyolov2,
+    BBox * boxes, gint * num_boxes)
 {
 
   /* Remove duplicated boxes. A box is considered a duplicate if its
@@ -404,7 +455,7 @@ remove_duplicated_boxes (BBox * boxes, gint * num_boxes)
     for (it2 = it1 + 1; it2 < *num_boxes; it2++) {
       if (boxes[it1].label == boxes[it2].label) {
         iou = intersection_over_union (boxes[it1], boxes[it2]);
-        if (iou > IOU_THRESH) {
+        if (iou > tinyyolov2->iou_thresh) {
           if (boxes[it1].prob > boxes[it2].prob) {
             delete_box (boxes, num_boxes, it2);
             it2--;
