@@ -46,8 +46,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_inceptionv4_debug_category);
 #define GST_CAT_DEFAULT gst_inceptionv4_debug_category
 
 /* prototypes */
-#define CHANNELS 3
-
 static void gst_inceptionv4_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
 static void gst_inceptionv4_get_property (GObject * object,
@@ -196,21 +194,26 @@ static gboolean
 gst_inceptionv4_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-  gint size;
+  gint i, j, pixel_stride, width, height, channels;
 
   GST_LOG_OBJECT (vi, "Preprocess");
-  size = CHANNELS * inframe->info.width * inframe->info.height;
+  channels = GST_VIDEO_FRAME_N_COMPONENTS (inframe);
+  pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0) / channels;
+  width = GST_VIDEO_FRAME_WIDTH (inframe);
+  height = GST_VIDEO_FRAME_HEIGHT (inframe);
 
-  for (gint i = 0; i < size; i += CHANNELS) {
-    /* BGR = RGB - Mean */
-
-    ((gfloat *) outframe->data[0])[i + 0] =
-        (((guchar *) inframe->data[0])[i + 0] - 128) / 128.0;
-    ((gfloat *) outframe->data[0])[i + 1] =
-        (((guchar *) inframe->data[0])[i + 1] - 128) / 128.0;
-    ((gfloat *) outframe->data[0])[i + 2] =
-        (((guchar *) inframe->data[0])[i + 2] - 128) / 128.0;
-
+  for (i = 0; i < height; ++i) {
+    for (j = 0; j < width; ++j) {
+      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 0] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
+              0] - 128) / 128.0;
+      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 1] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
+              1] - 128) / 128.0;
+      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 2] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
+              2] - 128) / 128.0;
+    }
   }
 
   return TRUE;
