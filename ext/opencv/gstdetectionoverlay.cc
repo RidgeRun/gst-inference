@@ -18,10 +18,18 @@
  * Boston, MA 02111-1307, USA.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include "gstdetectionoverlay.h"
 #include "gst/r2inference/gstinferencemeta.h"
-#include "opencv2/imgproc.hpp"
+#ifdef OCV_VERSION_LT_3_2
+  #include "opencv2/highgui/highgui.hpp"
+#else
+  #include "opencv2/imgproc.hpp"
+  #include "opencv2/highgui.hpp"
+#endif
 
 GST_DEBUG_CATEGORY_STATIC (gst_detection_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_detection_overlay_debug_category
