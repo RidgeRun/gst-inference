@@ -25,10 +25,10 @@
 #include "gstclassificationoverlay.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #ifdef OCV_VERSION_LT_3_2
-  #include "opencv2/highgui/highgui.hpp"
+#include "opencv2/highgui/highgui.hpp"
 #else
-  #include "opencv2/imgproc.hpp"
-  #include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 #endif
 
 GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
@@ -44,20 +44,21 @@ GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 #define DEFAULT_NUM_LABELS 0
 
 /* prototypes */
-static void gst_classification_overlay_set_property (GObject *object,
-    guint property_id, const GValue *value, GParamSpec *pspec);
-static void gst_classification_overlay_get_property (GObject *object,
-    guint property_id, GValue *value, GParamSpec *pspec);
-static void gst_classification_overlay_dispose (GObject *object);
-static void gst_classification_overlay_finalize (GObject *object);
+static void gst_classification_overlay_set_property (GObject * object,
+    guint property_id, const GValue * value, GParamSpec * pspec);
+static void gst_classification_overlay_get_property (GObject * object,
+    guint property_id, GValue * value, GParamSpec * pspec);
+static void gst_classification_overlay_dispose (GObject * object);
+static void gst_classification_overlay_finalize (GObject * object);
 
-static gboolean gst_classification_overlay_start (GstBaseTransform *trans);
-static gboolean gst_classification_overlay_stop (GstBaseTransform *trans);
+static gboolean gst_classification_overlay_start (GstBaseTransform * trans);
+static gboolean gst_classification_overlay_stop (GstBaseTransform * trans);
 static GstFlowReturn
-gst_classification_overlay_transform_frame_ip (GstVideoFilter *trans,
-    GstVideoFrame *frame);
+gst_classification_overlay_transform_frame_ip (GstVideoFilter * trans,
+    GstVideoFrame * frame);
 
-enum {
+enum
+{
   PROP_0,
   PROP_FONT_SCALE,
   PROP_BOX_THICKNESS,
@@ -76,34 +77,35 @@ enum {
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE (GstClassificationOverlay, gst_classification_overlay,
-                         GST_TYPE_VIDEO_FILTER,
-                         GST_DEBUG_CATEGORY_INIT (gst_classification_overlay_debug_category,
-                             "classification_overlay", 0,
-                             "debug category for classification_overlay element"));
+    GST_TYPE_VIDEO_FILTER,
+    GST_DEBUG_CATEGORY_INIT (gst_classification_overlay_debug_category,
+        "classification_overlay", 0,
+        "debug category for classification_overlay element"));
 
 static void
-gst_classification_overlay_class_init (GstClassificationOverlayClass *klass) {
+gst_classification_overlay_class_init (GstClassificationOverlayClass * klass)
+{
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstBaseTransformClass *base_transform_class =
-    GST_BASE_TRANSFORM_CLASS (klass);
+      GST_BASE_TRANSFORM_CLASS (klass);
   GstVideoFilterClass *video_filter_class = GST_VIDEO_FILTER_CLASS (klass);
 
   gst_element_class_add_pad_template (GST_ELEMENT_CLASS (klass),
-                                      gst_pad_template_new ("src", GST_PAD_SRC, GST_PAD_ALWAYS,
-                                          gst_caps_from_string (VIDEO_SRC_CAPS)));
+      gst_pad_template_new ("src", GST_PAD_SRC, GST_PAD_ALWAYS,
+          gst_caps_from_string (VIDEO_SRC_CAPS)));
   gst_element_class_add_pad_template (GST_ELEMENT_CLASS (klass),
-                                      gst_pad_template_new ("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
-                                          gst_caps_from_string (VIDEO_SINK_CAPS)));
+      gst_pad_template_new ("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
+          gst_caps_from_string (VIDEO_SINK_CAPS)));
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-                                         "classificationoverlay", "Filter",
-                                         "Overlays classification metadata on input buffer",
-                                         "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
-                                         "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
-                                         "   Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
-                                         "   Carlos Aguero <carlos.aguero@ridgerun.com> \n\t\t\t"
-                                         "   Miguel Taylor <miguel.taylor@ridgerun.com> \n\t\t\t"
-                                         "   Greivin Fallas <greivin.fallas@ridgerun.com>");
+      "classificationoverlay", "Filter",
+      "Overlays classification metadata on input buffer",
+      "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
+      "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
+      "   Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
+      "   Carlos Aguero <carlos.aguero@ridgerun.com> \n\t\t\t"
+      "   Miguel Taylor <miguel.taylor@ridgerun.com> \n\t\t\t"
+      "   Greivin Fallas <greivin.fallas@ridgerun.com>");
 
   gobject_class->set_property = gst_classification_overlay_set_property;
   gobject_class->get_property = gst_classification_overlay_get_property;
@@ -111,31 +113,32 @@ gst_classification_overlay_class_init (GstClassificationOverlayClass *klass) {
   gobject_class->finalize = gst_classification_overlay_finalize;
 
   g_object_class_install_property (gobject_class, PROP_FONT_SCALE,
-                                   g_param_spec_double ("font-scale", "font", "Font scale", MIN_FONT_SCALE,
-                                       MAX_FONT_SCALE, DEFAULT_FONT_SCALE, G_PARAM_READWRITE));
+      g_param_spec_double ("font-scale", "font", "Font scale", MIN_FONT_SCALE,
+          MAX_FONT_SCALE, DEFAULT_FONT_SCALE, G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, PROP_BOX_THICKNESS,
-                                   g_param_spec_int ("thickness", "thickness", "Box line thickness in pixels",
-                                       MIN_BOX_THICKNESS,
-                                       MAX_BOX_THICKNESS, DEFAULT_BOX_THICKNESS, G_PARAM_READWRITE));
+      g_param_spec_int ("thickness", "thickness",
+          "Box line thickness in pixels", MIN_BOX_THICKNESS, MAX_BOX_THICKNESS,
+          DEFAULT_BOX_THICKNESS, G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, PROP_LABELS,
-                                   g_param_spec_string ("labels", "labels",
-                                       "Semicolon separated string containing inference labels", DEFAULT_LABELS,
-                                       G_PARAM_READWRITE));
+      g_param_spec_string ("labels", "labels",
+          "Semicolon separated string containing inference labels",
+          DEFAULT_LABELS, G_PARAM_READWRITE));
 
   base_transform_class->start =
-    GST_DEBUG_FUNCPTR (gst_classification_overlay_start);
+      GST_DEBUG_FUNCPTR (gst_classification_overlay_start);
   base_transform_class->stop =
-    GST_DEBUG_FUNCPTR (gst_classification_overlay_stop);
+      GST_DEBUG_FUNCPTR (gst_classification_overlay_stop);
   video_filter_class->transform_frame_ip =
-    GST_DEBUG_FUNCPTR (gst_classification_overlay_transform_frame_ip);
+      GST_DEBUG_FUNCPTR (gst_classification_overlay_transform_frame_ip);
 
 }
 
 static void
 gst_classification_overlay_init (GstClassificationOverlay *
-                                 classification_overlay) {
+    classification_overlay)
+{
   classification_overlay->font_scale = DEFAULT_FONT_SCALE;
   classification_overlay->box_thickness = DEFAULT_BOX_THICKNESS;
   classification_overlay->labels = DEFAULT_LABELS;
@@ -144,10 +147,11 @@ gst_classification_overlay_init (GstClassificationOverlay *
 }
 
 void
-gst_classification_overlay_set_property (GObject *object, guint property_id,
-    const GValue *value, GParamSpec *pspec) {
+gst_classification_overlay_set_property (GObject * object, guint property_id,
+    const GValue * value, GParamSpec * pspec)
+{
   GstClassificationOverlay *classification_overlay =
-    GST_CLASSIFICATION_OVERLAY (object);
+      GST_CLASSIFICATION_OVERLAY (object);
 
   GST_DEBUG_OBJECT (classification_overlay, "set_property");
 
@@ -155,12 +159,12 @@ gst_classification_overlay_set_property (GObject *object, guint property_id,
     case PROP_FONT_SCALE:
       classification_overlay->font_scale = g_value_get_double (value);
       GST_DEBUG_OBJECT (classification_overlay, "Changed font scale to %lf",
-                        classification_overlay->font_scale);
+          classification_overlay->font_scale);
       break;
     case PROP_BOX_THICKNESS:
       classification_overlay->box_thickness = g_value_get_int (value);
       GST_DEBUG_OBJECT (classification_overlay, "Changed box thickness to %d",
-                        classification_overlay->box_thickness);
+          classification_overlay->box_thickness);
       break;
     case PROP_LABELS:
       if (classification_overlay->labels != NULL) {
@@ -172,10 +176,10 @@ gst_classification_overlay_set_property (GObject *object, guint property_id,
       classification_overlay->labels = g_value_dup_string (value);
       classification_overlay->labels_list =
           g_strsplit (g_value_get_string (value), ";", 0);
-      classification_overlay->labels_list = g_strsplit ( g_value_get_string (value), ";", 0);
-      classification_overlay->num_labels = g_strv_length (classification_overlay->labels_list);
+      classification_overlay->num_labels =
+          g_strv_length (classification_overlay->labels_list);
       GST_DEBUG_OBJECT (classification_overlay, "Changed inference labels %s",
-                        classification_overlay->labels);
+          classification_overlay->labels);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -184,10 +188,11 @@ gst_classification_overlay_set_property (GObject *object, guint property_id,
 }
 
 void
-gst_classification_overlay_get_property (GObject *object, guint property_id,
-    GValue *value, GParamSpec *pspec) {
+gst_classification_overlay_get_property (GObject * object, guint property_id,
+    GValue * value, GParamSpec * pspec)
+{
   GstClassificationOverlay *classification_overlay =
-    GST_CLASSIFICATION_OVERLAY (object);
+      GST_CLASSIFICATION_OVERLAY (object);
 
   GST_DEBUG_OBJECT (classification_overlay, "get_property");
 
@@ -208,9 +213,10 @@ gst_classification_overlay_get_property (GObject *object, guint property_id,
 }
 
 void
-gst_classification_overlay_dispose (GObject *object) {
+gst_classification_overlay_dispose (GObject * object)
+{
   GstClassificationOverlay *classification_overlay =
-    GST_CLASSIFICATION_OVERLAY (object);
+      GST_CLASSIFICATION_OVERLAY (object);
 
   GST_DEBUG_OBJECT (classification_overlay, "dispose");
 
@@ -226,9 +232,10 @@ gst_classification_overlay_dispose (GObject *object) {
 }
 
 void
-gst_classification_overlay_finalize (GObject *object) {
+gst_classification_overlay_finalize (GObject * object)
+{
   GstClassificationOverlay *classification_overlay =
-    GST_CLASSIFICATION_OVERLAY (object);
+      GST_CLASSIFICATION_OVERLAY (object);
 
   GST_DEBUG_OBJECT (classification_overlay, "finalize");
 
@@ -238,9 +245,10 @@ gst_classification_overlay_finalize (GObject *object) {
 }
 
 static gboolean
-gst_classification_overlay_start (GstBaseTransform *trans) {
+gst_classification_overlay_start (GstBaseTransform * trans)
+{
   GstClassificationOverlay *classification_overlay =
-    GST_CLASSIFICATION_OVERLAY (trans);
+      GST_CLASSIFICATION_OVERLAY (trans);
 
   GST_DEBUG_OBJECT (classification_overlay, "start");
 
@@ -248,9 +256,10 @@ gst_classification_overlay_start (GstBaseTransform *trans) {
 }
 
 static gboolean
-gst_classification_overlay_stop (GstBaseTransform *trans) {
+gst_classification_overlay_stop (GstBaseTransform * trans)
+{
   GstClassificationOverlay *classification_overlay =
-    GST_CLASSIFICATION_OVERLAY (trans);
+      GST_CLASSIFICATION_OVERLAY (trans);
 
   GST_DEBUG_OBJECT (classification_overlay, "stop");
 
@@ -259,10 +268,11 @@ gst_classification_overlay_stop (GstBaseTransform *trans) {
 
 /* transform */
 static GstFlowReturn
-gst_classification_overlay_transform_frame_ip (GstVideoFilter *trans,
-    GstVideoFrame *frame) {
+gst_classification_overlay_transform_frame_ip (GstVideoFilter * trans,
+    GstVideoFrame * frame)
+{
   GstClassificationOverlay *classification_overlay =
-    GST_CLASSIFICATION_OVERLAY (trans);
+      GST_CLASSIFICATION_OVERLAY (trans);
   GstClassificationMeta *class_meta;
   gint index, i, width, height;
   gdouble max, current;
@@ -277,8 +287,8 @@ gst_classification_overlay_transform_frame_ip (GstVideoFilter *trans,
   height = GST_VIDEO_FRAME_HEIGHT (frame);
 
   class_meta =
-    (GstClassificationMeta *) gst_buffer_get_meta (frame->buffer,
-        GST_CLASSIFICATION_META_API_TYPE);
+      (GstClassificationMeta *) gst_buffer_get_meta (frame->buffer,
+      GST_CLASSIFICATION_META_API_TYPE);
   if (NULL == class_meta) {
     GST_LOG_OBJECT (trans, "No classification meta found");
     return GST_FLOW_OK;
@@ -298,25 +308,25 @@ gst_classification_overlay_transform_frame_ip (GstVideoFilter *trans,
   }
   if (classification_overlay->num_labels > index) {
     str = cv::format ("%s prob:%f", classification_overlay->labels_list[index],
-                      max);
+        max);
   } else {
     str = cv::format ("Label #%d prob:%f", index, max);
   }
   /* Get size of string on screen */
   int baseline = 0;
   size =
-    cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX,
-                     classification_overlay->box_thickness, classification_overlay->font_scale,
-                     &baseline);
+      cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX,
+      classification_overlay->box_thickness, classification_overlay->font_scale,
+      &baseline);
   /* Put string on screen */
   cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
   cv::putText (cv_mat, str, cv::Point (0, size.height),
-               cv::FONT_HERSHEY_PLAIN, classification_overlay->font_scale, white,
-               classification_overlay->box_thickness+1);
+      cv::FONT_HERSHEY_PLAIN, classification_overlay->font_scale, white,
+      classification_overlay->box_thickness + 1);
 
   cv::putText (cv_mat, str, cv::Point (0, size.height),
-               cv::FONT_HERSHEY_PLAIN, classification_overlay->font_scale, black,
-               classification_overlay->box_thickness);
+      cv::FONT_HERSHEY_PLAIN, classification_overlay->font_scale, black,
+      classification_overlay->box_thickness);
 
   return GST_FLOW_OK;
 }
