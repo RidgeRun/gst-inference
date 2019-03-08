@@ -41,6 +41,12 @@ struct _GstClassificationOverlay
 {
   GstVideoFilter base_classification_overlay;
 
+  gdouble font_scale;
+  gint box_thickness;
+  gchar* labels;
+  gchar** labels_list;
+  gint num_labels;
+
 };
 
 struct _GstClassificationOverlayClass
