@@ -4,6 +4,7 @@ lib_LTLIBRARIES = libgstinference-@GST_API_VERSION@.la
 libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gstvideoinference.c			\
 	gstchildinspector.c			\
+	gstinferencemeta.c			\
 	gstinferencebackends.cc			\
 	gstbackend.cc				\
 	gstncsdk.cc				\

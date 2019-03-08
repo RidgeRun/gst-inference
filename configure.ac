@@ -5,7 +5,7 @@ dnl please read gstreamer/docs/random/autotools before changing this file
 dnl initialize autoconf
 dnl releases only do -Wall, git and prerelease does -Werror too
 dnl use a three digit version number for releases, and four for git/pre
-AC_INIT([GStreamer Inference],[0.1.0.1],[https://github.com/RidgeRun/gst-inference/issues],[gst-inference])
+AC_INIT([GStreamer Inference],[0.2.0.1],[https://github.com/RidgeRun/gst-inference/issues],[gst-inference])
 
 AG_GST_INIT
 
@@ -20,6 +20,7 @@ AS_NANO(GST_GIT="no", GST_GIT="yes")
 
 dnl can autoconf find the source ?
 AC_CONFIG_SRCDIR([ext/r2inference/gstinference.c])
+AC_CONFIG_SRCDIR([ext/opencv/gstinferenceoverlay.c])
 
 dnl define the output header for config
 AC_CONFIG_HEADERS([config.h])
@@ -155,6 +156,7 @@ AG_GST_CHECK_GST_BASE($GST_API_VERSION, [$GST_REQ], yes)
 AG_GST_CHECK_GST_CONTROLLER($GST_API_VERSION, [$GST_REQ], yes)
 AG_GST_CHECK_GST_CHECK($GST_API_VERSION, [$GST_REQ], no)
 AG_GST_CHECK_GST_PLUGINS_BASE($GST_API_VERSION, [$GSTPB_REQ], yes)
+AG_GST_CHECK_MODULES(GST_VIDEO, gstreamer-video-[$GST_API_VERSION], [$GST_REQ], [GStreamer Video], yes)
 
 GST_TOOLS_DIR=`$PKG_CONFIG --variable=toolsdir gstreamer-$GST_API_VERSION`
 if test -z $GST_TOOLS_DIR; then
@@ -264,8 +266,33 @@ echo
 AC_MSG_NOTICE([Checking libraries for plugins in ext/])
 echo
 
-AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun's Inference Framework], gstinference, [
+dnl *** opencv ***
+OPENCV_REQ=2.3.1
+translit(dnm, m, l) AM_CONDITIONAL(USE_OPENCV, true)
+AG_GST_CHECK_FEATURE(OPENCV, [OpenCV computer vision library], opencv, [
+  AG_GST_PKG_CHECK_MODULES(OPENCV, opencv >= $OPENCV_REQ )
+])
+dnl define conditional for opencv versions 2.3.1 to 3.1.0
+if test "$USE_OPENCV" = "yes"; then
+  OCV_BASE_VERSION_MAJOR=3
+  OCV_BASE_VERSION_MINOR=2
+  OCV_VERSION_MAJOR=$(pkg-config --modversion opencv | awk -F. '{print $1}')
+  OCV_VERSION_MINOR=$(pkg-config --modversion opencv | awk -F. '{print $2}')
+  if test "$OCV_VERSION_MAJOR" -lt "$OCV_BASE_VERSION_MAJOR"; then
+    AC_DEFINE([OCV_VERSION_LT_3_2], [1], [Defined if OpenCV version is less than 3.2])
+  else
+    if test "$OCV_VERSION_MINOR" -lt "$OCV_BASE_VERSION_MINOR"; then
+      AC_DEFINE([OCV_VERSION_LT_3_2], [1], [Defined if OpenCV version is less than 3.2])
+    fi
+  fi
+  AC_MSG_NOTICE([OpenCV version: $OCV_VERSION_MAJOR.$OCV_VERSION_MINOR])
+fi
+
+dnl *** r2inference ***
+AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun\'s Inference Framework], r2inference, [
   AG_GST_PKG_CHECK_MODULES(R2INFERENCE, r2inference-0.0)
+],[],[],[
+  AC_MSG_ERROR([Please install R2Inference from https://github.com/RidgeRun/r2inference.git])
 ])
 
 else
@@ -354,8 +381,11 @@ gst-libs/gst/r2inference/Makefile
 m4/Makefile
 ext/Makefile
 ext/r2inference/Makefile
+ext/opencv/Makefile
 tests/Makefile
 tests/check/Makefile
+tests/examples/classification/Makefile
+tests/examples/detection/Makefile
 tests/examples/Makefile
 tests/files/Makefile
 )
