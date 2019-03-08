@@ -95,11 +95,6 @@ main (int argc, char *argv[])
     exit (1);
   }
 
-  if (strcmp (backend, "ncsdk")) {
-    g_printerr ("This version only supports ncsdk as backend \n");
-    exit (1);
-  }
-
   detection = gst_detection_new ();
   gst_detection_create_pipeline (detection);
 
@@ -216,10 +211,14 @@ gst_detection_create_pipeline (GstDetection * detection)
 
   pipe_desc = g_string_new ("");
 
-  g_string_append (pipe_desc, " tinyyolo name=net backend=");
+  g_string_append (pipe_desc, " tinyyolov2 name=net backend=");
   g_string_append (pipe_desc, backend);
   g_string_append (pipe_desc, " model-location=");
   g_string_append (pipe_desc, model_path);
+  if (!strcmp (backend, "tensorflow")) {
+    g_string_append (pipe_desc, " backend::input-layer=input/Placeholder ");
+    g_string_append (pipe_desc, " backend::output-layer=add_8 ");
+  }
   if (file_path) {
     g_string_append (pipe_desc, " filesrc location=");
     g_string_append (pipe_desc, file_path);
