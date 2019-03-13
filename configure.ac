@@ -378,6 +378,7 @@ docs/plugins/Makefile
 gst-libs/Makefile
 gst-libs/gst/Makefile
 gst-libs/gst/r2inference/Makefile
+gst-libs/gst/opencv/Makefile
 m4/Makefile
 ext/Makefile
 ext/r2inference/Makefile
