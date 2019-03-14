@@ -21,23 +21,39 @@
 
 #include "gstinferenceoverlay.h"
 
+/* pad templates */
+
+#define VIDEO_SRC_CAPS \
+    GST_VIDEO_CAPS_MAKE("{ RGB }")
+
+#define VIDEO_SINK_CAPS \
+    GST_VIDEO_CAPS_MAKE("{ RGB }")
+
 GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_inference_overlay_debug_category
 
 #define MIN_FONT_SCALE 0
 #define DEFAULT_FONT_SCALE 2
 #define MAX_FONT_SCALE 100
-#define MIN_BOX_THICKNESS 1
-#define DEFAULT_BOX_THICKNESS 2
-#define MAX_BOX_THICKNESS 100
+#define MIN_THICKNESS 1
+#define DEFAULT_THICKNESS 2
+#define MAX_THICKNESS 100
 #define DEFAULT_LABELS NULL
 #define DEFAULT_NUM_LABELS 0
+
+enum
+{
+  PROP_0,
+  PROP_FONT_SCALE,
+  PROP_THICKNESS,
+  PROP_LABELS
+};
 
 typedef struct _GstInferenceOverlayPrivate GstInferenceOverlayPrivate;
 struct _GstInferenceOverlayPrivate
 {
   gdouble font_scale;
-  gint box_thickness;
+  gint thickness;
   gchar *labels;
   gchar **labels_list;
   gint num_labels;
@@ -56,33 +72,16 @@ static GstFlowReturn
 gst_inference_overlay_transform_frame_ip (GstVideoFilter * trans,
     GstVideoFrame * frame);
 
-#define GST_INFERENCE_OVERLAY_PRIVATE(self) \
-  (GstInferenceOverlayPrivate *)(gst_inference_overlay_get_instance_private (self))
-
-enum
-{
-  PROP_0,
-  PROP_FONT_SCALE,
-  PROP_BOX_THICKNESS,
-  PROP_LABELS
-};
-
-/* pad templates */
-
-#define VIDEO_SRC_CAPS \
-    GST_VIDEO_CAPS_MAKE("{ RGB }")
-
-#define VIDEO_SINK_CAPS \
-    GST_VIDEO_CAPS_MAKE("{ RGB }")
-
-
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE (GstInferenceOverlay, gst_inference_overlay,
     GST_TYPE_VIDEO_FILTER,
     GST_DEBUG_CATEGORY_INIT (gst_inference_overlay_debug_category,
-        "inference_overlay", 0,
-        "debug category for inference_overlay element"));
+        "inferenceoverlay", 0, "debug category for inferenceoverlay class");
+    G_ADD_PRIVATE (GstInferenceOverlay));
+
+#define GST_INFERENCE_OVERLAY_PRIVATE(self) \
+  (GstInferenceOverlayPrivate *)(gst_inference_overlay_get_instance_private (self))
 
 static void
 gst_inference_overlay_class_init (GstInferenceOverlayClass * klass)
@@ -108,10 +107,10 @@ gst_inference_overlay_class_init (GstInferenceOverlayClass * klass)
       g_param_spec_double ("font-scale", "font", "Font scale", MIN_FONT_SCALE,
           MAX_FONT_SCALE, DEFAULT_FONT_SCALE, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_BOX_THICKNESS,
+  g_object_class_install_property (gobject_class, PROP_THICKNESS,
       g_param_spec_int ("thickness", "thickness",
-          "Box line thickness in pixels", MIN_BOX_THICKNESS, MAX_BOX_THICKNESS,
-          DEFAULT_BOX_THICKNESS, G_PARAM_READWRITE));
+          "Box line thickness in pixels", MIN_THICKNESS, MAX_THICKNESS,
+          DEFAULT_THICKNESS, G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class, PROP_LABELS,
       g_param_spec_string ("labels", "labels",
@@ -131,7 +130,7 @@ gst_inference_overlay_init (GstInferenceOverlay * inference_overlay)
   GstInferenceOverlayPrivate *priv =
       GST_INFERENCE_OVERLAY_PRIVATE (inference_overlay);
   priv->font_scale = DEFAULT_FONT_SCALE;
-  priv->box_thickness = DEFAULT_BOX_THICKNESS;
+  priv->thickness = DEFAULT_THICKNESS;
   priv->labels = DEFAULT_LABELS;
   priv->labels_list = DEFAULT_LABELS;
   priv->num_labels = DEFAULT_NUM_LABELS;
@@ -153,10 +152,10 @@ gst_inference_overlay_set_property (GObject * object, guint property_id,
       GST_DEBUG_OBJECT (inference_overlay, "Changed font scale to %lf",
           priv->font_scale);
       break;
-    case PROP_BOX_THICKNESS:
-      priv->box_thickness = g_value_get_int (value);
+    case PROP_THICKNESS:
+      priv->thickness = g_value_get_int (value);
       GST_DEBUG_OBJECT (inference_overlay, "Changed box thickness to %d",
-          priv->box_thickness);
+          priv->thickness);
       break;
     case PROP_LABELS:
       if (priv->labels != NULL) {
@@ -191,8 +190,8 @@ gst_inference_overlay_get_property (GObject * object, guint property_id,
     case PROP_FONT_SCALE:
       g_value_set_double (value, priv->font_scale);
       break;
-    case PROP_BOX_THICKNESS:
-      g_value_set_int (value, priv->box_thickness);
+    case PROP_THICKNESS:
+      g_value_set_int (value, priv->thickness);
       break;
     case PROP_LABELS:
       g_value_set_string (value, priv->labels);
@@ -262,6 +261,8 @@ gst_inference_overlay_transform_frame_ip (GstVideoFilter * trans,
 {
   GstInferenceOverlayClass *io_class = GST_INFERENCE_OVERLAY_GET_CLASS (trans);
   GstInferenceOverlay *inference_overlay = GST_INFERENCE_OVERLAY (trans);
+  GstInferenceOverlayPrivate *priv =
+      GST_INFERENCE_OVERLAY_PRIVATE (inference_overlay);
   GstMeta *meta;
   GstFlowReturn ret = GST_FLOW_ERROR;
 
@@ -272,7 +273,9 @@ gst_inference_overlay_transform_frame_ip (GstVideoFilter * trans,
   } else {
     GST_LOG_OBJECT (trans, "Valid inference meta found");
     if (io_class->process_meta != NULL) {
-      ret = io_class->process_meta (inference_overlay, frame, meta);
+      ret =
+          io_class->process_meta (frame, meta, priv->font_scale,
+          priv->thickness, priv->labels_list, priv->num_labels);
     }
   }
 

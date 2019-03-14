@@ -35,10 +35,11 @@ struct _GstInferenceOverlayClass
 {
   GstVideoFilterClass parent_class;
 
-  GstFlowReturn (* process_meta) (GstInferenceOverlay * io, GstVideoFrame * frame,
-    GstMeta* meta);
+  GstFlowReturn (* process_meta) (GstVideoFrame * frame, GstMeta* meta,
+    gdouble font_scale, gint thickness, gchar **labels_list,
+    gint num_labels);
 
-  const GType meta_type;
+  GType meta_type;
 };
 
 G_END_DECLS
