@@ -31,7 +31,7 @@
 #include "opencv2/highgui.hpp"
 #endif
 
-const cv::Scalar colors[] = {
+static const cv::Scalar colors[] = {
   cv::Scalar (254, 254, 254), cv::Scalar (239, 211, 127),
   cv::Scalar (225, 169, 0), cv::Scalar (211, 127, 254),
   cv::Scalar (197, 84, 127), cv::Scalar (183, 42, 0),
