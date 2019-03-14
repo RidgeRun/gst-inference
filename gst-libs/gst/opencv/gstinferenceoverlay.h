@@ -19,16 +19,29 @@
  *
  */
 
-#ifndef _GST_CLASSIFICATION_OVERLAY_H_
-#define _GST_CLASSIFICATION_OVERLAY_H_
+#ifndef __GST_INFERENCE_OVERLAY_H__
+#define __GST_INFERENCE_OVERLAY_H__
 
-#include <gst/opencv/gstinferenceoverlay.h>
+#include <gst/gst.h>
+#include <gst/video/video.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_CLASSIFICATION_OVERLAY   (gst_classification_overlay_get_type())
-G_DECLARE_FINAL_TYPE (GstClassificationOverlay, gst_classification_overlay, GST, CLASSIFICATION_OVERLAY, GstInferenceOverlay)
+#define GST_TYPE_INFERENCE_OVERLAY gst_inference_overlay_get_type ()
+G_DECLARE_DERIVABLE_TYPE(GstInferenceOverlay, gst_inference_overlay, GST,
+  INFERENCE_OVERLAY, GstVideoFilter);
+
+struct _GstInferenceOverlayClass
+{
+  GstVideoFilterClass parent_class;
+
+  GstFlowReturn (* process_meta) (GstVideoFrame * frame, GstMeta* meta,
+    gdouble font_scale, gint thickness, gchar **labels_list,
+    gint num_labels);
+
+  GType meta_type;
+};
 
 G_END_DECLS
 
-#endif
+#endif //__GST_INFERENCE_OVERLAY_H__
