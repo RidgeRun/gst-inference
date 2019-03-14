@@ -23,6 +23,7 @@
 #include "config.h"
 #endif
 
+#include "gstinceptionv2.h"
 #include "gstinceptionv4.h"
 #include "gsttinyyolov2.h"
 
@@ -33,6 +34,18 @@ plugin_init (GstPlugin * plugin)
   /* FIXME Remember to set the rank if it's an element that is meant
      to be autoplugged by decodebin. */
   gboolean ret = TRUE;
+
+  ret = gst_element_register (plugin, "inceptionv1", GST_RANK_NONE,
+      GST_TYPE_INCEPTIONV2);
+  if (!ret) {
+    goto out;
+  }
+
+  ret = gst_element_register (plugin, "inceptionv2", GST_RANK_NONE,
+      GST_TYPE_INCEPTIONV2);
+  if (!ret) {
+    goto out;
+  }
 
   ret = gst_element_register (plugin, "inceptionv4", GST_RANK_NONE,
       GST_TYPE_INCEPTIONV4);
