@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2019 RidgeRun
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -43,6 +43,12 @@ plugin_init (GstPlugin * plugin)
 
   ret = gst_element_register (plugin, "inceptionv2", GST_RANK_NONE,
       GST_TYPE_INCEPTIONV2);
+  if (!ret) {
+    goto out;
+  }
+
+  ret = gst_element_register (plugin, "inceptionv3", GST_RANK_NONE,
+      GST_TYPE_INCEPTIONV4);
   if (!ret) {
     goto out;
   }

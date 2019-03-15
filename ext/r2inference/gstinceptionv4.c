@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2019 RidgeRun
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -23,14 +23,15 @@
  * SECTION:element-gstinceptionv4
  *
  * The inceptionv4 element allows the user to infer/execute a pretrained model
- * based on the GoogLeNet (Inception v4) architecture on incoming image frames.
+ * based on the GoogLeNet (Inception v3 or Inception v4) architecture on
+ * incoming image frames.
  *
  * <refsect2>
  * <title>Example launch line</title>
  * |[
  * gst-launch-1.0 -v videotestsrc ! inceptionv4 ! xvimagesink
  * ]|
- * Process video frames from the camera using a GoogLeNet (Inception v4) model.
+ * Process video frames from the camera using a GoogLeNet (Inception v3 or Inception v4) model.
  * </refsect2>
  */
 
@@ -68,7 +69,7 @@ enum
 
 /* pad templates */
 
-#define CAPS "video/x-raw,format=BGR,width=299,height=299"
+#define CAPS "video/x-raw,format=RGB,width=299,height=299"
 
 static GstStaticPadTemplate sink_model_factory =
 GST_STATIC_PAD_TEMPLATE ("sink_model",
@@ -114,7 +115,7 @@ gst_inceptionv4_class_init (GstInceptionv4Class * klass)
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "inceptionv4", "Filter",
-      "Infers incoming image frames using a pretrained GoogLeNet (Inception v4) model",
+      "Infers incoming image frames using a pretrained GoogLeNet (Inception v3 or Inception v4) model",
       "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
       "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
       "   Michael Gruner <michael.gruner@ridgerun.com>");
