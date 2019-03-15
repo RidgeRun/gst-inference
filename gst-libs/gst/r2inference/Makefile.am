@@ -21,7 +21,6 @@ libgstinference_@GST_API_VERSION@_la_CFLAGS=	\
 	$(GST_CFLAGS)				\
 	$(GST_BASE_CFLAGS)			\
 	$(GST_PLUGINS_BASE_CFLAGS)		\
-	-lgstvideo-@GST_API_VERSION@ 		\
 	$(R2INFERENCE_CFLAGS)
 
 libgstinference_@GST_API_VERSION@_la_LIBADD=	\
