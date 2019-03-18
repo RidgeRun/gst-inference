@@ -123,8 +123,11 @@ enum
 };
 
 /* pad templates */
-
-#define CAPS "video/x-raw,format=BGR,width=416,height=416"
+#define CAPS								\
+  "video/x-raw, "							\
+  "width=416, "							\
+  "height=416, "							\
+  "format={RGB, RGBx, RGBA, BGR, BGRx, BGRA, xRGB, ARGB, xBGR, ABGR}"
 
 static GstStaticPadTemplate sink_model_factory =
 GST_STATIC_PAD_TEMPLATE ("sink_model",
@@ -474,19 +477,52 @@ static gboolean
 gst_tinyyolov2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-
   gint size;
+  gint first_index, last_index, offset;
+
   GST_LOG_OBJECT (vi, "Preprocess");
 
   size = CHANNELS * inframe->info.width * inframe->info.height;
 
+  switch (GST_VIDEO_FRAME_FORMAT (inframe)) {
+    case GST_VIDEO_FORMAT_RGB:
+    case GST_VIDEO_FORMAT_RGBx:
+    case GST_VIDEO_FORMAT_RGBA:
+      first_index = 0;
+      last_index = 2;
+      offset = 0;
+      break;
+    case GST_VIDEO_FORMAT_BGR:
+    case GST_VIDEO_FORMAT_BGRx:
+    case GST_VIDEO_FORMAT_BGRA:
+      first_index = 2;
+      last_index = 0;
+      offset = 0;
+      break;
+    case GST_VIDEO_FORMAT_xRGB:
+    case GST_VIDEO_FORMAT_ARGB:
+      first_index = 0;
+      last_index = 2;
+      offset = 1;
+      break;
+    case GST_VIDEO_FORMAT_xBGR:
+    case GST_VIDEO_FORMAT_ABGR:
+      first_index = 2;
+      last_index = 0;
+      offset = 1;
+    default:
+      GST_ERROR_OBJECT (vi, "Invalid format");
+      return FALSE;
+      break;
+  }
+
   for (gint i = 0; i < size; i += CHANNELS) {
-    ((gfloat *) outframe->data[0])[i + 2] =
-        (((guchar *) inframe->data[0])[i + 2]) / 255.0;
+    ((gfloat *) outframe->data[0])[i + first_index] =
+        (((guchar *) inframe->data[0])[i + 2 + offset]) / 255.0;
     ((gfloat *) outframe->data[0])[i + 1] =
-        (((guchar *) inframe->data[0])[i + 1]) / 255.0;
-    ((gfloat *) outframe->data[0])[i + 0] =
-        (((guchar *) inframe->data[0])[i + 0]) / 255.0;
+        (((guchar *) inframe->data[0])[i + 1 + offset]) / 255.0;
+    ((gfloat *) outframe->data[0])[i + last_index] =
+        (((guchar *) inframe->data[0])[i + 0 + offset]) / 255.0;
   }
 
   return TRUE;
