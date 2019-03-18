@@ -68,7 +68,6 @@ enum
 };
 
 /* pad templates */
-
 #define CAPS								\
   "video/x-raw, "							\
   "width=299, "							\
