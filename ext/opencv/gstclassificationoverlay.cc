@@ -96,15 +96,22 @@ gst_classification_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
     gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels)
 {
   GstClassificationMeta *class_meta;
-  gint index, i, width, height;
+  gint index, i, width, height, channels;
   gdouble max, current;
   cv::Mat cv_mat;
   cv::String str;
   cv::Size size;
 
-  width =
-      GST_VIDEO_FRAME_COMP_STRIDE (frame,
-      0) / GST_VIDEO_FRAME_N_COMPONENTS (frame);
+  switch (GST_VIDEO_FRAME_FORMAT (frame)) {
+    case GST_VIDEO_FORMAT_RGB:
+    case GST_VIDEO_FORMAT_BGR:
+      channels = 3;
+      break;
+    default:
+      channels = 4;
+      break;
+  }
+  width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / channels;
   height = GST_VIDEO_FRAME_HEIGHT (frame);
 
   class_meta = (GstClassificationMeta *) meta;
@@ -126,11 +133,11 @@ gst_classification_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
   }
   /* Get size of string on screen */
   int baseline = 0;
-  size =
-      cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX, thickness, font_scale,
-      &baseline);
+  size = cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX, thickness,
+      font_scale, &baseline);
   /* Put string on screen */
-  cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
+  cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
+      (char *) frame->data[0]);
   cv::putText (cv_mat, str, cv::Point (0, size.height), cv::FONT_HERSHEY_PLAIN,
       font_scale, white, thickness + 1);
   cv::putText (cv_mat, str, cv::Point (0, size.height), cv::FONT_HERSHEY_PLAIN,
