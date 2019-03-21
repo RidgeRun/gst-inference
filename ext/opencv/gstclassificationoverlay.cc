@@ -31,8 +31,8 @@
 #include "opencv2/highgui.hpp"
 #endif
 
-static const cv::Scalar black = cv::Scalar (0, 0, 0);
-static const cv::Scalar white = cv::Scalar (255, 255, 255);
+static const cv::Scalar black = cv::Scalar (0, 0, 0, 0);
+static const cv::Scalar white = cv::Scalar (255, 255, 255, 255);
 
 GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_classification_overlay_debug_category
@@ -131,16 +131,15 @@ gst_classification_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
   } else {
     str = cv::format ("Label #%d prob:%f", index, max);
   }
-  /* Get size of string on screen */
-  int baseline = 0;
-  size = cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX, thickness,
-      font_scale, &baseline);
-  /* Put string on screen */
   cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
       (char *) frame->data[0]);
-  cv::putText (cv_mat, str, cv::Point (0, size.height), cv::FONT_HERSHEY_PLAIN,
-      font_scale, white, thickness + 1);
-  cv::putText (cv_mat, str, cv::Point (0, size.height), cv::FONT_HERSHEY_PLAIN,
+  /* Put string on screen
+   * 10*font_scale+16 aproximates text's rendered size on screen as a
+   * lineal function to avoid using cv::getTextSize
+   */
+  cv::putText (cv_mat, str, cv::Point (0, 10*font_scale+16), cv::FONT_HERSHEY_PLAIN,
+      font_scale, white, thickness + (thickness*0.5));
+  cv::putText (cv_mat, str, cv::Point (0, 10*font_scale+16), cv::FONT_HERSHEY_PLAIN,
       font_scale, black, thickness);
 
   return GST_FLOW_OK;

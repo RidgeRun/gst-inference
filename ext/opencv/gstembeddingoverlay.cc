@@ -33,6 +33,7 @@
 
 static const cv::Scalar forest_green = cv::Scalar (11, 102, 35);
 static const cv::Scalar chilli_red = cv::Scalar (194, 24, 7);
+static const cv::Scalar white = cv::Scalar (255, 255, 255, 255);
 
 GST_DEBUG_CATEGORY_STATIC (gst_embedding_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_embedding_overlay_debug_category
@@ -94,15 +95,25 @@ gst_embedding_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
     gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels)
 {
   GstClassificationMeta *class_meta;
-  gint i, width, height;
+  gint i, width, height, channels;
   gdouble current, diff;
   cv::Mat cv_mat;
   cv::String str;
   cv::Size size;
+  cv::Scalar tmp_color;
+  cv::Scalar color = cv::Scalar (0, 0, 0, 0);
 
-  width =
-      GST_VIDEO_FRAME_COMP_STRIDE (frame,
-      0) / GST_VIDEO_FRAME_N_COMPONENTS (frame);
+  switch (GST_VIDEO_FRAME_FORMAT (frame)) {
+    case GST_VIDEO_FORMAT_RGB:
+    case GST_VIDEO_FORMAT_BGR:
+      channels = 3;
+      break;
+    default:
+      channels = 4;
+      break;
+  }
+
+  width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / channels;
   height = GST_VIDEO_FRAME_HEIGHT (frame);
 
   class_meta = (GstClassificationMeta *) meta;
@@ -115,27 +126,57 @@ gst_embedding_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
     diff = diff + current;
   }
 
-  cv_mat = cv::Mat (height, width, CV_8UC3, (char *) frame->data[0]);
-  int baseline = 0;
+  cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
+      (char *) frame->data[0]);
   if (diff < 1.0) {
     str = cv::format ("Pass");
-    size =
-        cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX, thickness, font_scale,
-        &baseline);
-    cv::putText (cv_mat, str, cv::Point (0, size.width), cv::FONT_HERSHEY_PLAIN,
-        font_scale, forest_green, thickness);
-    cv::rectangle (cv_mat, cv::Point (0, 0), cv::Point (width, height),
-        forest_green, thickness);
+    tmp_color[0] = forest_green[0];
+    tmp_color[1] = forest_green[1];
+    tmp_color[2] = forest_green[2];
   } else {
     str = cv::format ("Fail");
-    size =
-        cv::getTextSize (str, cv::FONT_HERSHEY_TRIPLEX, thickness, font_scale,
-        &baseline);
-    cv::putText (cv_mat, str, cv::Point (0, size.width), cv::FONT_HERSHEY_PLAIN,
-        font_scale, chilli_red, thickness);
-    cv::rectangle (cv_mat, cv::Point (0, 0), cv::Point (width, height),
-        chilli_red, thickness);
+    tmp_color[0] = chilli_red[0];
+    tmp_color[1] = chilli_red[1];
+    tmp_color[2] = chilli_red[2];
   }
+
+  /* Convert color according to colorspace */
+  switch (GST_VIDEO_FRAME_FORMAT (frame)) {
+    case GST_VIDEO_FORMAT_BGR:
+    case GST_VIDEO_FORMAT_BGRx:
+    case GST_VIDEO_FORMAT_BGRA:
+      color[0] = tmp_color[2];
+      color[1] = tmp_color[1];
+      color[2] = tmp_color[0];
+      break;
+    case GST_VIDEO_FORMAT_xRGB:
+    case GST_VIDEO_FORMAT_ARGB:
+      color[1] = tmp_color[0];
+      color[2] = tmp_color[1];
+      color[3] = tmp_color[2];
+      break;
+    case GST_VIDEO_FORMAT_xBGR:
+    case GST_VIDEO_FORMAT_ABGR:
+      color[1] = tmp_color[2];
+      color[2] = tmp_color[1];
+      color[3] = tmp_color[0];
+      break;
+    default:
+      color = tmp_color;
+      break;
+  }
+
+  /* Put string on screen
+   * 10*font_scale+16 aproximates text's rendered size on screen as a
+   * lineal function to avoid using cv::getTextSize.
+   * 5*thickness adds the border offset
+   */
+  cv::putText (cv_mat, str, cv::Point (5*thickness, 5*thickness+10*font_scale+16),
+      cv::FONT_HERSHEY_PLAIN, font_scale, white, thickness + (thickness*0.5));
+  cv::putText (cv_mat, str, cv::Point (5*thickness, 5*thickness+10*font_scale+16),
+      cv::FONT_HERSHEY_PLAIN, font_scale, color, thickness);
+  cv::rectangle (cv_mat, cv::Point (0, 0), cv::Point (width, height), color,
+      10*thickness);
 
   return GST_FLOW_OK;
 }
