@@ -46,9 +46,7 @@
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov2_debug_category);
 #define GST_CAT_DEFAULT gst_tinyyolov2_debug_category
 
-/* prototypes */
-
-#define CHANNELS 3
+#define MODEL_CHANNELS 3
 #define GRID_H 13
 #define GRID_W 13
 /* Grid cell size in pixels */
@@ -82,6 +80,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov2_debug_category);
 const gfloat box_anchors[] =
     { 1.08, 1.19, 3.42, 4.41, 6.63, 11.38, 9.42, 5.11, 16.62, 10.52 };
 
+/* prototypes */
 static void gst_tinyyolov2_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
 static void gst_tinyyolov2_get_property (GObject * object,
@@ -477,52 +476,66 @@ static gboolean
 gst_tinyyolov2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-  gint size;
+  gint i, j, pixel_stride, width, height, channels;
   gint first_index, last_index, offset;
+  const gdouble mean = 0;
+  const gdouble std = 1 / 255.0;
 
   GST_LOG_OBJECT (vi, "Preprocess");
 
-  size = CHANNELS * inframe->info.width * inframe->info.height;
-
+  channels = 4;
   switch (GST_VIDEO_FRAME_FORMAT (inframe)) {
     case GST_VIDEO_FORMAT_RGB:
+      channels = 3;
     case GST_VIDEO_FORMAT_RGBx:
     case GST_VIDEO_FORMAT_RGBA:
-      first_index = 0;
-      last_index = 2;
+      first_index = 2;
+      last_index = 0;
       offset = 0;
       break;
     case GST_VIDEO_FORMAT_BGR:
+      channels = 3;
     case GST_VIDEO_FORMAT_BGRx:
     case GST_VIDEO_FORMAT_BGRA:
-      first_index = 2;
-      last_index = 0;
+      first_index = 0;
+      last_index = 2;
       offset = 0;
       break;
     case GST_VIDEO_FORMAT_xRGB:
     case GST_VIDEO_FORMAT_ARGB:
-      first_index = 0;
-      last_index = 2;
+      first_index = 2;
+      last_index = 0;
       offset = 1;
       break;
     case GST_VIDEO_FORMAT_xBGR:
     case GST_VIDEO_FORMAT_ABGR:
-      first_index = 2;
-      last_index = 0;
+      first_index = 0;
+      last_index = 2;
       offset = 1;
+      break;
     default:
       GST_ERROR_OBJECT (vi, "Invalid format");
       return FALSE;
       break;
   }
+  pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0) / channels;
+  width = GST_VIDEO_FRAME_WIDTH (inframe);
+  height = GST_VIDEO_FRAME_HEIGHT (inframe);
 
-  for (gint i = 0; i < size; i += CHANNELS) {
-    ((gfloat *) outframe->data[0])[i + first_index] =
-        (((guchar *) inframe->data[0])[i + 2 + offset]) / 255.0;
-    ((gfloat *) outframe->data[0])[i + 1] =
-        (((guchar *) inframe->data[0])[i + 1 + offset]) / 255.0;
-    ((gfloat *) outframe->data[0])[i + last_index] =
-        (((guchar *) inframe->data[0])[i + 0 + offset]) / 255.0;
+  for (i = 0; i < height; ++i) {
+    for (j = 0; j < width; ++j) {
+      ((gfloat *) outframe->data[0])[(i * width + j) * MODEL_CHANNELS +
+          first_index] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels + 0 +
+              offset] - mean) * std;
+      ((gfloat *) outframe->data[0])[(i * width + j) * MODEL_CHANNELS + 1] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels + 1 +
+              offset] - mean) * std;
+      ((gfloat *) outframe->data[0])[(i * width + j) * MODEL_CHANNELS +
+          last_index] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels + 2 +
+              offset] - mean) * std;
+    }
   }
 
   return TRUE;

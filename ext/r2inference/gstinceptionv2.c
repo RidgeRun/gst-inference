@@ -47,6 +47,8 @@
 GST_DEBUG_CATEGORY_STATIC (gst_inceptionv2_debug_category);
 #define GST_CAT_DEFAULT gst_inceptionv2_debug_category
 
+#define MODEL_CHANNELS 3
+
 /* prototypes */
 static void gst_inceptionv2_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
@@ -202,16 +204,14 @@ gst_inceptionv2_preprocess (GstVideoInference * vi,
   gint i, j, pixel_stride, width, height, channels;
   gint first_index, last_index, offset;
   const gdouble mean = 128.0;
-  const gdouble std = 1.0 / 128.0;
+  const gdouble std = 1 / 128.0;
 
   GST_LOG_OBJECT (vi, "Preprocess");
-  channels = GST_VIDEO_FRAME_N_COMPONENTS (inframe);
-  pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0) / channels;
-  width = GST_VIDEO_FRAME_WIDTH (inframe);
-  height = GST_VIDEO_FRAME_HEIGHT (inframe);
 
+  channels = 4;
   switch (GST_VIDEO_FRAME_FORMAT (inframe)) {
     case GST_VIDEO_FORMAT_RGB:
+      channels = 3;
     case GST_VIDEO_FORMAT_RGBx:
     case GST_VIDEO_FORMAT_RGBA:
       first_index = 0;
@@ -219,6 +219,7 @@ gst_inceptionv2_preprocess (GstVideoInference * vi,
       offset = 0;
       break;
     case GST_VIDEO_FORMAT_BGR:
+      channels = 3;
     case GST_VIDEO_FORMAT_BGRx:
     case GST_VIDEO_FORMAT_BGRA:
       first_index = 2;
@@ -236,23 +237,29 @@ gst_inceptionv2_preprocess (GstVideoInference * vi,
       first_index = 2;
       last_index = 0;
       offset = 1;
+      break;
     default:
       GST_ERROR_OBJECT (vi, "Invalid format");
       return FALSE;
       break;
   }
+  pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0) / channels;
+  width = GST_VIDEO_FRAME_WIDTH (inframe);
+  height = GST_VIDEO_FRAME_HEIGHT (inframe);
 
   for (i = 0; i < height; ++i) {
     for (j = 0; j < width; ++j) {
-      ((gfloat *) outframe->data[0])[(i * width + j) * channels + first_index] =
-          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
-              0 + offset] - mean) * std;
-      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 1] =
-          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
-              1 + offset] - mean) * std;
-      ((gfloat *) outframe->data[0])[(i * width + j) * channels + last_index] =
-          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
-              2 + offset] - mean) * std;
+      ((gfloat *) outframe->data[0])[(i * width + j) * MODEL_CHANNELS +
+          first_index] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels + 0 +
+              offset] - mean) * std;
+      ((gfloat *) outframe->data[0])[(i * width + j) * MODEL_CHANNELS + 1] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels + 1 +
+              offset] - mean) * std;
+      ((gfloat *) outframe->data[0])[(i * width + j) * MODEL_CHANNELS +
+          last_index] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels + 2 +
+              offset] - mean) * std;
     }
   }
 
