@@ -24,10 +24,10 @@
 /* pad templates */
 
 #define VIDEO_SRC_CAPS \
-    GST_VIDEO_CAPS_MAKE("{ RGB }")
+    GST_VIDEO_CAPS_MAKE("{RGB, RGBx, RGBA, BGR, BGRx, BGRA, xRGB, ARGB, xBGR, ABGR}")
 
 #define VIDEO_SINK_CAPS \
-    GST_VIDEO_CAPS_MAKE("{ RGB }")
+    GST_VIDEO_CAPS_MAKE("{RGB, RGBx, RGBA, BGR, BGRx, BGRA, xRGB, ARGB, xBGR, ABGR}")
 
 GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_inference_overlay_debug_category
