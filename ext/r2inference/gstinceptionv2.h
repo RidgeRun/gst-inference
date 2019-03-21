@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2019 RidgeRun
+ * Copyright (C) 2018 RidgeRun
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,15 +19,15 @@
  *
  */
 
-#ifndef _GST_CLASSIFICATION_OVERLAY_H_
-#define _GST_CLASSIFICATION_OVERLAY_H_
+#ifndef _GST_INCEPTIONV2_H_
+#define _GST_INCEPTIONV2_H_
 
-#include <gst/opencv/gstinferenceoverlay.h>
+#include <gst/r2inference/gstvideoinference.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_CLASSIFICATION_OVERLAY   (gst_classification_overlay_get_type())
-G_DECLARE_FINAL_TYPE (GstClassificationOverlay, gst_classification_overlay, GST, CLASSIFICATION_OVERLAY, GstInferenceOverlay)
+#define GST_TYPE_INCEPTIONV2 gst_inceptionv2_get_type ()
+G_DECLARE_FINAL_TYPE (GstInceptionv2, gst_inceptionv2, GST, INCEPTIONV2, GstVideoInference)
 
 G_END_DECLS
 

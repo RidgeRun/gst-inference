@@ -20,18 +20,19 @@
  */
 
 /**
- * SECTION:element-gstinceptionv4
+ * SECTION:element-gstinceptionv2
  *
- * The inceptionv4 element allows the user to infer/execute a pretrained model
- * based on the GoogLeNet (Inception v3 or Inception v4) architecture on
+ * The inceptionv2 element allows the user to infer/execute a pretrained model
+ * based on the GoogLeNet (Inception v1 or Inception v2) architectures on 
  * incoming image frames.
  *
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch-1.0 -v videotestsrc ! inceptionv4 ! xvimagesink
+ * gst-launch-1.0 -v videotestsrc ! inceptionv2 ! xvimagesink
  * ]|
- * Process video frames from the camera using a GoogLeNet (Inception v3 or Inception v4) model.
+ * Process video frames from the camera using a GoogLeNet (Inception v1 or 
+ * Inception v2) model.
  * </refsect2>
  */
 
@@ -39,28 +40,28 @@
 #include "config.h"
 #endif
 
-#include "gstinceptionv4.h"
+#include "gstinceptionv2.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 
-GST_DEBUG_CATEGORY_STATIC (gst_inceptionv4_debug_category);
-#define GST_CAT_DEFAULT gst_inceptionv4_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_inceptionv2_debug_category);
+#define GST_CAT_DEFAULT gst_inceptionv2_debug_category
 
 /* prototypes */
-static void gst_inceptionv4_set_property (GObject * object,
+static void gst_inceptionv2_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
-static void gst_inceptionv4_get_property (GObject * object,
+static void gst_inceptionv2_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
-static void gst_inceptionv4_dispose (GObject * object);
-static void gst_inceptionv4_finalize (GObject * object);
+static void gst_inceptionv2_dispose (GObject * object);
+static void gst_inceptionv2_finalize (GObject * object);
 
-static gboolean gst_inceptionv4_preprocess (GstVideoInference * vi,
+static gboolean gst_inceptionv2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
-static gboolean gst_inceptionv4_postprocess (GstVideoInference * vi,
+static gboolean gst_inceptionv2_postprocess (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction);
-static gboolean gst_inceptionv4_start (GstVideoInference * vi);
-static gboolean gst_inceptionv4_stop (GstVideoInference * vi);
+static gboolean gst_inceptionv2_start (GstVideoInference * vi);
+static gboolean gst_inceptionv2_stop (GstVideoInference * vi);
 
 enum
 {
@@ -69,7 +70,7 @@ enum
 
 /* pad templates */
 
-#define CAPS "video/x-raw,format=RGB,width=299,height=299"
+#define CAPS "video/x-raw,format=RGB,width=224,height=224"
 
 static GstStaticPadTemplate sink_model_factory =
 GST_STATIC_PAD_TEMPLATE ("sink_model",
@@ -85,25 +86,25 @@ GST_STATIC_PAD_TEMPLATE ("src_model",
     GST_STATIC_CAPS (CAPS)
     );
 
-struct _GstInceptionv4
+struct _GstInceptionv2
 {
   GstVideoInference parent;
 };
 
-struct _GstInceptionv4Class
+struct _GstInceptionv2Class
 {
   GstVideoInferenceClass parent;
 };
 
 /* class initialization */
 
-G_DEFINE_TYPE_WITH_CODE (GstInceptionv4, gst_inceptionv4,
+G_DEFINE_TYPE_WITH_CODE (GstInceptionv2, gst_inceptionv2,
     GST_TYPE_VIDEO_INFERENCE,
-    GST_DEBUG_CATEGORY_INIT (gst_inceptionv4_debug_category, "inceptionv4", 0,
-        "debug category for inceptionv4 element"));
+    GST_DEBUG_CATEGORY_INIT (gst_inceptionv2_debug_category, "inceptionv2", 0,
+        "debug category for inceptionv2 element"));
 
 static void
-gst_inceptionv4_class_init (GstInceptionv4Class * klass)
+gst_inceptionv2_class_init (GstInceptionv2Class * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
@@ -114,36 +115,36 @@ gst_inceptionv4_class_init (GstInceptionv4Class * klass)
   gst_element_class_add_static_pad_template (element_class, &src_model_factory);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-      "inceptionv4", "Filter",
-      "Infers incoming image frames using a pretrained GoogLeNet (Inception v3 or Inception v4) model",
+      "inceptionv2", "Filter",
+      "Infers incoming image frames using a pretrained GoogLeNet (Inception v1 or Inception v2) model",
       "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
       "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
       "   Michael Gruner <michael.gruner@ridgerun.com>");
 
-  gobject_class->set_property = gst_inceptionv4_set_property;
-  gobject_class->get_property = gst_inceptionv4_get_property;
-  gobject_class->dispose = gst_inceptionv4_dispose;
-  gobject_class->finalize = gst_inceptionv4_finalize;
+  gobject_class->set_property = gst_inceptionv2_set_property;
+  gobject_class->get_property = gst_inceptionv2_get_property;
+  gobject_class->dispose = gst_inceptionv2_dispose;
+  gobject_class->finalize = gst_inceptionv2_finalize;
 
-  vi_class->start = GST_DEBUG_FUNCPTR (gst_inceptionv4_start);
-  vi_class->stop = GST_DEBUG_FUNCPTR (gst_inceptionv4_stop);
-  vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_inceptionv4_preprocess);
-  vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_inceptionv4_postprocess);
+  vi_class->start = GST_DEBUG_FUNCPTR (gst_inceptionv2_start);
+  vi_class->stop = GST_DEBUG_FUNCPTR (gst_inceptionv2_stop);
+  vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_inceptionv2_preprocess);
+  vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_inceptionv2_postprocess);
   vi_class->inference_meta_info = gst_classification_meta_get_info ();
 }
 
 static void
-gst_inceptionv4_init (GstInceptionv4 * inceptionv4)
+gst_inceptionv2_init (GstInceptionv2 * inceptionv2)
 {
 }
 
 void
-gst_inceptionv4_set_property (GObject * object, guint property_id,
+gst_inceptionv2_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstInceptionv4 *inceptionv4 = GST_INCEPTIONV4 (object);
+  GstInceptionv2 *inceptionv2 = GST_INCEPTIONV2 (object);
 
-  GST_DEBUG_OBJECT (inceptionv4, "set_property");
+  GST_DEBUG_OBJECT (inceptionv2, "set_property");
 
   switch (property_id) {
     default:
@@ -153,12 +154,12 @@ gst_inceptionv4_set_property (GObject * object, guint property_id,
 }
 
 void
-gst_inceptionv4_get_property (GObject * object, guint property_id,
+gst_inceptionv2_get_property (GObject * object, guint property_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstInceptionv4 *inceptionv4 = GST_INCEPTIONV4 (object);
+  GstInceptionv2 *inceptionv2 = GST_INCEPTIONV2 (object);
 
-  GST_DEBUG_OBJECT (inceptionv4, "get_property");
+  GST_DEBUG_OBJECT (inceptionv2, "get_property");
 
   switch (property_id) {
     default:
@@ -168,34 +169,36 @@ gst_inceptionv4_get_property (GObject * object, guint property_id,
 }
 
 void
-gst_inceptionv4_dispose (GObject * object)
+gst_inceptionv2_dispose (GObject * object)
 {
-  GstInceptionv4 *inceptionv4 = GST_INCEPTIONV4 (object);
+  GstInceptionv2 *inceptionv2 = GST_INCEPTIONV2 (object);
 
-  GST_DEBUG_OBJECT (inceptionv4, "dispose");
+  GST_DEBUG_OBJECT (inceptionv2, "dispose");
 
   /* clean up as possible.  may be called multiple times */
 
-  G_OBJECT_CLASS (gst_inceptionv4_parent_class)->dispose (object);
+  G_OBJECT_CLASS (gst_inceptionv2_parent_class)->dispose (object);
 }
 
 void
-gst_inceptionv4_finalize (GObject * object)
+gst_inceptionv2_finalize (GObject * object)
 {
-  GstInceptionv4 *inceptionv4 = GST_INCEPTIONV4 (object);
+  GstInceptionv2 *inceptionv2 = GST_INCEPTIONV2 (object);
 
-  GST_DEBUG_OBJECT (inceptionv4, "finalize");
+  GST_DEBUG_OBJECT (inceptionv2, "finalize");
 
   /* clean up object here */
 
-  G_OBJECT_CLASS (gst_inceptionv4_parent_class)->finalize (object);
+  G_OBJECT_CLASS (gst_inceptionv2_parent_class)->finalize (object);
 }
 
 static gboolean
-gst_inceptionv4_preprocess (GstVideoInference * vi,
+gst_inceptionv2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
   gint i, j, pixel_stride, width, height, channels;
+  const gfloat mean = 128.0f;
+  const gfloat std = 0.0078125f;
 
   GST_LOG_OBJECT (vi, "Preprocess");
   channels = GST_VIDEO_FRAME_N_COMPONENTS (inframe);
@@ -207,13 +210,13 @@ gst_inceptionv4_preprocess (GstVideoInference * vi,
     for (j = 0; j < width; ++j) {
       ((gfloat *) outframe->data[0])[(i * width + j) * channels + 0] =
           (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
-              0] - 128) / 128.0;
+              0] - mean) * std;
       ((gfloat *) outframe->data[0])[(i * width + j) * channels + 1] =
           (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
-              1] - 128) / 128.0;
+              1] - mean) * std;
       ((gfloat *) outframe->data[0])[(i * width + j) * channels + 2] =
           (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
-              2] - 128) / 128.0;
+              2] - mean) * std;
     }
   }
 
@@ -221,7 +224,7 @@ gst_inceptionv4_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_inceptionv4_postprocess (GstVideoInference * vi, const gpointer prediction,
+gst_inceptionv2_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
@@ -239,7 +242,7 @@ gst_inceptionv4_postprocess (GstVideoInference * vi, const gpointer prediction,
   }
 
   /* Only compute the highest probability is label when debug >= 6 */
-  level = gst_debug_category_get_threshold (gst_inceptionv4_debug_category);
+  level = gst_debug_category_get_threshold (gst_inceptionv2_debug_category);
   if (level >= GST_LEVEL_LOG) {
     index = 0;
     max = -1;
@@ -258,17 +261,17 @@ gst_inceptionv4_postprocess (GstVideoInference * vi, const gpointer prediction,
 }
 
 static gboolean
-gst_inceptionv4_start (GstVideoInference * vi)
+gst_inceptionv2_start (GstVideoInference * vi)
 {
-  GST_INFO_OBJECT (vi, "Starting Inception v4");
+  GST_INFO_OBJECT (vi, "Starting Inception v2");
 
   return TRUE;
 }
 
 static gboolean
-gst_inceptionv4_stop (GstVideoInference * vi)
+gst_inceptionv2_stop (GstVideoInference * vi)
 {
-  GST_INFO_OBJECT (vi, "Stopping Inception v4");
+  GST_INFO_OBJECT (vi, "Stopping Inception v2");
 
   return TRUE;
 }

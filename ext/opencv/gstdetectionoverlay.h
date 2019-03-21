@@ -22,38 +22,12 @@
 #ifndef _GST_DETECTION_OVERLAY_H_
 #define _GST_DETECTION_OVERLAY_H_
 
-#include <gst/gst.h>
-#include <gst/video/video.h>
-#include <gst/video/gstvideofilter.h>
+#include <gst/opencv/gstinferenceoverlay.h>
 
 G_BEGIN_DECLS
 
 #define GST_TYPE_DETECTION_OVERLAY   (gst_detection_overlay_get_type())
-#define GST_DETECTION_OVERLAY(obj)   (G_TYPE_CHECK_INSTANCE_CAST((obj),GST_TYPE_DETECTION_OVERLAY,GstDetectionOverlay))
-#define GST_DETECTION_OVERLAY_CLASS(klass)   (G_TYPE_CHECK_CLASS_CAST((klass),GST_TYPE_DETECTION_OVERLAY,GstDetectionOverlayClass))
-#define GST_IS_DETECTION_OVERLAY(obj)   (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_DETECTION_OVERLAY))
-#define GST_IS_DETECTION_OVERLAY_CLASS(obj)   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_DETECTION_OVERLAY))
-
-typedef struct _GstDetectionOverlay GstDetectionOverlay;
-typedef struct _GstDetectionOverlayClass GstDetectionOverlayClass;
-
-struct _GstDetectionOverlay
-{
-  GstVideoFilter base_detection_overlay;
-
-  gdouble font_scale;
-  gint box_thickness;
-  gchar* labels;
-  gchar** labels_list;
-  gint num_labels;
-};
-
-struct _GstDetectionOverlayClass
-{
-  GstVideoFilterClass base_detection_overlay_class;
-};
-
-GType gst_detection_overlay_get_type (void);
+G_DECLARE_FINAL_TYPE (GstDetectionOverlay, gst_detection_overlay, GST, DETECTION_OVERLAY, GstInferenceOverlay)
 
 G_END_DECLS
 

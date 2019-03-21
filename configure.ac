@@ -5,7 +5,7 @@ dnl please read gstreamer/docs/random/autotools before changing this file
 dnl initialize autoconf
 dnl releases only do -Wall, git and prerelease does -Werror too
 dnl use a three digit version number for releases, and four for git/pre
-AC_INIT([GStreamer Inference],[0.2.0.1],[https://github.com/RidgeRun/gst-inference/issues],[gst-inference])
+AC_INIT([GStreamer Inference],[0.3.0.1],[https://github.com/RidgeRun/gst-inference/issues],[gst-inference])
 
 AG_GST_INIT
 
@@ -373,17 +373,18 @@ Makefile
 common/Makefile
 common/m4/Makefile
 docs/Makefile
-docs/version.entities
 docs/plugins/Makefile
+docs/version.entities
+ext/Makefile
+ext/opencv/Makefile
+ext/r2inference/Makefile
 gst-libs/Makefile
 gst-libs/gst/Makefile
+gst-libs/gst/opencv/Makefile
 gst-libs/gst/r2inference/Makefile
 m4/Makefile
-ext/Makefile
-ext/r2inference/Makefile
-ext/opencv/Makefile
-tests/Makefile
 tests/check/Makefile
+tests/Makefile
 tests/examples/classification/Makefile
 tests/examples/detection/Makefile
 tests/examples/Makefile
