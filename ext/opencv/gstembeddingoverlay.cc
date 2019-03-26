@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2019 RidgeRun
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,7 +22,7 @@
 #include "config.h"
 #endif
 
-#include "gstclassificationoverlay.h"
+#include "gstembeddingoverlay.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #ifdef OCV_VERSION_LT_3_2
 #include "opencv2/highgui/highgui.hpp"
@@ -31,14 +31,15 @@
 #include "opencv2/highgui.hpp"
 #endif
 
-static const cv::Scalar black = cv::Scalar (0, 0, 0, 0);
+static const cv::Scalar forest_green = cv::Scalar (11, 102, 35);
+static const cv::Scalar chilli_red = cv::Scalar (194, 24, 7);
 static const cv::Scalar white = cv::Scalar (255, 255, 255, 255);
 
-GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
-#define GST_CAT_DEFAULT gst_classification_overlay_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_embedding_overlay_debug_category);
+#define GST_CAT_DEFAULT gst_embedding_overlay_debug_category
 
 /* prototypes */
-static GstFlowReturn gst_classification_overlay_process_meta (GstVideoFrame *
+static GstFlowReturn gst_embedding_overlay_process_meta (GstVideoFrame *
     frame, GstMeta * meta, gdouble font_scale, gint thickness,
     gchar ** labels_list, gint num_labels);
 
@@ -47,7 +48,7 @@ enum
   PROP_0
 };
 
-struct _GstClassificationOverlay
+struct _GstEmbeddingOverlay
 {
   GstInferenceOverlay parent;
 };
@@ -59,19 +60,18 @@ struct _GstClassificationOverlayClass
 
 /* class initialization */
 
-G_DEFINE_TYPE_WITH_CODE (GstClassificationOverlay, gst_classification_overlay,
+G_DEFINE_TYPE_WITH_CODE (GstEmbeddingOverlay, gst_embedding_overlay,
     GST_TYPE_INFERENCE_OVERLAY,
-    GST_DEBUG_CATEGORY_INIT (gst_classification_overlay_debug_category,
-        "classificationoverlay", 0,
-        "debug category for classification_overlay element"));
+    GST_DEBUG_CATEGORY_INIT (gst_embedding_overlay_debug_category,
+        "embeddingoverlay", 0, "debug category for embedding_overlay element"));
 
 static void
-gst_classification_overlay_class_init (GstClassificationOverlayClass * klass)
+gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
 {
   GstInferenceOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-      "classificationoverlay", "Filter",
+      "embeddingoverlay", "Filter",
       "Overlays classification metadata on input buffer",
       "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
       "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
@@ -81,26 +81,27 @@ gst_classification_overlay_class_init (GstClassificationOverlayClass * klass)
       "   Greivin Fallas <greivin.fallas@ridgerun.com>");
 
   io_class->process_meta =
-      GST_DEBUG_FUNCPTR (gst_classification_overlay_process_meta);
+      GST_DEBUG_FUNCPTR (gst_embedding_overlay_process_meta);
   io_class->meta_type = GST_CLASSIFICATION_META_API_TYPE;
 }
 
 static void
-gst_classification_overlay_init (GstClassificationOverlay *
-    classification_overlay)
+gst_embedding_overlay_init (GstEmbeddingOverlay * embedding_overlay)
 {
 }
 
 static GstFlowReturn
-gst_classification_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
+gst_embedding_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
     gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels)
 {
   GstClassificationMeta *class_meta;
-  gint index, i, width, height, channels;
-  gdouble max, current;
+  gint i, width, height, channels;
+  gdouble current, diff;
   cv::Mat cv_mat;
   cv::String str;
   cv::Size size;
+  cv::Scalar tmp_color;
+  cv::Scalar color = cv::Scalar (0, 0, 0, 0);
 
   switch (GST_VIDEO_FRAME_FORMAT (frame)) {
     case GST_VIDEO_FORMAT_RGB:
@@ -111,36 +112,71 @@ gst_classification_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
       channels = 4;
       break;
   }
+
   width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / channels;
   height = GST_VIDEO_FRAME_HEIGHT (frame);
 
   class_meta = (GstClassificationMeta *) meta;
 
-  /* Get the most probable label */
-  index = 0;
-  max = -1;
+  diff = 0.0;
   for (i = 0; i < class_meta->num_labels; ++i) {
     current = class_meta->label_probs[i];
-    if (current > max) {
-      max = current;
-      index = i;
-    }
+    current = current - atof (labels_list[i]);
+    current = current * current;
+    diff = diff + current;
   }
-  if (num_labels > index) {
-    str = cv::format ("%s prob:%f", labels_list[index], max);
-  } else {
-    str = cv::format ("Label #%d prob:%f", index, max);
-  }
+
   cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
       (char *) frame->data[0]);
+  if (diff < 1.0) {
+    str = cv::format ("Pass");
+    tmp_color[0] = forest_green[0];
+    tmp_color[1] = forest_green[1];
+    tmp_color[2] = forest_green[2];
+  } else {
+    str = cv::format ("Fail");
+    tmp_color[0] = chilli_red[0];
+    tmp_color[1] = chilli_red[1];
+    tmp_color[2] = chilli_red[2];
+  }
+
+  /* Convert color according to colorspace */
+  switch (GST_VIDEO_FRAME_FORMAT (frame)) {
+    case GST_VIDEO_FORMAT_BGR:
+    case GST_VIDEO_FORMAT_BGRx:
+    case GST_VIDEO_FORMAT_BGRA:
+      color[0] = tmp_color[2];
+      color[1] = tmp_color[1];
+      color[2] = tmp_color[0];
+      break;
+    case GST_VIDEO_FORMAT_xRGB:
+    case GST_VIDEO_FORMAT_ARGB:
+      color[1] = tmp_color[0];
+      color[2] = tmp_color[1];
+      color[3] = tmp_color[2];
+      break;
+    case GST_VIDEO_FORMAT_xBGR:
+    case GST_VIDEO_FORMAT_ABGR:
+      color[1] = tmp_color[2];
+      color[2] = tmp_color[1];
+      color[3] = tmp_color[0];
+      break;
+    default:
+      color = tmp_color;
+      break;
+  }
+
   /* Put string on screen
    * 10*font_scale+16 aproximates text's rendered size on screen as a
-   * lineal function to avoid using cv::getTextSize
+   * lineal function to avoid using cv::getTextSize.
+   * 5*thickness adds the border offset
    */
-  cv::putText (cv_mat, str, cv::Point (0, 10*font_scale+16), cv::FONT_HERSHEY_PLAIN,
-      font_scale, white, thickness + (thickness*0.5));
-  cv::putText (cv_mat, str, cv::Point (0, 10*font_scale+16), cv::FONT_HERSHEY_PLAIN,
-      font_scale, black, thickness);
+  cv::putText (cv_mat, str, cv::Point (5*thickness, 5*thickness+10*font_scale+16),
+      cv::FONT_HERSHEY_PLAIN, font_scale, white, thickness + (thickness*0.5));
+  cv::putText (cv_mat, str, cv::Point (5*thickness, 5*thickness+10*font_scale+16),
+      cv::FONT_HERSHEY_PLAIN, font_scale, color, thickness);
+  cv::rectangle (cv_mat, cv::Point (0, 0), cv::Point (width, height), color,
+      10*thickness);
 
   return GST_FLOW_OK;
 }
