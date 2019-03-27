@@ -31,6 +31,10 @@
 #include "opencv2/highgui.hpp"
 #endif
 
+#define DEFAULT_EMBEDDINGS NULL
+#define DEFAULT_NUM_EMBEDDINGS 0
+#define EMBEDDING_SIZE 128
+
 static const cv::Scalar forest_green = cv::Scalar (11, 102, 35);
 static const cv::Scalar chilli_red = cv::Scalar (194, 24, 7);
 static const cv::Scalar white = cv::Scalar (255, 255, 255, 255);
@@ -39,18 +43,27 @@ GST_DEBUG_CATEGORY_STATIC (gst_embedding_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_embedding_overlay_debug_category
 
 /* prototypes */
+static void gst_embedding_overlay_set_property (GObject * object,
+    guint property_id, const GValue * value, GParamSpec * pspec);
+static void gst_embedding_overlay_get_property (GObject * object,
+    guint property_id, GValue * value, GParamSpec * pspec);
+static void gst_embedding_overlay_dispose (GObject * object);
 static GstFlowReturn gst_embedding_overlay_process_meta (GstVideoFrame *
     frame, GstMeta * meta, gdouble font_scale, gint thickness,
     gchar ** labels_list, gint num_labels);
 
 enum
 {
-  PROP_0
+  PROP_0,
+  PROP_EMBEDDINGS
 };
 
 struct _GstEmbeddingOverlay
 {
   GstInferenceOverlay parent;
+  gchar *embeddings;
+  gchar **embeddings_list;
+  gint num_embeddings;
 };
 
 struct _GstClassificationOverlayClass
@@ -68,7 +81,17 @@ G_DEFINE_TYPE_WITH_CODE (GstEmbeddingOverlay, gst_embedding_overlay,
 static void
 gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
 {
+  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstInferenceOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
+
+  gobject_class->set_property = gst_embedding_overlay_set_property;
+  gobject_class->get_property = gst_embedding_overlay_get_property;
+  gobject_class->dispose = gst_embedding_overlay_dispose;
+
+  g_object_class_install_property (gobject_class, PROP_EMBEDDINGS,
+      g_param_spec_string ("embeddings", "embeddings",
+          "Semicolon separated string containing the embeddings",
+          DEFAULT_EMBEDDINGS, G_PARAM_READWRITE));
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "embeddingoverlay", "Filter",
@@ -88,6 +111,75 @@ gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
 static void
 gst_embedding_overlay_init (GstEmbeddingOverlay * embedding_overlay)
 {
+  embedding_overlay->embeddings = DEFAULT_EMBEDDINGS;
+  embedding_overlay->embeddings_list = DEFAULT_EMBEDDINGS;
+  embedding_overlay->num_embeddings = DEFAULT_NUM_EMBEDDINGS;
+}
+
+void
+gst_embedding_overlay_set_property (GObject * object, guint property_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  GstEmbeddingOverlay *embedding_overlay = GST_EMBEDDING_OVERLAY (object);
+
+  GST_DEBUG_OBJECT (embedding_overlay, "set_property");
+
+  switch (property_id) {
+    case PROP_EMBEDDINGS:
+      if (embedding_overlay->embeddings != NULL) {
+        g_free (embedding_overlay->embeddings);
+      }
+      if (embedding_overlay->embeddings_list != NULL) {
+        g_strfreev (embedding_overlay->embeddings_list);
+      }
+      embedding_overlay->embeddings = g_value_dup_string (value);
+      embedding_overlay->embeddings_list =
+          g_strsplit (g_value_get_string (value), ";", 0);
+      embedding_overlay->num_embeddings =
+          g_strv_length (embedding_overlay->embeddings_list) / EMBEDDING_SIZE;
+      GST_DEBUG_OBJECT (embedding_overlay, "Changed inference labels %s",
+          embedding_overlay->embeddings);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+void
+gst_embedding_overlay_get_property (GObject * object, guint property_id,
+    GValue * value, GParamSpec * pspec)
+{
+  GstEmbeddingOverlay *embedding_overlay = GST_EMBEDDING_OVERLAY (object);
+
+  GST_DEBUG_OBJECT (embedding_overlay, "get_property");
+
+  switch (property_id) {
+    case PROP_EMBEDDINGS:
+      g_value_set_string (value, embedding_overlay->embeddings);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+void
+gst_embedding_overlay_dispose (GObject * object)
+{
+  GstEmbeddingOverlay *embedding_overlay = GST_EMBEDDING_OVERLAY (object);
+
+  GST_DEBUG_OBJECT (embedding_overlay, "dispose");
+
+  /* clean up as possible.  may be called multiple times */
+  if (embedding_overlay->embeddings != NULL) {
+    g_free (embedding_overlay->embeddings);
+  }
+  if (embedding_overlay->embeddings_list != NULL) {
+    g_strfreev (embedding_overlay->embeddings_list);
+  }
+
+  G_OBJECT_CLASS (gst_embedding_overlay_parent_class)->dispose (object);
 }
 
 static GstFlowReturn
