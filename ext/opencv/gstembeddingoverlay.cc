@@ -34,6 +34,9 @@
 #define DEFAULT_EMBEDDINGS NULL
 #define DEFAULT_NUM_EMBEDDINGS 0
 #define EMBEDDING_SIZE 128
+#define MIN_LIKENESS_THRESH 0.0
+#define MAX_LIKENESS_THRESH G_MAXDOUBLE
+#define DEFAULT_LIKENESS_THRESH 1.0
 
 static const cv::Scalar forest_green = cv::Scalar (11, 102, 35);
 static const cv::Scalar chilli_red = cv::Scalar (194, 24, 7);
@@ -56,7 +59,8 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
 enum
 {
   PROP_0,
-  PROP_EMBEDDINGS
+  PROP_EMBEDDINGS,
+  PROP_LIKENESS_THRESH
 };
 
 struct _GstEmbeddingOverlay
@@ -65,6 +69,7 @@ struct _GstEmbeddingOverlay
   gchar *embeddings;
   gchar **embeddings_list;
   gint num_embeddings;
+  gdouble likeness_thresh;
 };
 
 struct _GstClassificationOverlayClass
@@ -93,6 +98,12 @@ gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
       g_param_spec_string ("embeddings", "embeddings",
           "Semicolon separated string containing the embeddings",
           DEFAULT_EMBEDDINGS, G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_LIKENESS_THRESH,
+      g_param_spec_double ("likeness-threshold", "likeness-thresh",
+          "Likeness threshold to compare distance between embeddings.\n\t\t\t"
+          "For lower values the algorithm is stricter. 1.0 is recommended.",
+          MIN_LIKENESS_THRESH, MAX_LIKENESS_THRESH, DEFAULT_LIKENESS_THRESH,
+          G_PARAM_READWRITE));
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "embeddingoverlay", "Filter",
@@ -115,6 +126,7 @@ gst_embedding_overlay_init (GstEmbeddingOverlay * embedding_overlay)
   embedding_overlay->embeddings = DEFAULT_EMBEDDINGS;
   embedding_overlay->embeddings_list = DEFAULT_EMBEDDINGS;
   embedding_overlay->num_embeddings = DEFAULT_NUM_EMBEDDINGS;
+  embedding_overlay->likeness_thresh = DEFAULT_LIKENESS_THRESH;
 }
 
 void
@@ -141,6 +153,12 @@ gst_embedding_overlay_set_property (GObject * object, guint property_id,
       GST_DEBUG_OBJECT (embedding_overlay, "Changed inference labels %s",
           embedding_overlay->embeddings);
       break;
+    case PROP_LIKENESS_THRESH:
+      embedding_overlay->likeness_thresh = g_value_get_double (value);
+      GST_DEBUG_OBJECT (embedding_overlay,
+          "Changed likeness threshold to %lf",
+          embedding_overlay->likeness_thresh);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -158,6 +176,9 @@ gst_embedding_overlay_get_property (GObject * object, guint property_id,
   switch (property_id) {
     case PROP_EMBEDDINGS:
       g_value_set_string (value, embedding_overlay->embeddings);
+      break;
+    case PROP_LIKENESS_THRESH:
+      g_value_set_double (value, embedding_overlay->likeness_thresh);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -233,7 +254,7 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
       current = current * current;
       diff = diff + current;
     }
-    if (diff < 1.0) {
+    if (diff < embedding_overlay->likeness_thresh) {
       if (num_labels > i) {
         str = cv::format ("Pass: %s", labels_list[i]);
       } else {
