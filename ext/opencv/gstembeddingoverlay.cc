@@ -33,7 +33,6 @@
 
 #define DEFAULT_EMBEDDINGS NULL
 #define DEFAULT_NUM_EMBEDDINGS 0
-#define EMBEDDING_SIZE 128
 #define MIN_LIKENESS_THRESH 0.0
 #define MAX_LIKENESS_THRESH G_MAXDOUBLE
 #define DEFAULT_LIKENESS_THRESH 1.0
@@ -50,7 +49,7 @@ static void gst_embedding_overlay_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
 static void gst_embedding_overlay_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
-static void gst_embedding_overlay_dispose (GObject * object);
+static void gst_embedding_overlay_finalize (GObject * object);
 static GstFlowReturn
 gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
@@ -69,6 +68,7 @@ struct _GstEmbeddingOverlay
   gchar *embeddings;
   gchar **embeddings_list;
   gint num_embeddings;
+  gint embedding_size;
   gdouble likeness_thresh;
 };
 
@@ -92,7 +92,7 @@ gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
 
   gobject_class->set_property = gst_embedding_overlay_set_property;
   gobject_class->get_property = gst_embedding_overlay_get_property;
-  gobject_class->dispose = gst_embedding_overlay_dispose;
+  gobject_class->finalize = gst_embedding_overlay_finalize;
 
   g_object_class_install_property (gobject_class, PROP_EMBEDDINGS,
       g_param_spec_string ("embeddings", "embeddings",
@@ -149,7 +149,13 @@ gst_embedding_overlay_set_property (GObject * object, guint property_id,
       embedding_overlay->embeddings_list =
           g_strsplit (g_value_get_string (value), ";", 0);
       embedding_overlay->num_embeddings =
-          g_strv_length (embedding_overlay->embeddings_list) / EMBEDDING_SIZE;
+          g_strv_length (embedding_overlay->embeddings_list);
+      g_strfreev (embedding_overlay->embeddings_list);
+      embedding_overlay->embeddings_list =
+          g_strsplit_set (g_value_get_string (value), "; ", 0);
+      embedding_overlay->embedding_size =
+          g_strv_length (embedding_overlay->embeddings_list) /
+          embedding_overlay->num_embeddings;
       GST_DEBUG_OBJECT (embedding_overlay, "Changed inference labels %s",
           embedding_overlay->embeddings);
       break;
@@ -187,11 +193,11 @@ gst_embedding_overlay_get_property (GObject * object, guint property_id,
 }
 
 void
-gst_embedding_overlay_dispose (GObject * object)
+gst_embedding_overlay_finalize (GObject * object)
 {
   GstEmbeddingOverlay *embedding_overlay = GST_EMBEDDING_OVERLAY (object);
 
-  GST_DEBUG_OBJECT (embedding_overlay, "dispose");
+  GST_DEBUG_OBJECT (embedding_overlay, "finalize");
 
   /* clean up as possible.  may be called multiple times */
   if (embedding_overlay->embeddings != NULL) {
@@ -201,7 +207,7 @@ gst_embedding_overlay_dispose (GObject * object)
     g_strfreev (embedding_overlay->embeddings_list);
   }
 
-  G_OBJECT_CLASS (gst_embedding_overlay_parent_class)->dispose (object);
+  G_OBJECT_CLASS (gst_embedding_overlay_parent_class)->finalize (object);
 }
 
 static GstFlowReturn
@@ -241,16 +247,23 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
 
   class_meta = (GstClassificationMeta *) meta;
 
+  if (class_meta->num_labels != embedding_overlay->embedding_size){
+    GST_WARNING_OBJECT (embedding_overlay,
+        "Provided embeddings and inference output have different sizes");
+    return GST_FLOW_OK;
+  }
+
   str = cv::format ("Fail");
   tmp_color[0] = chilli_red[0];
   tmp_color[1] = chilli_red[1];
   tmp_color[2] = chilli_red[2];
   for (i = 0; i < embedding_overlay->num_embeddings; ++i) {
     diff = 0.0;
-    for (j = 0; j < EMBEDDING_SIZE; ++j) {
+    for (j = 0; j < embedding_overlay->embedding_size; ++j) {
       current = class_meta->label_probs[j];
       current -=
-          atof (embedding_overlay->embeddings_list[i * EMBEDDING_SIZE + j]);
+          atof (embedding_overlay->embeddings_list[i *
+          embedding_overlay->embedding_size + j]);
       current = current * current;
       diff = diff + current;
     }
