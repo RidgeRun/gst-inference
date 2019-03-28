@@ -28,16 +28,16 @@
 G_BEGIN_DECLS
 
 #define GST_TYPE_INFERENCE_OVERLAY gst_inference_overlay_get_type ()
-G_DECLARE_DERIVABLE_TYPE(GstInferenceOverlay, gst_inference_overlay, GST,
-  INFERENCE_OVERLAY, GstVideoFilter);
+G_DECLARE_DERIVABLE_TYPE (GstInferenceOverlay, gst_inference_overlay, GST,
+    INFERENCE_OVERLAY, GstVideoFilter);
 
 struct _GstInferenceOverlayClass
 {
   GstVideoFilterClass parent_class;
 
-  GstFlowReturn (* process_meta) (GstVideoFrame * frame, GstMeta* meta,
-    gdouble font_scale, gint thickness, gchar **labels_list,
-    gint num_labels);
+  GstFlowReturn (* process_meta) (GstInferenceOverlay * inference_overlay,
+      GstVideoFrame * frame, GstMeta* meta, gdouble font_scale, gint thickness,
+      gchar **labels_list, gint num_labels);
 
   GType meta_type;
 };

@@ -274,8 +274,9 @@ gst_inference_overlay_transform_frame_ip (GstVideoFilter * trans,
     GST_LOG_OBJECT (trans, "Valid inference meta found");
     if (io_class->process_meta != NULL) {
       ret =
-          io_class->process_meta (frame, meta, priv->font_scale,
-          priv->thickness, priv->labels_list, priv->num_labels);
+          io_class->process_meta (inference_overlay, frame, meta,
+          priv->font_scale, priv->thickness, priv->labels_list,
+          priv->num_labels);
     }
   }
 

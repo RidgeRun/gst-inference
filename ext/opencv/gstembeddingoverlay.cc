@@ -48,8 +48,9 @@ static void gst_embedding_overlay_set_property (GObject * object,
 static void gst_embedding_overlay_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
 static void gst_embedding_overlay_dispose (GObject * object);
-static GstFlowReturn gst_embedding_overlay_process_meta (GstVideoFrame *
-    frame, GstMeta * meta, gdouble font_scale, gint thickness,
+static GstFlowReturn
+gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
+    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
     gchar ** labels_list, gint num_labels);
 
 enum
@@ -183,17 +184,26 @@ gst_embedding_overlay_dispose (GObject * object)
 }
 
 static GstFlowReturn
-gst_embedding_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
-    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels)
+gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
+    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
+    gchar ** labels_list, gint num_labels)
 {
+  GstEmbeddingOverlay *embedding_overlay = GST_EMBEDDING_OVERLAY (inference_overlay);
   GstClassificationMeta *class_meta;
-  gint i, width, height, channels;
+  gint i, j, width, height, channels;
   gdouble current, diff;
   cv::Mat cv_mat;
   cv::String str;
   cv::Size size;
   cv::Scalar tmp_color;
   cv::Scalar color = cv::Scalar (0, 0, 0, 0);
+
+  if (embedding_overlay->num_embeddings == 0){
+    GST_WARNING_OBJECT (embedding_overlay,
+        "Please set at least one valid embedding using the 'embeddings'"
+        "property");
+    return GST_FLOW_OK;
+  }
 
   switch (GST_VIDEO_FRAME_FORMAT (frame)) {
     case GST_VIDEO_FORMAT_RGB:
@@ -210,26 +220,30 @@ gst_embedding_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
 
   class_meta = (GstClassificationMeta *) meta;
 
-  diff = 0.0;
-  for (i = 0; i < class_meta->num_labels; ++i) {
-    current = class_meta->label_probs[i];
-    current = current - atof (labels_list[i]);
-    current = current * current;
-    diff = diff + current;
-  }
-
-  cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
-      (char *) frame->data[0]);
-  if (diff < 1.0) {
-    str = cv::format ("Pass");
-    tmp_color[0] = forest_green[0];
-    tmp_color[1] = forest_green[1];
-    tmp_color[2] = forest_green[2];
-  } else {
-    str = cv::format ("Fail");
-    tmp_color[0] = chilli_red[0];
-    tmp_color[1] = chilli_red[1];
-    tmp_color[2] = chilli_red[2];
+  str = cv::format ("Fail");
+  tmp_color[0] = chilli_red[0];
+  tmp_color[1] = chilli_red[1];
+  tmp_color[2] = chilli_red[2];
+  for (i = 0; i < embedding_overlay->num_embeddings; ++i) {
+    diff = 0.0;
+    for (j = 0; j < EMBEDDING_SIZE; ++j) {
+      current = class_meta->label_probs[j];
+      current -=
+          atof (embedding_overlay->embeddings_list[i * EMBEDDING_SIZE + j]);
+      current = current * current;
+      diff = diff + current;
+    }
+    if (diff < 1.0) {
+      if (num_labels > i) {
+        str = cv::format ("Pass: %s", labels_list[i]);
+      } else {
+        str = cv::format ("Pass");
+      }
+      tmp_color[0] = forest_green[0];
+      tmp_color[1] = forest_green[1];
+      tmp_color[2] = forest_green[2];
+      break;
+    }
   }
 
   /* Convert color according to colorspace */
@@ -258,6 +272,8 @@ gst_embedding_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
       break;
   }
 
+  cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
+      (char *) frame->data[0]);
   /* Put string on screen
    * 10*font_scale+16 aproximates text's rendered size on screen as a
    * lineal function to avoid using cv::getTextSize.
