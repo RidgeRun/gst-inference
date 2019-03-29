@@ -151,10 +151,12 @@ gst_embedding_overlay_set_property (GObject * object, guint property_id,
       }
       break;
     case PROP_LIKENESS_THRESH:
+      GST_OBJECT_LOCK(embedding_overlay);
       embedding_overlay->likeness_thresh = g_value_get_double (value);
       GST_DEBUG_OBJECT (embedding_overlay,
           "Changed likeness threshold to %lf",
           embedding_overlay->likeness_thresh);
+      GST_OBJECT_UNLOCK(embedding_overlay);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -172,10 +174,14 @@ gst_embedding_overlay_get_property (GObject * object, guint property_id,
 
   switch (property_id) {
     case PROP_EMBEDDINGS:
+      GST_OBJECT_LOCK(embedding_overlay);
       g_value_set_string (value, embedding_overlay->embeddings);
+      GST_OBJECT_UNLOCK(embedding_overlay);
       break;
     case PROP_LIKENESS_THRESH:
+      GST_OBJECT_LOCK(embedding_overlay);
       g_value_set_double (value, embedding_overlay->likeness_thresh);
+      GST_OBJECT_UNLOCK(embedding_overlay);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -216,11 +222,23 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
   cv::Scalar tmp_color;
   cv::Scalar color = cv::Scalar (0, 0, 0, 0);
 
-  if (embedding_overlay->num_embeddings == 0){
+  gchar **embeddings_list;
+  gint num_embeddings;
+  gint embedding_size;
+  gdouble likeness_thresh;
+
+  GST_OBJECT_LOCK(embedding_overlay);
+  embeddings_list = g_strdupv (embedding_overlay->embeddings_list);
+  num_embeddings = embedding_overlay->num_embeddings;
+  embedding_size = embedding_overlay->embedding_size;
+  likeness_thresh = embedding_overlay->likeness_thresh;
+  GST_OBJECT_UNLOCK(embedding_overlay);
+
+  if (num_embeddings == 0){
     GST_WARNING_OBJECT (embedding_overlay,
         "Please set at least one valid embedding using the 'embeddings'"
         "property");
-    return GST_FLOW_OK;
+    goto end;
   }
 
   switch (GST_VIDEO_FRAME_FORMAT (frame)) {
@@ -238,27 +256,26 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
 
   class_meta = (GstClassificationMeta *) meta;
 
-  if (class_meta->num_labels != embedding_overlay->embedding_size){
+  if (class_meta->num_labels != embedding_size){
     GST_WARNING_OBJECT (embedding_overlay,
         "Provided embeddings and inference output have different sizes");
-    return GST_FLOW_OK;
+    goto end;
   }
 
   str = cv::format ("Fail");
   tmp_color[0] = chilli_red[0];
   tmp_color[1] = chilli_red[1];
   tmp_color[2] = chilli_red[2];
-  for (i = 0; i < embedding_overlay->num_embeddings; ++i) {
+  for (i = 0; i < num_embeddings; ++i) {
     diff = 0.0;
-    for (j = 0; j < embedding_overlay->embedding_size; ++j) {
+    for (j = 0; j < embedding_size; ++j) {
       current = class_meta->label_probs[j];
       current -=
-          atof (embedding_overlay->embeddings_list[i *
-          embedding_overlay->embedding_size + j]);
+          atof (embeddings_list[i * embedding_size + j]);
       current = current * current;
       diff = diff + current;
     }
-    if (diff < embedding_overlay->likeness_thresh) {
+    if (diff < likeness_thresh) {
       if (num_labels > i) {
         str = cv::format ("Pass: %s", labels_list[i]);
       } else {
@@ -311,6 +328,8 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
   cv::rectangle (cv_mat, cv::Point (0, 0), cv::Point (width, height), color,
       10*thickness);
 
+end:
+  g_strfreev(embeddings_list);
   return GST_FLOW_OK;
 }
 
@@ -321,6 +340,7 @@ gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay * embedding_overlay,
   g_return_val_if_fail (embedding_overlay, FALSE);
   g_return_val_if_fail (value, FALSE);
 
+  GST_OBJECT_LOCK(embedding_overlay);
   if (embedding_overlay->embeddings != NULL) {
     g_free (embedding_overlay->embeddings);
   }
@@ -338,5 +358,7 @@ gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay * embedding_overlay,
   embedding_overlay->embedding_size =
       g_strv_length (embedding_overlay->embeddings_list) /
       embedding_overlay->num_embeddings;
+  GST_OBJECT_UNLOCK(embedding_overlay);
+
   return TRUE;
 }
