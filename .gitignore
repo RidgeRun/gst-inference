@@ -66,3 +66,5 @@ cscope.out
 # Examples
 tests/examples/classification/classification
 tests/examples/detection/detection
+tests/examples/face_detection/embeddings.txt
+tests/examples/face_detection/labels.txt
