@@ -54,6 +54,9 @@ static GstFlowReturn
 gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
     gchar ** labels_list, gint num_labels);
+static gboolean 
+gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay * embedding_overlay,
+    const GValue * value);
 
 enum
 {
@@ -96,7 +99,8 @@ gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
 
   g_object_class_install_property (gobject_class, PROP_EMBEDDINGS,
       g_param_spec_string ("embeddings", "embeddings",
-          "Semicolon separated string containing the embeddings",
+          "String containing the embeddings. Consecutive values are \n\t\t\t"
+          "separated with a space and embedding with a semicolon.",
           DEFAULT_EMBEDDINGS, G_PARAM_READWRITE));
   g_object_class_install_property (gobject_class, PROP_LIKENESS_THRESH,
       g_param_spec_double ("likeness-threshold", "likeness-thresh",
@@ -139,25 +143,12 @@ gst_embedding_overlay_set_property (GObject * object, guint property_id,
 
   switch (property_id) {
     case PROP_EMBEDDINGS:
-      if (embedding_overlay->embeddings != NULL) {
-        g_free (embedding_overlay->embeddings);
-      }
-      if (embedding_overlay->embeddings_list != NULL) {
-        g_strfreev (embedding_overlay->embeddings_list);
-      }
-      embedding_overlay->embeddings = g_value_dup_string (value);
-      embedding_overlay->embeddings_list =
-          g_strsplit (g_value_get_string (value), ";", 0);
-      embedding_overlay->num_embeddings =
-          g_strv_length (embedding_overlay->embeddings_list);
-      g_strfreev (embedding_overlay->embeddings_list);
-      embedding_overlay->embeddings_list =
-          g_strsplit_set (g_value_get_string (value), "; ", 0);
-      embedding_overlay->embedding_size =
-          g_strv_length (embedding_overlay->embeddings_list) /
-          embedding_overlay->num_embeddings;
-      GST_DEBUG_OBJECT (embedding_overlay, "Changed inference labels %s",
+      if (gst_embedding_overlay_set_embeddings(embedding_overlay, value)){
+        GST_DEBUG_OBJECT (embedding_overlay, "Changed inference labels %s",
           embedding_overlay->embeddings);
+      } else {
+        GST_ERROR_OBJECT (embedding_overlay, "Failed setting embeddings");
+      }
       break;
     case PROP_LIKENESS_THRESH:
       embedding_overlay->likeness_thresh = g_value_get_double (value);
@@ -321,4 +312,31 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
       10*thickness);
 
   return GST_FLOW_OK;
+}
+
+gboolean
+gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay * embedding_overlay,
+    const GValue * value)
+{
+  g_return_val_if_fail (embedding_overlay, FALSE);
+  g_return_val_if_fail (value, FALSE);
+
+  if (embedding_overlay->embeddings != NULL) {
+    g_free (embedding_overlay->embeddings);
+  }
+  if (embedding_overlay->embeddings_list != NULL) {
+    g_strfreev (embedding_overlay->embeddings_list);
+  }
+  embedding_overlay->embeddings = g_value_dup_string (value);
+  embedding_overlay->embeddings_list =
+      g_strsplit (g_value_get_string (value), ";", 0);
+  embedding_overlay->num_embeddings =
+      g_strv_length (embedding_overlay->embeddings_list);
+  g_strfreev (embedding_overlay->embeddings_list);
+  embedding_overlay->embeddings_list =
+      g_strsplit_set (g_value_get_string (value), "; ", 0);
+  embedding_overlay->embedding_size =
+      g_strv_length (embedding_overlay->embeddings_list) /
+      embedding_overlay->num_embeddings;
+  return TRUE;
 }
