@@ -38,9 +38,10 @@ GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_classification_overlay_debug_category
 
 /* prototypes */
-static GstFlowReturn gst_classification_overlay_process_meta (GstVideoFrame *
-    frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels);
+static GstFlowReturn
+gst_classification_overlay_process_meta (GstInferenceOverlay *
+    inference_overlay, GstVideoFrame * frame, GstMeta * meta,
+    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels);
 
 enum
 {
@@ -92,7 +93,8 @@ gst_classification_overlay_init (GstClassificationOverlay *
 }
 
 static GstFlowReturn
-gst_classification_overlay_process_meta (GstVideoFrame * frame, GstMeta * meta,
+gst_classification_overlay_process_meta (GstInferenceOverlay *
+    inference_overlay, GstVideoFrame * frame, GstMeta * meta,
     gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels)
 {
   GstClassificationMeta *class_meta;
