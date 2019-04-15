@@ -33,6 +33,37 @@ static gboolean gst_classification_meta_copy (GstBuffer * transbuf,
     GstMeta * meta, GstBuffer * buffer);
 
 GType
+gst_embedding_meta_api_get_type (void)
+{
+  static volatile GType type = 0;
+  static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL };
+
+  if (g_once_init_enter (&type)) {
+    GType _type = gst_meta_api_type_register ("GstEmbeddingMetaAPI", tags);
+    g_once_init_leave (&type, _type);
+  }
+  return type;
+}
+
+/* embedding metadata: As per now the embedding meta is ABI compatible
+ * with classification. Reuse the meta methods.
+ */
+const GstMetaInfo *
+gst_embedding_meta_get_info (void)
+{
+  static const GstMetaInfo *embedding_meta_info = NULL;
+
+  if (g_once_init_enter (&embedding_meta_info)) {
+    const GstMetaInfo *meta = gst_meta_register (GST_EMBEDDING_META_API_TYPE,
+        "GstEmbeddingMeta", sizeof (GstEmbeddingMeta),
+        gst_classification_meta_init, gst_classification_meta_free,
+        gst_classification_meta_transform);
+    g_once_init_leave (&embedding_meta_info, meta);
+  }
+  return embedding_meta_info;
+}
+
+GType
 gst_classification_meta_api_get_type (void)
 {
   static volatile GType type = 0;
