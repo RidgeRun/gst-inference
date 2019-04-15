@@ -43,8 +43,8 @@ void gst_embedding_create_pipeline (GstEmbedding * embedding);
 void gst_embedding_start (GstEmbedding * embedding);
 void gst_embedding_stop (GstEmbedding * embedding);
 static void gst_embedding_process_inference (GstElement * element,
-    GstClassificationMeta * model_meta, GstVideoFrame * model_frame,
-    GstClassificationMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    GstEmbeddingMeta * model_meta, GstVideoFrame * model_frame,
+    GstEmbeddingMeta * bypass_meta, GstVideoFrame * bypass_frame,
     gpointer user_data);
 static gboolean gst_embedding_exit_handler (gpointer user_data);
 static gboolean gst_embedding_handle_message (GstBus * bus,
@@ -234,8 +234,8 @@ gst_embedding_free (GstEmbedding * embedding)
 
 static void
 gst_embedding_process_inference (GstElement * element,
-    GstClassificationMeta * model_meta, GstVideoFrame * model_frame,
-    GstClassificationMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    GstEmbeddingMeta * model_meta, GstVideoFrame * model_frame,
+    GstEmbeddingMeta * bypass_meta, GstVideoFrame * bypass_frame,
     gpointer user_data)
 {
   GstEmbedding *embedding;
@@ -251,7 +251,7 @@ gst_embedding_process_inference (GstElement * element,
 
   handle_prediction (bypass_frame->data[0], bypass_frame->info.width,
       bypass_frame->info.height, bypass_frame->info.size,
-      bypass_meta->label_probs, bypass_meta->num_labels, verbose,
+      bypass_meta->embedding, bypass_meta->num_dimensions, verbose,
       embedding->embeddings_list, embedding->labels_list,
       embedding->num_embeddings);
 }
