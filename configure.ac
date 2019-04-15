@@ -387,6 +387,7 @@ tests/check/Makefile
 tests/Makefile
 tests/examples/classification/Makefile
 tests/examples/detection/Makefile
+tests/examples/embedding/Makefile
 tests/examples/Makefile
 tests/files/Makefile
 )
