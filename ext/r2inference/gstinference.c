@@ -26,6 +26,7 @@
 #include "gstinceptionv2.h"
 #include "gstinceptionv4.h"
 #include "gsttinyyolov2.h"
+#include "gsttinyyolov3.h"
 #include "gstfacenetv1.h"
 
 static gboolean
@@ -65,6 +66,13 @@ plugin_init (GstPlugin * plugin)
   if (!ret) {
     goto out;
   }
+
+  ret = gst_element_register (plugin, "tinyyolov3", GST_RANK_NONE,
+      GST_TYPE_TINYYOLOV3);
+  if (!ret) {
+    goto out;
+  }
+
 
   ret = gst_element_register (plugin, "facenetv1", GST_RANK_NONE,
       GST_TYPE_FACENETV1);
