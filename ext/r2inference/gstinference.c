@@ -49,6 +49,12 @@ plugin_init (GstPlugin * plugin)
     goto out;
   }
 
+  ret = gst_element_register (plugin, "mobilenetv2", GST_RANK_NONE,
+      GST_TYPE_INCEPTIONV2);
+  if (!ret) {
+    goto out;
+  }
+
   ret = gst_element_register (plugin, "inceptionv3", GST_RANK_NONE,
       GST_TYPE_INCEPTIONV4);
   if (!ret) {
