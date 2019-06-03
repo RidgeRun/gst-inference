@@ -29,9 +29,9 @@
 
 G_BEGIN_DECLS
 
-gboolean * fill_classification_meta(GstClassificationMeta *class_meta, const gpointer prediction,
+gboolean fill_classification_meta(GstClassificationMeta *class_meta, const gpointer prediction,
     gsize predsize);
-gboolean * create_boxes(GstVideoInference * vi, const gpointer prediction,
+gboolean create_boxes(GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction);
 

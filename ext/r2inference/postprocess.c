@@ -22,17 +22,24 @@
 #include "postprocess.h"
 
 
-gboolean *
+gboolean
 fill_classification_meta (GstClassificationMeta * class_meta,
     const gpointer prediction, gsize predsize)
 {
+  class_meta->num_labels = predsize / sizeof (gfloat);
+  class_meta->label_probs =
+      g_malloc (class_meta->num_labels * sizeof (gdouble));
+  for (gint i = 0; i < class_meta->num_labels; ++i) {
+    class_meta->label_probs[i] = (gdouble) ((gfloat *) prediction)[i];
+  }
+  return TRUE;
 
 }
 
-gboolean *
+gboolean
 create_boxes (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
-
+  return TRUE;
 }
