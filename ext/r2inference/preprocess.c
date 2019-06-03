@@ -22,23 +22,84 @@
 
 #include "preprocess.h"
 
-gboolean *
-normalize (GstVideoInference * vi,
-    GstVideoFrame * inframe, GstVideoFrame * outframe)
-{
-  return TRUE;
-}
-
-gboolean *
+gboolean
 normalize_0mean (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
+
   return TRUE;
 }
 
-gboolean *
+gboolean
+normalize (GstVideoInference * vi,
+    GstVideoFrame * inframe, GstVideoFrame * outframe)
+{
+
+  return TRUE;
+}
+
+gboolean
 normalize_face (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
+  gint i, j, pixel_stride, width, height, channels;
+  gfloat mean, std, variance, sum, normalized, R, G, B;
+
+  GST_LOG_OBJECT (vi, "Preprocess");
+  channels = GST_VIDEO_FRAME_N_COMPONENTS (inframe);
+  pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0) / channels;
+  width = GST_VIDEO_FRAME_WIDTH (inframe);
+  height = GST_VIDEO_FRAME_HEIGHT (inframe);
+
+  sum = 0;
+  normalized = 0;
+
+  for (i = 0; i < height; ++i) {
+    for (j = 0; j < width; ++j) {
+      sum =
+          sum + (((guchar *) inframe->data[0])[(i * pixel_stride +
+                  j) * channels + 0]);
+      sum =
+          sum + (((guchar *) inframe->data[0])[(i * pixel_stride +
+                  j) * channels + 1]);
+      sum =
+          sum + (((guchar *) inframe->data[0])[(i * pixel_stride +
+                  j) * channels + 2]);
+    }
+  }
+
+  mean = sum / (float) (width * height * channels);
+
+  for (i = 0; i < height; ++i) {
+    for (j = 0; j < width; ++j) {
+      R = (gfloat) ((((guchar *) inframe->data[0])[(i * pixel_stride +
+                      j) * channels + 0])) - mean;
+      G = (gfloat) ((((guchar *) inframe->data[0])[(i * pixel_stride +
+                      j) * channels + 1])) - mean;
+      B = (gfloat) ((((guchar *) inframe->data[0])[(i * pixel_stride +
+                      j) * channels + 2])) - mean;
+      normalized = normalized + pow (R, 2);
+      normalized = normalized + pow (G, 2);
+      normalized = normalized + pow (B, 2);
+    }
+  }
+
+  variance = normalized / (float) (width * height * channels);
+  std = sqrt (variance);
+
+  for (i = 0; i < height; ++i) {
+    for (j = 0; j < width; ++j) {
+      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 0] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
+              0] - mean) / std;
+      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 1] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
+              1] - mean) / std;
+      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 2] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
+              2] - mean) / std;
+    }
+  }
+
   return TRUE;
 }

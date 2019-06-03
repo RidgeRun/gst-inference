@@ -27,11 +27,20 @@
 
 G_BEGIN_DECLS
 
-gboolean * normalize(GstVideoInference * vi,
+gboolean normalize(GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
-gboolean * normalize_0mean(GstVideoInference * vi,
+gboolean normalize_0mean(GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
-gboolean * normalize_face(GstVideoInference * vi,
+
+/**
+ * \brief Especial normalization used for facenet
+ *
+ * \param vi Father object of every architecture
+ * \param inframe The input frame
+ * \param outframe The output frame after preprocess
+ */
+
+gboolean normalize_face(GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 
 G_END_DECLS

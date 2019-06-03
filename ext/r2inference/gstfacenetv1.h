@@ -23,6 +23,8 @@
 #define _GST_FACENETV1_H_
 
 #include <gst/r2inference/gstvideoinference.h>
+#include "preprocess.h"
+#include "postprocess.h"
 
 G_BEGIN_DECLS
 
