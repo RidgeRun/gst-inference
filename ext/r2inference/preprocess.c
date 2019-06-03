@@ -30,9 +30,7 @@ normalize_zero_mean (GstVideoInference * vi,
   gint first_index, last_index, offset;
   const gdouble mean = 128.0;
   const gdouble std = 1 / 128.0;
-  const int model_channels = 3;
-
-  GST_LOG_OBJECT (vi, "Preprocess");
+  const gint model_channels = 3;
 
   channels = 4;
   switch (GST_VIDEO_FRAME_FORMAT (inframe)) {
@@ -100,9 +98,7 @@ normalize (GstVideoInference * vi,
   gint first_index, last_index, offset;
   const gdouble mean = 0;
   const gdouble std = 1 / 255.0;
-  const int model_channels = 3;
-
-  GST_LOG_OBJECT (vi, "Preprocess");
+  const gint model_channels = 3;
 
   channels = 4;
   switch (GST_VIDEO_FRAME_FORMAT (inframe)) {
@@ -169,7 +165,6 @@ normalize_face (GstVideoInference * vi,
   gint i, j, pixel_stride, width, height, channels;
   gfloat mean, std, variance, sum, normalized, R, G, B;
 
-  GST_LOG_OBJECT (vi, "Preprocess");
   channels = GST_VIDEO_FRAME_N_COMPONENTS (inframe);
   pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0) / channels;
   width = GST_VIDEO_FRAME_WIDTH (inframe);

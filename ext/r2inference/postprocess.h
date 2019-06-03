@@ -20,16 +20,22 @@
  */
 
 #include <gst/r2inference/gstvideoinference.h>
-#include "gst/r2inference/gstinferencemeta.h"
-#include <string.h>
-#include <math.h>
+#include <gst/r2inference/gstinferencemeta.h>
 
 #ifndef __POSTPROCESS_H__
 #define __POSTPROCESS_H__
 
 G_BEGIN_DECLS
 
-gboolean fill_classification_meta(GstClassificationMeta *class_meta, const gpointer prediction,
+/**
+ * \brief Fill all the classification meta with predictions
+ *
+ * \param class_meta Meta to fill
+ * \param prediction Value of the prediction
+ * \param predsize Size of the prediction
+ */
+
+gboolean gst_fill_classification_meta(GstClassificationMeta *class_meta, const gpointer prediction,
     gsize predsize);
 gboolean create_boxes(GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,

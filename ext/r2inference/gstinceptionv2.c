@@ -47,8 +47,6 @@
 GST_DEBUG_CATEGORY_STATIC (gst_inceptionv2_debug_category);
 #define GST_CAT_DEFAULT gst_inceptionv2_debug_category
 
-#define MODEL_CHANNELS 3
-
 /* prototypes */
 static void gst_inceptionv2_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
@@ -201,6 +199,7 @@ static gboolean
 gst_inceptionv2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
+  GST_LOG_OBJECT (vi, "Preprocess");
   return normalize_zero_mean (vi, inframe, outframe);
 }
 
@@ -215,12 +214,7 @@ gst_inceptionv2_postprocess (GstVideoInference * vi, const gpointer prediction,
   GstDebugLevel level;
   GST_LOG_OBJECT (vi, "Postprocess");
 
-  class_meta->num_labels = predsize / sizeof (gfloat);
-  class_meta->label_probs =
-      g_malloc (class_meta->num_labels * sizeof (gdouble));
-  for (gint i = 0; i < class_meta->num_labels; ++i) {
-    class_meta->label_probs[i] = (gdouble) ((gfloat *) prediction)[i];
-  }
+  gst_fill_classification_meta (class_meta, prediction, predsize);
 
   /* Only compute the highest probability is label when debug >= 6 */
   level = gst_debug_category_get_threshold (gst_inceptionv2_debug_category);

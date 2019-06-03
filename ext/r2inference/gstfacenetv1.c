@@ -195,6 +195,7 @@ static gboolean
 gst_facenetv1_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
+  GST_LOG_OBJECT (vi, "Preprocess");
   return normalize_face (vi, inframe, outframe);
 }
 
@@ -207,12 +208,7 @@ gst_facenetv1_postprocess (GstVideoInference * vi, const gpointer prediction,
   GstDebugLevel level;
   GST_LOG_OBJECT (vi, "Postprocess");
 
-  class_meta->num_labels = predsize / sizeof (gfloat);
-  class_meta->label_probs =
-      g_malloc (class_meta->num_labels * sizeof (gdouble));
-  for (gint i = 0; i < class_meta->num_labels; ++i) {
-    class_meta->label_probs[i] = (gdouble) ((gfloat *) prediction)[i];
-  }
+  gst_fill_classification_meta (class_meta, prediction, predsize);
 
   /* Only display vector if debug level >= 6 */
   level = gst_debug_category_get_threshold (gst_facenetv1_debug_category);

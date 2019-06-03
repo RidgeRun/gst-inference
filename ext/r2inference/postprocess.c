@@ -20,12 +20,17 @@
  */
 
 #include "postprocess.h"
-
+#include <assert.h>
+#include <string.h>
+#include <math.h>
 
 gboolean
-fill_classification_meta (GstClassificationMeta * class_meta,
+gst_fill_classification_meta (GstClassificationMeta * class_meta,
     const gpointer prediction, gsize predsize)
 {
+  assert (class_meta != NULL);
+  assert (prediction != NULL);
+
   class_meta->num_labels = predsize / sizeof (gfloat);
   class_meta->label_probs =
       g_malloc (class_meta->num_labels * sizeof (gdouble));

@@ -476,6 +476,7 @@ static gboolean
 gst_tinyyolov2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
+  GST_LOG_OBJECT (vi, "Preprocess");
   return normalize (vi, inframe, outframe);
 }
 
