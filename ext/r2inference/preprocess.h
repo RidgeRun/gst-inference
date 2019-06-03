@@ -27,6 +27,14 @@
 
 G_BEGIN_DECLS
 
+/**
+ * \brief Normalization with values between 0 and 1
+ *
+ * \param vi Father object of every architecture
+ * \param inframe The input frame
+ * \param outframe The output frame after preprocess
+ */
+
 gboolean normalize(GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 gboolean normalize_0mean(GstVideoInference * vi,
