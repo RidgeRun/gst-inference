@@ -28,6 +28,7 @@
 #include "gsttinyyolov2.h"
 #include "gsttinyyolov3.h"
 #include "gstfacenetv1.h"
+#include "gstresnet50v1.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
@@ -36,6 +37,12 @@ plugin_init (GstPlugin * plugin)
   /* FIXME Remember to set the rank if it's an element that is meant
      to be autoplugged by decodebin. */
   gboolean ret = TRUE;
+
+  ret = gst_element_register (plugin, "resnet50v1", GST_RANK_NONE,
+      GST_TYPE_RESNET50V1);
+  if (!ret) {
+    goto out;
+  }
 
   ret = gst_element_register (plugin, "inceptionv1", GST_RANK_NONE,
       GST_TYPE_INCEPTIONV2);
