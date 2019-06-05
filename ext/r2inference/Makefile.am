@@ -5,7 +5,9 @@ libgstinference_la_SOURCES =		\
 	gstinceptionv4.c		\
 	gstinference.c			\
 	gsttinyyolov2.c			\
-	gstfacenetv1.c
+	gsttinyyolov3.c                 \
+	gstfacenetv1.c                  \
+	gstresnet50v1.c
 
 libgstinference_la_CFLAGS =		\
 	$(GST_CFLAGS)			\
@@ -38,4 +40,6 @@ noinst_HEADERS =			\
 	gstinceptionv2.h		\
 	gstinceptionv4.h		\
 	gsttinyyolov2.h			\
-	gstfacenetv1.h
+	gsttinyyolov3.h                 \
+	gstfacenetv1.h                  \
+	gstresnet50v1.h

@@ -19,29 +19,16 @@
  *
  */
 
-#ifndef __GST_INFERENCE_OVERLAY_H__
-#define __GST_INFERENCE_OVERLAY_H__
+#ifndef _GST_RESNET50V1_H_
+#define _GST_RESNET50V1_H_
 
-#include <gst/gst.h>
-#include <gst/video/video.h>
+#include <gst/r2inference/gstvideoinference.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_INFERENCE_OVERLAY gst_inference_overlay_get_type ()
-G_DECLARE_DERIVABLE_TYPE (GstInferenceOverlay, gst_inference_overlay, GST,
-    INFERENCE_OVERLAY, GstVideoFilter);
-
-struct _GstInferenceOverlayClass
-{
-  GstVideoFilterClass parent_class;
-
-  GstFlowReturn (* process_meta) (GstInferenceOverlay * inference_overlay,
-      GstVideoFrame * frame, GstMeta* meta, gdouble font_scale, gint thickness,
-      gchar **labels_list, gint num_labels);
-
-  GType meta_type;
-};
+#define GST_TYPE_RESNET50V1 gst_resnet50v1_get_type ()
+G_DECLARE_FINAL_TYPE (GstResnet50v1, gst_resnet50v1, GST, RESNET50V1, GstVideoInference)
 
 G_END_DECLS
 
-#endif //__GST_INFERENCE_OVERLAY_H__
+#endif

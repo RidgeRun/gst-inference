@@ -66,3 +66,4 @@ cscope.out
 # Examples
 tests/examples/classification/classification
 tests/examples/detection/detection
+tests/examples/embedding/embedding

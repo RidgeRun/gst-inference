@@ -26,7 +26,9 @@
 #include "gstinceptionv2.h"
 #include "gstinceptionv4.h"
 #include "gsttinyyolov2.h"
+#include "gsttinyyolov3.h"
 #include "gstfacenetv1.h"
+#include "gstresnet50v1.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
@@ -36,6 +38,12 @@ plugin_init (GstPlugin * plugin)
      to be autoplugged by decodebin. */
   gboolean ret = TRUE;
 
+  ret = gst_element_register (plugin, "resnet50v1", GST_RANK_NONE,
+      GST_TYPE_RESNET50V1);
+  if (!ret) {
+    goto out;
+  }
+
   ret = gst_element_register (plugin, "inceptionv1", GST_RANK_NONE,
       GST_TYPE_INCEPTIONV2);
   if (!ret) {
@@ -43,6 +51,12 @@ plugin_init (GstPlugin * plugin)
   }
 
   ret = gst_element_register (plugin, "inceptionv2", GST_RANK_NONE,
+      GST_TYPE_INCEPTIONV2);
+  if (!ret) {
+    goto out;
+  }
+
+  ret = gst_element_register (plugin, "mobilenetv2", GST_RANK_NONE,
       GST_TYPE_INCEPTIONV2);
   if (!ret) {
     goto out;
@@ -65,6 +79,13 @@ plugin_init (GstPlugin * plugin)
   if (!ret) {
     goto out;
   }
+
+  ret = gst_element_register (plugin, "tinyyolov3", GST_RANK_NONE,
+      GST_TYPE_TINYYOLOV3);
+  if (!ret) {
+    goto out;
+  }
+
 
   ret = gst_element_register (plugin, "facenetv1", GST_RANK_NONE,
       GST_TYPE_FACENETV1);

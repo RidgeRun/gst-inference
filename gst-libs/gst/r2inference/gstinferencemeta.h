@@ -15,6 +15,8 @@
 #include <gst/gst.h>
 
 G_BEGIN_DECLS
+#define GST_EMBEDDING_META_API_TYPE (gst_embedding_meta_api_get_type())
+#define GST_EMBEDDING_META_INFO  (gst_embedding_meta_get_info())
 #define GST_CLASSIFICATION_META_API_TYPE (gst_classification_meta_api_get_type())
 #define GST_CLASSIFICATION_META_INFO  (gst_classification_meta_get_info())
 #define GST_DETECTION_META_API_TYPE (gst_detection_meta_api_get_type())
@@ -31,6 +33,17 @@ struct _BBox
   gdouble y;
   gdouble width;
   gdouble height;
+};
+
+/**
+ * Implements the placeholder for embedding information.
+ */
+typedef struct _GstEmbeddingMeta GstEmbeddingMeta;
+struct _GstEmbeddingMeta
+{
+  GstMeta meta;
+  gint num_dimensions;
+  gdouble *embedding;
 };
 
 /**
@@ -54,6 +67,9 @@ struct _GstDetectionMeta
   gint num_boxes;
   BBox *boxes;
 };
+
+GType gst_embedding_meta_api_get_type (void);
+const GstMetaInfo *gst_embedding_meta_get_info (void);
 
 GType gst_classification_meta_api_get_type (void);
 const GstMetaInfo *gst_classification_meta_get_info (void);
