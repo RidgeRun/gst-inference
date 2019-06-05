@@ -60,6 +60,17 @@ gboolean normalize_zero_mean(GstVideoInference * vi,
 gboolean normalize_face(GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 
+/**
+ * \brief Substract the mean value to every pixel
+ *
+ * \param vi Father object of every architecture
+ * \param inframe The input frame
+ * \param outframe The output frame after preprocess
+ */
+
+gboolean subtract_mean(GstVideoInference * vi,
+    GstVideoFrame * inframe, GstVideoFrame * outframe, gdouble mean_red, gdouble mean_green, gdouble mena_blue);
+
 G_END_DECLS
 
 #endif
