@@ -45,32 +45,33 @@
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov3_debug_category);
 #define GST_CAT_DEFAULT gst_tinyyolov3_debug_category
 
+/* Channels per pixel */
 #define MODEL_CHANNELS 3
-#define GRID_H 13
-#define GRID_W 13
-/* Grid cell size in pixels */
-#define GRID_SIZE 32
+/* Total boxes per image */
+/* Defined as 13 x 13 x 15 = 2535 */
+/* Grid width x Grid height x bounding boxes per grid */
+#define TOTAL_BOXES 2535
 /* Number of classes */
 #define CLASSES 80
-/* Number of boxes per cell */
-#define BOXES 5
+/* Number of dimensions per box */
+#define BOX_DIM 5
 /* 
  * Box dim 
  * [0]: x
- * [0]: y
+ * [1]: y
  * [2]: height
  * [3]: width
- * [4]: Objectness score
+ * [4]: Objectness
  */
-#define BOX_DIM 5
+
 /* Objectness threshold */
 #define MAX_OBJ_THRESH 1
 #define MIN_OBJ_THRESH 0
-#define DEFAULT_OBJ_THRESH 0.30
+#define DEFAULT_OBJ_THRESH 0.50
 /* Class probability threshold */
 #define MAX_PROB_THRESH 1
 #define MIN_PROB_THRESH 0
-#define DEFAULT_PROB_THRESH 0.30
+#define DEFAULT_PROB_THRESH 0.50
 /* Intersection over union threshold */
 #define MAX_IOU_THRESH 1
 #define MIN_IOU_THRESH 0
@@ -267,51 +268,44 @@ gst_tinyyolov3_get_boxes_from_prediction (GstTinyyolov3 * tinyyolov3,
     gpointer prediction, BBox * boxes, gint * elements)
 {
 
-  gint i, j, c, b;
+  gint i, c;
   gint index;
   gdouble obj_prob;
   gdouble cur_class_prob, max_class_prob;
   gint max_class_prob_index;
   gint counter = 0;
+  gint box_class_base;
+  gint dimensions_per_box = BOX_DIM + CLASSES;
+  /* Iterate boxes */
+  for (i = 0; i < TOTAL_BOXES; i++) {
+    index = i * dimensions_per_box;
+    obj_prob = ((gfloat *) prediction)[index + 4];
 
-  /* Iterate rows */
-  for (i = 0; i < GRID_H; i++) {
-    /* Iterate colums */
-    for (j = 0; j < GRID_W; j++) {
-      /* Iterate boxes */
-      for (b = 0; b < BOXES; b++) {
-        index = ((i * GRID_W + j) * BOXES + b) * (BOX_DIM + CLASSES);
-        obj_prob = ((gfloat *) prediction)[index + 4];
+    /* If the objectness score is over the threshold add it to the boxes list */
+    if (obj_prob > tinyyolov3->obj_thresh) {
+      max_class_prob = 0;
+      max_class_prob_index = 0;
+      box_class_base = index + BOX_DIM;
 
-        /* If the Objectness score is over the threshold add it to the boxes list */
-        if (obj_prob > tinyyolov3->obj_thresh) {
-          max_class_prob = 0;
-          max_class_prob_index = 0;
-
-          for (c = 0; c < CLASSES; c++) {
-            cur_class_prob = ((gfloat *) prediction)[index + BOX_DIM + c];
-            if (cur_class_prob > max_class_prob) {
-              max_class_prob = cur_class_prob;
-              max_class_prob_index = c;
-            }
-          }
-
-          if (max_class_prob > tinyyolov3->prob_thresh) {
-
-            BBox result;
-            result.label = max_class_prob_index;
-            result.prob = max_class_prob;
-            result.x = ((gfloat *) prediction)[index];
-            result.y = ((gfloat *) prediction)[index + 1];
-            result.width = ((gfloat *) prediction)[index + 2];
-            result.height = ((gfloat *) prediction)[index + 3];
-
-            if (result.width > 10.0) {
-              boxes[counter] = result;
-              counter = counter + 1;
-            }
-          }
+      /* Iterate each class probability */
+      for (c = 0; c < CLASSES; c++) {
+        cur_class_prob = ((gfloat *) prediction)[box_class_base + c];
+        if (cur_class_prob > max_class_prob) {
+          max_class_prob = cur_class_prob;
+          max_class_prob_index = c;
         }
+      }
+
+      if (max_class_prob > tinyyolov3->prob_thresh) {
+        BBox result;
+        result.label = max_class_prob_index;
+        result.prob = max_class_prob;
+        result.x = ((gfloat *) prediction)[index];
+        result.y = ((gfloat *) prediction)[index + 1];
+        result.width = ((gfloat *) prediction)[index + 2] - result.x;
+        result.height = ((gfloat *) prediction)[index + 3] - result.y;
+        boxes[counter] = result;
+        counter = counter + 1;
       }
     }
     *elements = counter;
@@ -324,7 +318,7 @@ print_top_predictions (GstVideoInference * vi, gpointer prediction,
     gint * elements)
 {
   GstTinyyolov3 *tinyyolov3 = GST_TINYYOLOV3 (vi);
-  BBox boxes[GRID_H * GRID_W * BOXES];
+  BBox boxes[TOTAL_BOXES];
   gint index = 0;
   *elements = 0;
 
