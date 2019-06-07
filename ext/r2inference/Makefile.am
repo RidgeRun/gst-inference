@@ -1,13 +1,16 @@
 plugin_LTLIBRARIES = libgstinference.la
 
 libgstinference_la_SOURCES =		\
+	gstinceptionv1.c 		\
 	gstinceptionv2.c		\
+	gstinceptionv3.c 		\
 	gstinceptionv4.c		\
 	gstinference.c			\
 	gsttinyyolov2.c			\
 	gsttinyyolov3.c                 \
 	gstfacenetv1.c                  \
-	gstresnet50v1.c
+	gstresnet50v1.c			\
+	gstmobilenetv2.c
 
 libgstinference_la_CFLAGS =		\
 	$(GST_CFLAGS)			\
@@ -37,9 +40,12 @@ libgstinference_la_LIBTOOLFLAGS =	\
 	$(GST_PLUGIN_LIBTOOLFLAGS)
 
 noinst_HEADERS =			\
+	gstinceptionv1.h 		\
 	gstinceptionv2.h		\
+	gstinceptionv3.h 		\
 	gstinceptionv4.h		\
 	gsttinyyolov2.h			\
 	gsttinyyolov3.h                 \
 	gstfacenetv1.h                  \
-	gstresnet50v1.h
+	gstresnet50v1.h			\
+	gstmobilenetv2.h
