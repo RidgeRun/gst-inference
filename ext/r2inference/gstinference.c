@@ -25,6 +25,7 @@
 
 #include "gstinceptionv1.h"
 #include "gstinceptionv2.h"
+#include "gstinceptionv3.h"
 #include "gstinceptionv4.h"
 #include "gsttinyyolov2.h"
 #include "gsttinyyolov3.h"
@@ -64,7 +65,7 @@ plugin_init (GstPlugin * plugin)
   }
 
   ret = gst_element_register (plugin, "inceptionv3", GST_RANK_NONE,
-      GST_TYPE_INCEPTIONV4);
+      GST_TYPE_INCEPTIONV3);
   if (!ret) {
     goto out;
   }
