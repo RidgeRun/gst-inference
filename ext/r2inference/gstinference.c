@@ -31,6 +31,7 @@
 #include "gsttinyyolov3.h"
 #include "gstfacenetv1.h"
 #include "gstresnet50v1.h"
+#include "gstmobilenetv2.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
@@ -59,7 +60,7 @@ plugin_init (GstPlugin * plugin)
   }
 
   ret = gst_element_register (plugin, "mobilenetv2", GST_RANK_NONE,
-      GST_TYPE_INCEPTIONV2);
+      GST_TYPE_MOBILENETV2);
   if (!ret) {
     goto out;
   }
