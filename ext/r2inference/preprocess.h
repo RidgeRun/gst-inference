@@ -71,6 +71,17 @@ gboolean normalize_face(GstVideoInference * vi,
 gboolean subtract_mean(GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe, gdouble mean_red, gdouble mean_green, gdouble mena_blue);
 
+/**
+ * \brief Change every pixel value to float
+ *
+ * \param vi Father object of every architecture
+ * \param inframe The input frame
+ * \param outframe The output frame after preprocess
+ */
+
+gboolean pixel_to_float(GstVideoInference * vi,
+    GstVideoFrame * inframe, GstVideoFrame * outframe);
+
 G_END_DECLS
 
 #endif
