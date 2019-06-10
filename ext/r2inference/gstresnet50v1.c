@@ -153,7 +153,7 @@ gst_resnet50v1_postprocess (GstVideoInference * vi, const gpointer prediction,
   GstDebugLevel level;
   GST_LOG_OBJECT (vi, "Postprocess");
 
-  fill_classification_meta (class_meta, prediction, predsize);
+  gst_fill_classification_meta (class_meta, prediction, predsize);
 
   /* Only compute the highest probability is label when debug >= 6 */
   level = gst_debug_category_get_threshold (gst_resnet50v1_debug_category);
