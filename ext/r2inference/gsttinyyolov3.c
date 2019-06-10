@@ -45,25 +45,6 @@
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov3_debug_category);
 #define GST_CAT_DEFAULT gst_tinyyolov3_debug_category
 
-/* Channels per pixel */
-#define MODEL_CHANNELS 3
-/* Total boxes per image */
-/* Defined as 13 x 13 x 15 = 2535 */
-/* Grid width x Grid height x bounding boxes per grid */
-#define TOTAL_BOXES 2535
-/* Number of classes */
-#define CLASSES 80
-/* Number of dimensions per box */
-#define BOX_DIM 5
-/* 
- * Box dim 
- * [0]: x
- * [1]: y
- * [2]: height
- * [3]: width
- * [4]: Objectness
- */
-
 /* Objectness threshold */
 #define MAX_OBJ_THRESH 1
 #define MIN_OBJ_THRESH 0
@@ -91,19 +72,6 @@ gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
     gboolean * valid_prediction);
 static gboolean gst_tinyyolov3_start (GstVideoInference * vi);
 static gboolean gst_tinyyolov3_stop (GstVideoInference * vi);
-
-static void print_top_predictions (GstVideoInference * vi, gpointer prediction,
-    gint input_image_width, gint input_image_height, BBox ** resulting_boxes,
-    gint * elements);
-static void gst_tinyyolov3_get_boxes_from_prediction (GstTinyyolov3 *
-    tinyyolov3, gpointer prediction, BBox * boxes, gint * elements);
-
-static void gst_tinyyolov3_remove_duplicated_boxes (GstTinyyolov3 * tinyyolov3,
-    BBox * boxes, gint * num_boxes);
-
-static void delete_box (BBox * boxes, gint * num_boxes, gint index);
-
-static gdouble intersection_over_union (BBox box_1, BBox box_2);
 
 enum
 {
@@ -276,12 +244,26 @@ gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
+  gint index;
+  GstTinyyolov3 *tinyyolov3;
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
   GST_LOG_OBJECT (vi, "Postprocess");
   detect_meta->num_boxes = 0;
+  tinyyolov3 = GST_TINYYOLOV3 (vi);
+  index = 0;
 
-  print_top_predictions (vi, prediction, info_model->width,
-      info_model->height, &detect_meta->boxes, &detect_meta->num_boxes);
+  gst_create_boxes_float (vi, prediction, detect_meta, info_model,
+      valid_prediction, &detect_meta->boxes, &detect_meta->num_boxes,
+      tinyyolov3->obj_thresh, tinyyolov3->prob_thresh, tinyyolov3->iou_thresh);
+
+  for (index = 0; index < detect_meta->num_boxes; index++) {
+    GST_LOG_OBJECT (vi,
+        "Box: [class:%d, x:%f, y:%f, width:%f, height:%f, prob:%f]",
+        detect_meta->boxes[index].label, detect_meta->boxes[index].x,
+        detect_meta->boxes[index].y, detect_meta->boxes[index].width,
+        detect_meta->boxes[index].height, detect_meta->boxes[index].prob);
+  }
+
   *valid_prediction = (detect_meta->num_boxes > 0) ? TRUE : FALSE;
 
   return TRUE;

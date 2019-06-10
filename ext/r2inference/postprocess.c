@@ -25,6 +25,7 @@
 #include <math.h>
 
 #define TOTAL_BOXES_5 845
+#define TOTAL_BOXES_15 2535
 
 /* Functions declaration*/
 
@@ -38,6 +39,9 @@ static gdouble gst_sigmoid (gdouble x);
 static void gst_get_boxes_from_prediction (gfloat obj_thresh,
     gfloat prob_thresh, gpointer prediction, BBox * boxes, gint * elements,
     gint grid_h, gint grid_w, gint boxes_size);
+static void gst_get_boxes_from_prediction_float (gfloat obj_thresh,
+    gfloat prob_thresh, gpointer prediction, BBox * boxes, gint * elements,
+    gint total_boxes);
 
 gboolean
 gst_fill_classification_meta (GstClassificationMeta * class_meta,
@@ -243,6 +247,88 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
 
   gst_get_boxes_from_prediction (obj_thresh, prob_thresh, prediction, boxes,
       elements, grid_h, grid_w, boxes_size);
+  gst_remove_duplicated_boxes (iou_thresh, boxes, elements);
+
+  *resulting_boxes = g_malloc (*elements * sizeof (BBox));
+  memcpy (*resulting_boxes, boxes, *elements * sizeof (BBox));
+  return TRUE;
+}
+
+static void
+gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
+    gpointer prediction, BBox * boxes, gint * elements, gint total_boxes)
+{
+  gint i, c;
+  gint index;
+  gdouble obj_prob;
+  gdouble cur_class_prob, max_class_prob;
+  gint max_class_prob_index;
+  gint counter = 0;
+  gint box_class_base;
+  gint box_dim = 5;
+  gint classes = 80;
+  gint dimensions_per_box = box_dim + classes;
+
+  assert (boxes != NULL);
+  assert (elements != NULL);
+
+  /* Iterate boxes */
+  for (i = 0; i < total_boxes; i++) {
+    index = i * dimensions_per_box;
+    obj_prob = ((gfloat *) prediction)[index + 4];
+
+    /* If the objectness score is over the threshold add it to the boxes list */
+    if (obj_prob > obj_thresh) {
+      max_class_prob = 0;
+      max_class_prob_index = 0;
+      box_class_base = index + box_dim;
+
+      /* Iterate each class probability */
+      for (c = 0; c < classes; c++) {
+        cur_class_prob = ((gfloat *) prediction)[box_class_base + c];
+        if (cur_class_prob > max_class_prob) {
+          max_class_prob = cur_class_prob;
+          max_class_prob_index = c;
+        }
+      }
+
+      if (max_class_prob > prob_thresh) {
+        BBox result;
+        result.label = max_class_prob_index;
+        result.prob = max_class_prob;
+        result.x = ((gfloat *) prediction)[index];
+        result.y = ((gfloat *) prediction)[index + 1];
+        result.width = ((gfloat *) prediction)[index + 2] - result.x;
+        result.height = ((gfloat *) prediction)[index + 3] - result.y;
+        boxes[counter] = result;
+        counter = counter + 1;
+      }
+    }
+    *elements = counter;
+  }
+}
+
+gboolean
+gst_create_boxes_float (GstVideoInference * vi, const gpointer prediction,
+    GstDetectionMeta * detect_meta, GstVideoInfo * info_model,
+    gboolean * valid_prediction, BBox ** resulting_boxes,
+    gint * elements, gdouble obj_thresh, gdouble prob_thresh,
+    gdouble iou_thresh)
+{
+  gint total_boxes = 2535;
+  BBox boxes[TOTAL_BOXES_15];
+  *elements = 0;
+
+  assert (vi != NULL);
+  assert (prediction != NULL);
+  assert (detect_meta != NULL);
+  assert (info_model != NULL);
+  assert (valid_prediction != NULL);
+  assert (resulting_boxes != NULL);
+  assert (elements != NULL);
+
+  gst_get_boxes_from_prediction_float (obj_thresh, prob_thresh, prediction,
+      boxes, elements, total_boxes);
   gst_remove_duplicated_boxes (iou_thresh, boxes, elements);
 
   *resulting_boxes = g_malloc (*elements * sizeof (BBox));
