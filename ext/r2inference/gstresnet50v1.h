@@ -23,8 +23,6 @@
 #define _GST_RESNET50V1_H_
 
 #include <gst/r2inference/gstvideoinference.h>
-#include "preprocess.h"
-#include "postprocess.h"
 
 G_BEGIN_DECLS
 

@@ -43,6 +43,8 @@
 #include "gstresnet50v1.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
+#include "gst/r2inference/gstinferencepreprocess.h"
+#include "gst/r2inference/gstinferencepostprocess.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_resnet50v1_debug_category);
 #define GST_CAT_DEFAULT gst_resnet50v1_debug_category
@@ -50,6 +52,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_resnet50v1_debug_category);
 #define MEAN_RED 123.68
 #define MEAN_GREEN 116.78
 #define MEAN_BLUE 103.94
+#define MODEL_CHANNELS 3
 
 /* prototypes */
 static gboolean gst_resnet50v1_preprocess (GstVideoInference * vi,
@@ -139,7 +142,8 @@ gst_resnet50v1_preprocess (GstVideoInference * vi,
 {
 
   GST_LOG_OBJECT (vi, "Preprocess");
-  return subtract_mean (vi, inframe, outframe, MEAN_RED, MEAN_GREEN, MEAN_BLUE);
+  return gst_subtract_mean (inframe, outframe, MEAN_RED, MEAN_GREEN, MEAN_BLUE,
+      MODEL_CHANNELS);
 }
 
 static gboolean

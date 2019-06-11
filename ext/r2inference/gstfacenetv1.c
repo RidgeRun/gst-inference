@@ -42,9 +42,13 @@
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 #include <math.h>
+#include "gst/r2inference/gstinferencepreprocess.h"
+#include "gst/r2inference/gstinferencepostprocess.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_facenetv1_debug_category);
 #define GST_CAT_DEFAULT gst_facenetv1_debug_category
+
+#define MODEL_CHANNELS 3
 
 /* prototypes */
 static void gst_facenetv1_set_property (GObject * object,
@@ -196,7 +200,7 @@ gst_facenetv1_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
   GST_LOG_OBJECT (vi, "Preprocess");
-  return normalize_face (vi, inframe, outframe);
+  return gst_normalize_face (inframe, outframe, MODEL_CHANNELS);
 }
 
 static gboolean

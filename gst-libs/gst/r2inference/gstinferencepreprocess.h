@@ -19,68 +19,57 @@
  *
  */
 
-#ifndef __PREPROCESS_H__
-#define __PREPROCESS_H__
+#ifndef __GST_INFERENCE_PREPROCESS_H__
+#define __GST_INFERENCE_PREPROCESS_H__
 
-#include <gst/r2inference/gstvideoinference.h>
-#include <math.h>
+#include <gst/video/video.h>
 
 G_BEGIN_DECLS
 
 /**
  * \brief Normalization with values between 0 and 1
  *
- * \param vi Father object of every architecture
  * \param inframe The input frame
  * \param outframe The output frame after preprocess
+ * \param mean The mean value of the channel
+ * \param std  The standart deviation of the channel
+ * \param model_channels The number of channels of the model
  */
 
-gboolean normalize(GstVideoInference * vi,
-    GstVideoFrame * inframe, GstVideoFrame * outframe);
-
-/**
- * \brief Normalization with values between -1 and 1
- *
- * \param vi Father object of every architecture
- * \param inframe The input frame
- * \param outframe The output frame after preprocess
- */
-
-gboolean normalize_zero_mean(GstVideoInference * vi,
-    GstVideoFrame * inframe, GstVideoFrame * outframe);
+gboolean gst_normalize(GstVideoFrame * inframe, GstVideoFrame * outframe, gdouble mean, gdouble std, gint model_channels);
 
 /**
  * \brief Especial normalization used for facenet
  *
- * \param vi Father object of every architecture
  * \param inframe The input frame
  * \param outframe The output frame after preprocess
+ * \param model_channels The number of channels of the model
  */
 
-gboolean normalize_face(GstVideoInference * vi,
-    GstVideoFrame * inframe, GstVideoFrame * outframe);
+gboolean gst_normalize_face(GstVideoFrame * inframe, GstVideoFrame * outframe, gint model_channels);
 
 /**
  * \brief Substract the mean value to every pixel
  *
- * \param vi Father object of every architecture
  * \param inframe The input frame
  * \param outframe The output frame after preprocess
+ * \param mean_red The mean value of the channel red
+ * \param mean_green The mean value of the channel green
+ * \param mean_blue The mean value of the channel blue
+ * \param model_channels The number of channels of the model
  */
 
-gboolean subtract_mean(GstVideoInference * vi,
-    GstVideoFrame * inframe, GstVideoFrame * outframe, gdouble mean_red, gdouble mean_green, gdouble mena_blue);
+gboolean gst_subtract_mean(GstVideoFrame * inframe, GstVideoFrame * outframe, gdouble mean_red, gdouble mean_green, gdouble mean_blue, gint model_channels);
 
 /**
  * \brief Change every pixel value to float
  *
- * \param vi Father object of every architecture
  * \param inframe The input frame
  * \param outframe The output frame after preprocess
+ * \param model_channels The number of channels of the model
  */
 
-gboolean pixel_to_float(GstVideoInference * vi,
-    GstVideoFrame * inframe, GstVideoFrame * outframe);
+gboolean gst_pixel_to_float(GstVideoFrame * inframe, GstVideoFrame * outframe, gint model_channels);
 
 G_END_DECLS
 

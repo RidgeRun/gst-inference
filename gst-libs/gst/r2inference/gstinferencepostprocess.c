@@ -18,9 +18,7 @@
  * Boston, MA 02111-1307, USA.
  *
  */
-
-#include "postprocess.h"
-#include <assert.h>
+#include "gstinferencepostprocess.h"
 #include <string.h>
 #include <math.h>
 
@@ -47,8 +45,8 @@ gboolean
 gst_fill_classification_meta (GstClassificationMeta * class_meta,
     const gpointer prediction, gsize predsize)
 {
-  assert (class_meta != NULL);
-  assert (prediction != NULL);
+  g_return_val_if_fail (class_meta != NULL, FALSE);
+  g_return_val_if_fail (prediction != NULL, FALSE);
 
   class_meta->num_labels = predsize / sizeof (gfloat);
   class_meta->label_probs =
@@ -57,7 +55,6 @@ gst_fill_classification_meta (GstClassificationMeta * class_meta,
     class_meta->label_probs[i] = (gdouble) ((gfloat *) prediction)[i];
   }
   return TRUE;
-
 }
 
 static gdouble
@@ -98,8 +95,8 @@ gst_delete_box (BBox * boxes, gint * num_boxes, gint index)
 {
   gint i, last_index;
 
-  assert (boxes != NULL);
-  assert (num_boxes != NULL);
+  g_return_if_fail (boxes != NULL);
+  g_return_if_fail (num_boxes != NULL);
 
   if (*num_boxes > 0 && index < *num_boxes && index > -1) {
     last_index = *num_boxes - 1;
@@ -119,8 +116,8 @@ gst_remove_duplicated_boxes (gfloat iou_thresh, BBox * boxes, gint * num_boxes)
   gdouble iou;
   gint it1, it2;
 
-  assert (boxes != NULL);
-  assert (num_boxes != NULL);
+  g_return_if_fail (boxes != NULL);
+  g_return_if_fail (num_boxes != NULL);
 
   for (it1 = 0; it1 < *num_boxes - 1; it1++) {
     for (it2 = it1 + 1; it2 < *num_boxes; it2++) {
@@ -155,7 +152,7 @@ gst_box_to_pixels (BBox * normalized_box, gint row, gint col, gint box)
   const gfloat box_anchors[] =
       { 1.08, 1.19, 3.42, 4.41, 6.63, 11.38, 9.42, 5.11, 16.62, 10.52 };
 
-  assert (normalized_box != NULL);
+  g_return_if_fail (normalized_box != NULL);
 
   /* adjust the box center according to its cell and grid dim */
   normalized_box->x = (col + gst_sigmoid (normalized_box->x)) * grid_size;
@@ -182,8 +179,8 @@ gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
   gint box_dim = 5;
   gint classes = 20;
 
-  assert (boxes != NULL);
-  assert (elements != NULL);
+  g_return_if_fail (boxes != NULL);
+  g_return_if_fail (elements != NULL);
 
   /* Iterate rows */
   for (i = 0; i < grid_h; i++) {
@@ -237,13 +234,13 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
   BBox boxes[TOTAL_BOXES_5];
   *elements = 0;
 
-  assert (vi != NULL);
-  assert (prediction != NULL);
-  assert (detect_meta != NULL);
-  assert (info_model != NULL);
-  assert (valid_prediction != NULL);
-  assert (resulting_boxes != NULL);
-  assert (elements != NULL);
+  g_return_val_if_fail (vi != NULL, FALSE);
+  g_return_val_if_fail (prediction != NULL, FALSE);
+  g_return_val_if_fail (detect_meta != NULL, FALSE);
+  g_return_val_if_fail (info_model != NULL, FALSE);
+  g_return_val_if_fail (valid_prediction != NULL, FALSE);
+  g_return_val_if_fail (resulting_boxes != NULL, FALSE);
+  g_return_val_if_fail (elements != NULL, FALSE);
 
   gst_get_boxes_from_prediction (obj_thresh, prob_thresh, prediction, boxes,
       elements, grid_h, grid_w, boxes_size);
@@ -269,8 +266,8 @@ gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
   gint classes = 80;
   gint dimensions_per_box = box_dim + classes;
 
-  assert (boxes != NULL);
-  assert (elements != NULL);
+  g_return_if_fail (boxes != NULL);
+  g_return_if_fail (elements != NULL);
 
   /* Iterate boxes */
   for (i = 0; i < total_boxes; i++) {
@@ -319,13 +316,13 @@ gst_create_boxes_float (GstVideoInference * vi, const gpointer prediction,
   BBox boxes[TOTAL_BOXES_15];
   *elements = 0;
 
-  assert (vi != NULL);
-  assert (prediction != NULL);
-  assert (detect_meta != NULL);
-  assert (info_model != NULL);
-  assert (valid_prediction != NULL);
-  assert (resulting_boxes != NULL);
-  assert (elements != NULL);
+  g_return_val_if_fail (vi != NULL, FALSE);
+  g_return_val_if_fail (prediction != NULL, FALSE);
+  g_return_val_if_fail (detect_meta != NULL, FALSE);
+  g_return_val_if_fail (info_model != NULL, FALSE);
+  g_return_val_if_fail (valid_prediction != NULL, FALSE);
+  g_return_val_if_fail (resulting_boxes != NULL, FALSE);
+  g_return_val_if_fail (elements != NULL, FALSE);
 
   gst_get_boxes_from_prediction_float (obj_thresh, prob_thresh, prediction,
       boxes, elements, total_boxes);

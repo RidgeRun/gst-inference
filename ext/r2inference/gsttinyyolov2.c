@@ -42,9 +42,15 @@
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 #include <math.h>
+#include "gst/r2inference/gstinferencepreprocess.h"
+#include "gst/r2inference/gstinferencepostprocess.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov2_debug_category);
 #define GST_CAT_DEFAULT gst_tinyyolov2_debug_category
+
+#define MEAN 0
+#define STD 1/255.0
+#define MODEL_CHANNELS 3
 
 /* Objectness threshold */
 #define MAX_OBJ_THRESH 1
@@ -268,7 +274,7 @@ gst_tinyyolov2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
   GST_LOG_OBJECT (vi, "Preprocess");
-  return normalize (vi, inframe, outframe);
+  return gst_normalize (inframe, outframe, MEAN, STD, MODEL_CHANNELS);
 }
 
 static gboolean

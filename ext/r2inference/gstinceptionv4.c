@@ -42,9 +42,15 @@
 #include "gstinceptionv4.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
+#include "gst/r2inference/gstinferencepreprocess.h"
+#include "gst/r2inference/gstinferencepostprocess.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_inceptionv4_debug_category);
 #define GST_CAT_DEFAULT gst_inceptionv4_debug_category
+
+#define MEAN 128.0
+#define STD 1/128.0
+#define MODEL_CHANNELS 3
 
 /* prototypes */
 static void gst_inceptionv4_set_property (GObject * object,
@@ -199,7 +205,7 @@ gst_inceptionv4_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
   GST_LOG_OBJECT (vi, "Preprocess");
-  return normalize_zero_mean (vi, inframe, outframe);
+  return gst_normalize (inframe, outframe, MEAN, STD, MODEL_CHANNELS);
 }
 
 static gboolean

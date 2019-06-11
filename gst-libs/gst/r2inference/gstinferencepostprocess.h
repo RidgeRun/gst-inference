@@ -22,8 +22,8 @@
 #include <gst/r2inference/gstvideoinference.h>
 #include <gst/r2inference/gstinferencemeta.h>
 
-#ifndef __POSTPROCESS_H__
-#define __POSTPROCESS_H__
+#ifndef __GST_INFERENCE_POSTPROCESS_H__
+#define __GST_INFERENCE_POSTPROCESS_H__
 
 G_BEGIN_DECLS
 
