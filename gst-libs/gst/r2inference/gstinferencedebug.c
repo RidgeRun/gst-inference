@@ -42,3 +42,34 @@ gst_inference_print_embedding (GstVideoInference * vi,
     }
   }
 }
+
+void
+gst_inference_print_highest_probability (GstVideoInference * vi,
+    GstDebugCategory * category, GstClassificationMeta * class_meta,
+    const gpointer prediction, GstDebugLevel gstlevel)
+{
+  gint index;
+  gdouble max;
+  GstDebugLevel level;
+
+  g_return_if_fail (vi != NULL);
+  g_return_if_fail (category != NULL);
+  g_return_if_fail (class_meta != NULL);
+  g_return_if_fail (prediction != NULL);
+
+  /* Only compute the highest probability is label when debug >= 6 */
+  level = gst_debug_category_get_threshold (category);
+  if (level >= gstlevel) {
+    index = 0;
+    max = -1;
+    for (gint i = 0; i < class_meta->num_labels; ++i) {
+      gfloat current = ((gfloat *) prediction)[i];
+      if (current > max) {
+        max = current;
+        index = i;
+      }
+    }
+    GST_CAT_LEVEL_LOG (category, gstlevel, vi,
+        "Highest probability is label %i : (%f)", index, max);
+  }
+}

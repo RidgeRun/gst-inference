@@ -45,6 +45,7 @@
 #include <string.h>
 #include "gst/r2inference/gstinferencepreprocess.h"
 #include "gst/r2inference/gstinferencepostprocess.h"
+#include "gst/r2inference/gstinferencedebug.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_resnet50v1_debug_category);
 #define GST_CAT_DEFAULT gst_resnet50v1_debug_category
@@ -152,27 +153,13 @@ gst_resnet50v1_postprocess (GstVideoInference * vi, const gpointer prediction,
     gboolean * valid_prediction)
 {
   GstClassificationMeta *class_meta = (GstClassificationMeta *) meta_model;
-  gint index;
-  gdouble max;
-  GstDebugLevel level;
+  GstDebugLevel gst_debug_level = GST_LEVEL_LOG;
   GST_LOG_OBJECT (vi, "Postprocess");
 
   gst_fill_classification_meta (class_meta, prediction, predsize);
 
-  /* Only compute the highest probability is label when debug >= 6 */
-  level = gst_debug_category_get_threshold (gst_resnet50v1_debug_category);
-  if (level >= GST_LEVEL_LOG) {
-    index = 0;
-    max = -1;
-    for (gint i = 0; i < class_meta->num_labels; ++i) {
-      gfloat current = ((gfloat *) prediction)[i];
-      if (current > max) {
-        max = current;
-        index = i;
-      }
-    }
-    GST_LOG_OBJECT (vi, "Highest probability is label %i : (%f)", index, max);
-  }
+  gst_inference_print_highest_probability (vi, gst_resnet50v1_debug_category,
+      class_meta, prediction, gst_debug_level);
 
   *valid_prediction = TRUE;
   return TRUE;
