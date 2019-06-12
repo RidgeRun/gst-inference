@@ -73,3 +73,22 @@ gst_inference_print_highest_probability (GstVideoInference * vi,
         "Highest probability is label %i : (%f)", index, max);
   }
 }
+
+void
+gst_inference_print_boxes (GstVideoInference * vi, GstDebugCategory * category,
+    GstDetectionMeta * detect_meta)
+{
+  gint index;
+
+  g_return_if_fail (vi != NULL);
+  g_return_if_fail (category != NULL);
+  g_return_if_fail (detect_meta != NULL);
+
+  for (index = 0; index < detect_meta->num_boxes; index++) {
+    GST_CAT_LOG_OBJECT (category, vi,
+        "Box: [class:%d, x:%f, y:%f, width:%f, height:%f, prob:%f]",
+        detect_meta->boxes[index].label, detect_meta->boxes[index].x,
+        detect_meta->boxes[index].y, detect_meta->boxes[index].width,
+        detect_meta->boxes[index].height, detect_meta->boxes[index].prob);
+  }
+}

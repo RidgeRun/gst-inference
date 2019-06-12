@@ -50,7 +50,15 @@ void gst_inference_print_embedding(GstVideoInference * vi, GstDebugCategory *cat
 
 void gst_inference_print_highest_probability(GstVideoInference * vi, GstDebugCategory *category, GstClassificationMeta *class_meta, const gpointer prediction, GstDebugLevel gstlevel);
 
-void gst_boxes();
+/**
+ * \brief Display the vector with the predictions
+ *
+ * \param vi Father object of every architecture
+ * \param category The debug category
+ * \param detect_meta Meta detected
+ */
+
+void gst_inference_print_boxes(GstVideoInference * vi, GstDebugCategory *category, GstDetectionMeta *detect_meta);
 
 G_END_DECLS
 #endif // GST_INFERENCE_DEBUG_H
