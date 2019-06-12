@@ -43,10 +43,14 @@
 #include "gstinceptionv2.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
+#include "gst/r2inference/gstinferencepreprocess.h"
+#include "gst/r2inference/gstinferencepostprocess.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_inceptionv2_debug_category);
 #define GST_CAT_DEFAULT gst_inceptionv2_debug_category
 
+#define MEAN 128.0
+#define STD 1/128.0
 #define MODEL_CHANNELS 3
 
 /* prototypes */
@@ -201,69 +205,8 @@ static gboolean
 gst_inceptionv2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-  gint i, j, pixel_stride, width, height, channels;
-  gint first_index, last_index, offset;
-  const gdouble mean = 128.0;
-  const gdouble std = 1 / 128.0;
-
   GST_LOG_OBJECT (vi, "Preprocess");
-
-  channels = 4;
-  switch (GST_VIDEO_FRAME_FORMAT (inframe)) {
-    case GST_VIDEO_FORMAT_RGB:
-      channels = 3;
-    case GST_VIDEO_FORMAT_RGBx:
-    case GST_VIDEO_FORMAT_RGBA:
-      first_index = 0;
-      last_index = 2;
-      offset = 0;
-      break;
-    case GST_VIDEO_FORMAT_BGR:
-      channels = 3;
-    case GST_VIDEO_FORMAT_BGRx:
-    case GST_VIDEO_FORMAT_BGRA:
-      first_index = 2;
-      last_index = 0;
-      offset = 0;
-      break;
-    case GST_VIDEO_FORMAT_xRGB:
-    case GST_VIDEO_FORMAT_ARGB:
-      first_index = 0;
-      last_index = 2;
-      offset = 1;
-      break;
-    case GST_VIDEO_FORMAT_xBGR:
-    case GST_VIDEO_FORMAT_ABGR:
-      first_index = 2;
-      last_index = 0;
-      offset = 1;
-      break;
-    default:
-      GST_ERROR_OBJECT (vi, "Invalid format");
-      return FALSE;
-      break;
-  }
-  pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0) / channels;
-  width = GST_VIDEO_FRAME_WIDTH (inframe);
-  height = GST_VIDEO_FRAME_HEIGHT (inframe);
-
-  for (i = 0; i < height; ++i) {
-    for (j = 0; j < width; ++j) {
-      ((gfloat *) outframe->data[0])[(i * width + j) * MODEL_CHANNELS +
-          first_index] =
-          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels + 0 +
-              offset] - mean) * std;
-      ((gfloat *) outframe->data[0])[(i * width + j) * MODEL_CHANNELS + 1] =
-          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels + 1 +
-              offset] - mean) * std;
-      ((gfloat *) outframe->data[0])[(i * width + j) * MODEL_CHANNELS +
-          last_index] =
-          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels + 2 +
-              offset] - mean) * std;
-    }
-  }
-
-  return TRUE;
+  return gst_normalize (inframe, outframe, MEAN, STD, MODEL_CHANNELS);
 }
 
 static gboolean
@@ -277,12 +220,7 @@ gst_inceptionv2_postprocess (GstVideoInference * vi, const gpointer prediction,
   GstDebugLevel level;
   GST_LOG_OBJECT (vi, "Postprocess");
 
-  class_meta->num_labels = predsize / sizeof (gfloat);
-  class_meta->label_probs =
-      g_malloc (class_meta->num_labels * sizeof (gdouble));
-  for (gint i = 0; i < class_meta->num_labels; ++i) {
-    class_meta->label_probs[i] = (gdouble) ((gfloat *) prediction)[i];
-  }
+  gst_fill_classification_meta (class_meta, prediction, predsize);
 
   /* Only compute the highest probability is label when debug >= 6 */
   level = gst_debug_category_get_threshold (gst_inceptionv2_debug_category);
