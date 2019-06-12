@@ -44,6 +44,7 @@
 #include <math.h>
 #include "gst/r2inference/gstinferencepreprocess.h"
 #include "gst/r2inference/gstinferencepostprocess.h"
+#include "gst/r2inference/gstinferencedebug.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_facenetv1_debug_category);
 #define GST_CAT_DEFAULT gst_facenetv1_debug_category
@@ -209,20 +210,13 @@ gst_facenetv1_postprocess (GstVideoInference * vi, const gpointer prediction,
     gboolean * valid_prediction)
 {
   GstClassificationMeta *class_meta = (GstClassificationMeta *) meta_model;
-  GstDebugLevel level;
+  GstDebugLevel gst_debug_level = GST_LEVEL_LOG;
   GST_LOG_OBJECT (vi, "Postprocess");
 
   gst_fill_classification_meta (class_meta, prediction, predsize);
 
-  /* Only display vector if debug level >= 6 */
-  level = gst_debug_category_get_threshold (gst_facenetv1_debug_category);
-  if (level >= GST_LEVEL_LOG) {
-    for (gint i = 0; i < class_meta->num_labels; ++i) {
-      gfloat current = ((gfloat *) prediction)[i];
-      GST_LOG_OBJECT (vi, "Output vector element %i : (%f)", i, current);
-    }
-  }
-
+  gst_inference_print_embedding (vi, gst_facenetv1_debug_category, class_meta,
+      prediction, gst_debug_level);
   *valid_prediction = TRUE;
   return TRUE;
 }

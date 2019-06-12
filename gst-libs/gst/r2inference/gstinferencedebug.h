@@ -18,15 +18,25 @@
  * Boston, MA 02111-1307, USA.
  *
  */
-
 #ifndef GST_INFERENCE_DEBUG_H
 #define GST_INFERENCE_DEBUG_H
 
 #include <gst/r2inference/gstvideoinference.h>
+#include <gst/r2inference/gstinferencemeta.h>
 
 G_BEGIN_DECLS
 
-void gst_output_vector();
+/**
+ * \brief Display the vector with the predictions
+ *
+ * \param vi Father object of every architecture
+ * \param category The debug category
+ * \param class_meta Meta detected
+ * \param prediction Value of the prediction
+ * \param gstlevel Level of debuging
+ */
+
+void gst_inference_print_embedding(GstVideoInference * vi, GstDebugCategory *category, GstClassificationMeta *class_meta,  const gpointer prediction, GstDebugLevel gstlevel);
 
 void gst_highest_probability();
 
