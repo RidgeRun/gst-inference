@@ -43,6 +43,7 @@
 #include <string.h>
 #include "gst/r2inference/gstinferencepreprocess.h"
 #include "gst/r2inference/gstinferencepostprocess.h"
+#include "gst/r2inference/gstinferencedebug.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov3_debug_category);
 #define GST_CAT_DEFAULT gst_tinyyolov3_debug_category
@@ -248,25 +249,17 @@ gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
-  gint index;
   GstTinyyolov3 *tinyyolov3;
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
   GST_LOG_OBJECT (vi, "Postprocess");
   detect_meta->num_boxes = 0;
   tinyyolov3 = GST_TINYYOLOV3 (vi);
-  index = 0;
 
   gst_create_boxes_float (vi, prediction, detect_meta, info_model,
       valid_prediction, &detect_meta->boxes, &detect_meta->num_boxes,
       tinyyolov3->obj_thresh, tinyyolov3->prob_thresh, tinyyolov3->iou_thresh);
 
-  for (index = 0; index < detect_meta->num_boxes; index++) {
-    GST_LOG_OBJECT (vi,
-        "Box: [class:%d, x:%f, y:%f, width:%f, height:%f, prob:%f]",
-        detect_meta->boxes[index].label, detect_meta->boxes[index].x,
-        detect_meta->boxes[index].y, detect_meta->boxes[index].width,
-        detect_meta->boxes[index].height, detect_meta->boxes[index].prob);
-  }
+  gst_inference_print_boxes (vi, gst_tinyyolov3_debug_category, detect_meta);
 
   *valid_prediction = (detect_meta->num_boxes > 0) ? TRUE : FALSE;
 
