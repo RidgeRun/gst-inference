@@ -24,7 +24,9 @@ clean-local: clean-local-check
 $(CHECK_REGISTRY):
 	$(AM_TESTS_ENVIRONMENT)
 
-check_PROGRAMS =
+check_PROGRAMS = \
+	process/test_preprocess_methods		\
+	process/test_postprocess_methods
 
 # failing tests
 noinst_PROGRAMS =
