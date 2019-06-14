@@ -203,6 +203,76 @@ GST_START_TEST (test_gst_subtract_mean)
 
 GST_END_TEST;
 
+GST_START_TEST (test_gst_normalize)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gfloat expected_value;
+
+  frame_pixel_value = 200;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_RGBA;
+
+  mean = 0;
+  std = 1 / 255.0;
+
+  expected_value = 200.0 / 255.0;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  gst_check_output_pixels (&outframe, expected_value, expected_value,
+      expected_value, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_normalize_zero_mean)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gfloat expected_value;
+
+  frame_pixel_value = 192;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_RGBA;
+
+  mean = 128.0;
+  std = 1 / 128.0;
+
+  expected_value = 0.5;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  gst_check_output_pixels (&outframe, expected_value, expected_value,
+      expected_value, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
 static Suite *
 gst_inference_preprocess_suite (void)
 {
@@ -213,6 +283,8 @@ gst_inference_preprocess_suite (void)
 
   tcase_add_test (tc, test_gst_pixel_to_float);
   tcase_add_test (tc, test_gst_subtract_mean);
+  tcase_add_test (tc, test_gst_normalize);
+  tcase_add_test (tc, test_gst_normalize_zero_mean);
 
   return suite;
 }
