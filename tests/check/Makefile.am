@@ -24,8 +24,8 @@ $(CHECK_REGISTRY):
 	$(AM_TESTS_ENVIRONMENT)
 
 check_PROGRAMS = \
-	process/test_preprocess_methods		\
-	process/test_postprocess_methods
+	process/test_preprocess_functions		\
+	process/test_postprocess_functions
 
 # failing tests
 noinst_PROGRAMS =
