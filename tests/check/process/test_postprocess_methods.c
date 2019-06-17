@@ -19,10 +19,27 @@
  *
  */
 #include <gst/check/gstcheck.h>
+#include "gst/r2inference/gstinferencepostprocess.h"
+#include "gst/r2inference/gstinferencemeta.h"
 
 GST_START_TEST (test_gst_fill_classification_meta)
 {
+  GstClassificationMeta *class_meta;
+  gpointer prediction;
+  gsize predsize;
+  gfloat values[2] = { 0.15, 0.75 };
 
+  prediction = values;
+  predsize = sizeof (values);
+  class_meta = (void *) gst_classification_meta_api_get_type ();
+
+  gst_fill_classification_meta (class_meta, prediction, predsize);
+
+  fail_if (class_meta->num_labels != predsize / sizeof (gfloat));
+
+  for (gint i = 0; i < class_meta->num_labels; i++) {
+    fail_if (class_meta->label_probs[i] != values[i]);
+  }
 }
 
 GST_END_TEST;

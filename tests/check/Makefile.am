@@ -12,7 +12,6 @@ AM_TESTS_ENVIRONMENT = 							   \
 	GST_PLUGIN_PATH_1_0=$(top_builddir)/gst:$(GST_PLUGINS_DIR)  \
 	GST_PLUGIN_LOADING_WHITELIST="gstreamer:gst-plugins-good:gst-plugins-base:gst-plugins-bad:gst-plugins-ugly:libnice:gst-libav:gst-inference@$(top_builddir)"
 
-
 # the core dumps of some machines have PIDs appended, test registry and
 # profiling data
 CLEANFILES = core core.* test-registry.* *.gcno *.gcda

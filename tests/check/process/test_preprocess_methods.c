@@ -19,9 +19,8 @@
  *
  */
 #include <gst/check/gstcheck.h>
-#include <gst/r2inference/gstinferencepreprocess.h>
 #include <gst/video/video.h>
-
+#include "gst/r2inference/gstinferencepreprocess.h"
 
 static void gst_create_dump_frames (GstVideoFrame * inframe,
     GstVideoFrame * outframe, guchar value, gint buffer_size, gint width,
@@ -39,6 +38,7 @@ gst_check_output_pixels (GstVideoFrame * outframe, gfloat expected_value_red,
   gfloat out_value;
   gint frame_width;
   gint frame_height;
+
   frame_width = GST_VIDEO_FRAME_WIDTH (outframe);
   frame_height = GST_VIDEO_FRAME_HEIGHT (outframe);
 
@@ -78,6 +78,7 @@ gst_create_dump_frames (GstVideoFrame * inframe, GstVideoFrame * outframe,
   guint channels;
   gint frame_width;
   gint frame_height;
+
   GstVideoInfo *info = gst_video_info_new ();
   GstBuffer *buffer = gst_buffer_new ();
   GstBuffer *buffer_out = gst_buffer_new ();
