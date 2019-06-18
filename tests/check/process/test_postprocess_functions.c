@@ -44,6 +44,24 @@ GST_START_TEST (test_gst_fill_classification_meta)
 
 GST_END_TEST;
 
+GST_START_TEST (test_gst_fill_classification_meta_zero_size)
+{
+  GstClassificationMeta *class_meta;
+  gpointer prediction;
+  gsize predsize;
+  gfloat values[2] = { 0.15, 0.75 };
+
+  prediction = values;
+  predsize = 0;
+  class_meta = (void *) gst_classification_meta_api_get_type ();
+
+  gst_fill_classification_meta (class_meta, prediction, predsize);
+
+  fail_if (class_meta->num_labels != 0);
+}
+
+GST_END_TEST;
+
 static Suite *
 gst_inference_postprocess_suite (void)
 {
@@ -53,6 +71,7 @@ gst_inference_postprocess_suite (void)
   suite_add_tcase (suite, tc);
 
   tcase_add_test (tc, test_gst_fill_classification_meta);
+  tcase_add_test (tc, test_gst_fill_classification_meta_zero_size);
 
   return suite;
 }
