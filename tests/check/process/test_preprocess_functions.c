@@ -779,6 +779,281 @@ GST_START_TEST (test_gst_normalize)
 
 GST_END_TEST;
 
+GST_START_TEST (test_gst_normalize_RGB)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gfloat expected_value;
+
+  frame_pixel_value = 200;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_RGB;
+
+  mean = 0;
+  std = 1 / 255.0;
+
+  expected_value = 200.0 / 255.0;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  gst_check_output_pixels (&outframe, expected_value, expected_value,
+      expected_value, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_normalize_RGBx)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gfloat expected_value;
+
+  frame_pixel_value = 200;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_RGBx;
+
+  mean = 0;
+  std = 1 / 255.0;
+
+  expected_value = 200.0 / 255.0;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  gst_check_output_pixels (&outframe, expected_value, expected_value,
+      expected_value, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_normalize_BGR)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gfloat expected_value;
+
+  frame_pixel_value = 200;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_BGR;
+
+  mean = 0;
+  std = 1 / 255.0;
+
+  expected_value = 200.0 / 255.0;
+  first_index = 2;
+  last_index = 0;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  gst_check_output_pixels (&outframe, expected_value, expected_value,
+      expected_value, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_normalize_BGRx)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gfloat expected_value;
+
+  frame_pixel_value = 200;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_BGRx;
+
+  mean = 0;
+  std = 1 / 255.0;
+
+  expected_value = 200.0 / 255.0;
+  first_index = 2;
+  last_index = 0;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  gst_check_output_pixels (&outframe, expected_value, expected_value,
+      expected_value, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_normalize_BGRA)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gfloat expected_value;
+
+  frame_pixel_value = 200;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_BGRA;
+
+  mean = 0;
+  std = 1 / 255.0;
+
+  expected_value = 200.0 / 255.0;
+  first_index = 2;
+  last_index = 0;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  gst_check_output_pixels (&outframe, expected_value, expected_value,
+      expected_value, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_normalize_invalid_format)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gboolean ret;
+
+  frame_pixel_value = 200;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_AYUV;
+
+  mean = 0;
+  std = 1 / 255.0;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  ret = gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  fail_if (ret != FALSE);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_normalize_odd_width)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gfloat expected_value;
+
+  frame_pixel_value = 200;
+  buffer_size = 18;
+  width = 9;
+  height = 2;
+  format = GST_VIDEO_FORMAT_RGBA;
+
+  mean = 0;
+  std = 1 / 255.0;
+
+  expected_value = 200.0 / 255.0;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  gst_check_output_pixels (&outframe, expected_value, expected_value,
+      expected_value, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_normalize_odd_height)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean, std;
+  GstVideoFormat format;
+  gfloat expected_value;
+
+  frame_pixel_value = 200;
+  buffer_size = 44;
+  width = 4;
+  height = 11;
+  format = GST_VIDEO_FORMAT_RGBA;
+
+  mean = 0;
+  std = 1 / 255.0;
+
+  expected_value = 200.0 / 255.0;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_normalize (&inframe, &outframe, mean, std, 3);
+
+  gst_check_output_pixels (&outframe, expected_value, expected_value,
+      expected_value, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+
 GST_START_TEST (test_gst_normalize_zero_mean)
 {
   GstVideoFrame inframe;
@@ -841,6 +1116,14 @@ gst_inference_preprocess_suite (void)
   tcase_add_test (tc, test_gst_subtract_mean_odd_width);
   tcase_add_test (tc, test_gst_subtract_mean_odd_height);
   tcase_add_test (tc, test_gst_normalize);
+  tcase_add_test (tc, test_gst_normalize_RGB);
+  tcase_add_test (tc, test_gst_normalize_RGBx);
+  tcase_add_test (tc, test_gst_normalize_BGR);
+  tcase_add_test (tc, test_gst_normalize_BGRx);
+  tcase_add_test (tc, test_gst_normalize_BGRA);
+  tcase_add_test (tc, test_gst_normalize_invalid_format);
+  tcase_add_test (tc, test_gst_normalize_odd_width);
+  tcase_add_test (tc, test_gst_normalize_odd_height);
   tcase_add_test (tc, test_gst_normalize_zero_mean);
 
   return suite;
