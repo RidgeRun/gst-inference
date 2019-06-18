@@ -446,6 +446,304 @@ GST_START_TEST (test_gst_subtract_mean)
 
 GST_END_TEST;
 
+GST_START_TEST (test_gst_subtract_mean_RGB)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean_red, mean_green, mean_blue;
+  GstVideoFormat format;
+  gfloat expected_value_red, expected_value_green, expected_value_blue;
+
+  frame_pixel_value = 150;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_RGB;
+
+  mean_red = 123.68;
+  mean_green = 116.78;
+  mean_blue = 103.94;
+
+  expected_value_red = 26.32;
+  expected_value_green = 33.22;
+  expected_value_blue = 46.06;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_subtract_mean (&inframe, &outframe, mean_red, mean_green, mean_blue, 3);
+
+  gst_check_output_pixels (&outframe, expected_value_red, expected_value_green,
+      expected_value_blue, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_subtract_mean_RGBx)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean_red, mean_green, mean_blue;
+  GstVideoFormat format;
+  gfloat expected_value_red, expected_value_green, expected_value_blue;
+
+  frame_pixel_value = 150;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_RGBx;
+
+  mean_red = 123.68;
+  mean_green = 116.78;
+  mean_blue = 103.94;
+
+  expected_value_red = 26.32;
+  expected_value_green = 33.22;
+  expected_value_blue = 46.06;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_subtract_mean (&inframe, &outframe, mean_red, mean_green, mean_blue, 3);
+
+  gst_check_output_pixels (&outframe, expected_value_red, expected_value_green,
+      expected_value_blue, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_subtract_mean_BGR)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean_red, mean_green, mean_blue;
+  GstVideoFormat format;
+  gfloat expected_value_red, expected_value_green, expected_value_blue;
+
+  frame_pixel_value = 150;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_BGR;
+
+  mean_red = 123.68;
+  mean_green = 116.78;
+  mean_blue = 103.94;
+
+  expected_value_red = 26.32;
+  expected_value_green = 33.22;
+  expected_value_blue = 46.06;
+  first_index = 2;
+  last_index = 0;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_subtract_mean (&inframe, &outframe, mean_red, mean_green, mean_blue, 3);
+
+  gst_check_output_pixels (&outframe, expected_value_red, expected_value_green,
+      expected_value_blue, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_subtract_mean_BGRx)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean_red, mean_green, mean_blue;
+  GstVideoFormat format;
+  gfloat expected_value_red, expected_value_green, expected_value_blue;
+
+  frame_pixel_value = 150;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_BGRx;
+
+  mean_red = 123.68;
+  mean_green = 116.78;
+  mean_blue = 103.94;
+
+  expected_value_red = 26.32;
+  expected_value_green = 33.22;
+  expected_value_blue = 46.06;
+  first_index = 2;
+  last_index = 0;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_subtract_mean (&inframe, &outframe, mean_red, mean_green, mean_blue, 3);
+
+  gst_check_output_pixels (&outframe, expected_value_red, expected_value_green,
+      expected_value_blue, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_subtract_mean_BGRA)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean_red, mean_green, mean_blue;
+  GstVideoFormat format;
+  gfloat expected_value_red, expected_value_green, expected_value_blue;
+
+  frame_pixel_value = 150;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_BGRA;
+
+  mean_red = 123.68;
+  mean_green = 116.78;
+  mean_blue = 103.94;
+
+  expected_value_red = 26.32;
+  expected_value_green = 33.22;
+  expected_value_blue = 46.06;
+  first_index = 2;
+  last_index = 0;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_subtract_mean (&inframe, &outframe, mean_red, mean_green, mean_blue, 3);
+
+  gst_check_output_pixels (&outframe, expected_value_red, expected_value_green,
+      expected_value_blue, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_subtract_mean_invalid_format)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size;
+  guchar frame_pixel_value;
+  gdouble mean_red, mean_green, mean_blue;
+  GstVideoFormat format;
+  gboolean ret;
+
+  frame_pixel_value = 150;
+  buffer_size = 9;
+  width = 4;
+  height = 2;
+  format = GST_VIDEO_FORMAT_AYUV;
+
+  mean_red = 123.68;
+  mean_green = 116.78;
+  mean_blue = 103.94;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  ret =
+      gst_subtract_mean (&inframe, &outframe, mean_red, mean_green, mean_blue,
+      3);
+
+  fail_if (ret != FALSE);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_subtract_mean_odd_width)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean_red, mean_green, mean_blue;
+  GstVideoFormat format;
+  gfloat expected_value_red, expected_value_green, expected_value_blue;
+
+  frame_pixel_value = 150;
+  buffer_size = 14;
+  width = 7;
+  height = 2;
+  format = GST_VIDEO_FORMAT_RGBA;
+
+  mean_red = 123.68;
+  mean_green = 116.78;
+  mean_blue = 103.94;
+
+  expected_value_red = 26.32;
+  expected_value_green = 33.22;
+  expected_value_blue = 46.06;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_subtract_mean (&inframe, &outframe, mean_red, mean_green, mean_blue, 3);
+
+  gst_check_output_pixels (&outframe, expected_value_red, expected_value_green,
+      expected_value_blue, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
+GST_START_TEST (test_gst_subtract_mean_odd_height)
+{
+  GstVideoFrame inframe;
+  GstVideoFrame outframe;
+  gint width, height, buffer_size, first_index, last_index, model_channels;
+  guchar frame_pixel_value;
+  gdouble mean_red, mean_green, mean_blue;
+  GstVideoFormat format;
+  gfloat expected_value_red, expected_value_green, expected_value_blue;
+
+  frame_pixel_value = 150;
+  buffer_size = 20;
+  width = 4;
+  height = 5;
+  format = GST_VIDEO_FORMAT_RGBA;
+
+  mean_red = 123.68;
+  mean_green = 116.78;
+  mean_blue = 103.94;
+
+  expected_value_red = 26.32;
+  expected_value_green = 33.22;
+  expected_value_blue = 46.06;
+  first_index = 0;
+  last_index = 2;
+  model_channels = 3;
+
+  gst_create_dump_frames (&inframe, &outframe, frame_pixel_value, buffer_size,
+      width, height, format);
+
+  gst_subtract_mean (&inframe, &outframe, mean_red, mean_green, mean_blue, 3);
+
+  gst_check_output_pixels (&outframe, expected_value_red, expected_value_green,
+      expected_value_blue, first_index, last_index, model_channels);
+}
+
+GST_END_TEST;
+
 GST_START_TEST (test_gst_normalize)
 {
   GstVideoFrame inframe;
@@ -534,6 +832,14 @@ gst_inference_preprocess_suite (void)
   tcase_add_test (tc, test_gst_pixel_to_float_odd_width);
   tcase_add_test (tc, test_gst_pixel_to_float_odd_height);
   tcase_add_test (tc, test_gst_subtract_mean);
+  tcase_add_test (tc, test_gst_subtract_mean_RGB);
+  tcase_add_test (tc, test_gst_subtract_mean_RGBx);
+  tcase_add_test (tc, test_gst_subtract_mean_BGR);
+  tcase_add_test (tc, test_gst_subtract_mean_BGRx);
+  tcase_add_test (tc, test_gst_subtract_mean_BGRA);
+  tcase_add_test (tc, test_gst_subtract_mean_invalid_format);
+  tcase_add_test (tc, test_gst_subtract_mean_odd_width);
+  tcase_add_test (tc, test_gst_subtract_mean_odd_height);
   tcase_add_test (tc, test_gst_normalize);
   tcase_add_test (tc, test_gst_normalize_zero_mean);
 
