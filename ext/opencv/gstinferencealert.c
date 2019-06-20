@@ -182,15 +182,17 @@ gst_inference_alert_transform_frame_ip (GstVideoFilter * trans,
   GstInferenceAlertPrivate *priv =
       GST_INFERENCE_ALERT_PRIVATE (inference_alert);
   GstDetectionMeta *detect_meta;
+  GstClassificationMeta *class_meta;
   GstMeta *meta;
   BBox box;
-  int i;
+  gdouble max, current;
+  gint i, index;
 
   meta = gst_buffer_get_meta (frame->buffer, GST_DETECTION_META_API_TYPE);
   if (NULL == meta) {
-    GST_LOG_OBJECT (trans, "No inference meta found");
+    GST_LOG_OBJECT (trans, "No detection meta found");
   } else {
-    GST_LOG_OBJECT (trans, "Valid inference meta found");
+    GST_LOG_OBJECT (trans, "Valid detection meta found");
     detect_meta = (GstDetectionMeta *) meta;
     for (i = 0; i < detect_meta->num_boxes; ++i) {
       box = detect_meta->boxes[i];
@@ -199,6 +201,28 @@ gst_inference_alert_transform_frame_ip (GstVideoFilter * trans,
             gst_inference_alert_signals[ALERT_SIGNAL], 0);
         break;
       }
+    }
+  }
+
+  meta = gst_buffer_get_meta (frame->buffer, GST_CLASSIFICATION_META_API_TYPE);
+  if (NULL == meta) {
+    GST_LOG_OBJECT (trans, "No classification meta found");
+  } else {
+    GST_LOG_OBJECT (trans, "Valid classification meta found");
+    class_meta = (GstClassificationMeta *) meta;
+
+    index = 0;
+    max = -1;
+    for (i = 0; i < class_meta->num_labels; ++i) {
+      current = class_meta->label_probs[i];
+      if (current > max) {
+        max = current;
+        index = i;
+      }
+    }
+    if (priv->label_index == index) {
+      g_signal_emit (inference_alert, gst_inference_alert_signals[ALERT_SIGNAL],
+          0);
     }
   }
 
