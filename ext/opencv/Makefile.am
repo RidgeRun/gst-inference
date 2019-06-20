@@ -4,7 +4,8 @@ libgstinferenceoverlay_la_SOURCES =	\
 	gstclassificationoverlay.cc	\
 	gstdetectionoverlay.cc		\
 	gstinferenceoverlay.c		\
-	gstembeddingoverlay.cc
+	gstembeddingoverlay.cc		\
+	gstinferencealert.c
 
 libgstinferenceoverlay_la_CFLAGS =	\
 	$(GST_CFLAGS)			\
@@ -44,4 +45,5 @@ libgstinferenceoverlay_la_LIBTOOLFLAGS = \
 noinst_HEADERS =			\
 	gstclassificationoverlay.h 	\
 	gstdetectionoverlay.h		\
-	gstembeddingoverlay.h
+	gstembeddingoverlay.h		\
+	gstinferencealert.h

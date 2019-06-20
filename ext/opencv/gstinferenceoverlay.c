@@ -26,6 +26,7 @@
 #include "gstclassificationoverlay.h"
 #include "gstdetectionoverlay.h"
 #include "gstembeddingoverlay.h"
+#include "gstinferencealert.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
@@ -53,6 +54,12 @@ plugin_init (GstPlugin * plugin)
     goto out;
   }
 
+  ret =
+      gst_element_register (plugin, "inferencealert", GST_RANK_NONE,
+      GST_TYPE_INFERENCE_ALERT);
+  if (!ret) {
+    goto out;
+  }
 
 out:
   return ret;
