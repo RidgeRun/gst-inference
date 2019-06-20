@@ -93,10 +93,10 @@ GST_START_TEST (test_gst_fill_classification_meta_null_predictions)
 GST_END_TEST;
 
 static Suite *
-gst_inference_postprocess_suite (void)
+gst_fill_classification_meta_suite (void)
 {
   Suite *suite = suite_create ("GstInference");
-  TCase *tc = tcase_create ("postprocess");
+  TCase *tc = tcase_create ("gst_fill_classification_meta");
 
   suite_add_tcase (suite, tc);
 
@@ -108,4 +108,4 @@ gst_inference_postprocess_suite (void)
   return suite;
 }
 
-GST_CHECK_MAIN (gst_inference_postprocess);
+GST_CHECK_MAIN (gst_fill_classification_meta);

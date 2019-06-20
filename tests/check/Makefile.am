@@ -9,7 +9,7 @@ AM_TESTS_ENVIRONMENT = 							   \
 	CK_DEFAULT_TIMEOUT=120                                  	   \
 	$(REGISTRY_ENVIRONMENT)						   \
 	GST_PLUGIN_SYSTEM_PATH_1_0=					   \
-	GST_PLUGIN_PATH_1_0=$(top_builddir)/gst:$(GST_PLUGINS_DIR)  \
+	GST_PLUGIN_PATH_1_0=$(top_builddir)/gst:$(GST_PLUGINS_DIR)	   \
 	GST_PLUGIN_LOADING_WHITELIST="gstreamer:gst-plugins-good:gst-plugins-base:gst-plugins-bad:gst-plugins-ugly:libnice:gst-libav:gst-inference@$(top_builddir)"
 
 # the core dumps of some machines have PIDs appended, test registry and
@@ -23,9 +23,11 @@ clean-local: clean-local-check
 $(CHECK_REGISTRY):
 	$(AM_TESTS_ENVIRONMENT)
 
-check_PROGRAMS = \
-	process/test_preprocess_functions		\
-	process/test_postprocess_functions
+check_PROGRAMS = 							\
+	process/test_gst_pixel_to_float_function			\
+	process/test_gst_subtract_mean_function				\
+	process/test_gst_normalize_function				\
+	process/test_gst_fill_classification_meta_function
 
 # failing tests
 noinst_PROGRAMS =
@@ -40,13 +42,14 @@ AM_CFLAGS = 				\
 	$(GST_PLUGINS_BASE_CFLAGS)      \
 	$(GST_PLUGINS_GOOD_CFLAGS)      \
 	-I$(top_srcdir)/gst-libs/
-LDADD =	\
-	$(top_builddir)/gst-libs/gst/r2inference/libgstinference-1.0.la \
-	$(top_builddir)/gst-libs/gst/opencv/libgstinferenceoverlay-1.0.la \
-	$(GST_LIBS) 					\
-	$(GST_PLUGINS_BASE_LIBS)                        \
-	-lgstvideo-1.0						\
-	$(GST_PLUGINS_GOOD_LIBS)                        \
+
+LDADD =									\
+	$(top_builddir)/gst-libs/gst/r2inference/libgstinference-1.0.la 	\
+	$(top_builddir)/gst-libs/gst/opencv/libgstinferenceoverlay-1.0.la 	\
+	$(GST_LIBS) 								\
+	$(GST_PLUGINS_BASE_LIBS)                        			\
+	-lgstvideo-1.0								\
+	$(GST_PLUGINS_GOOD_LIBS)                        			\
 	$(GST_CHECK_LIBS)
 
 # valgrind testing
