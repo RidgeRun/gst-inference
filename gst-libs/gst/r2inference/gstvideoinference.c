@@ -136,11 +136,15 @@ static gboolean gst_video_inference_postprocess (GstVideoInference * self,
     GstVideoInferencePad * pad_model, GstBuffer * buffer_bypass,
     GstVideoInferencePad * pad_bypass);
 
+static GstIterator *gst_video_inference_iterate_internal_links (GstPad * pad,
+    GstObject * parent);
 static gboolean gst_video_inference_sink_event (GstCollectPads * pads,
     GstCollectData * pad, GstEvent * event, gpointer user_data);
 static gboolean gst_video_inference_src_event (GstPad * pad, GstObject * parent,
     GstEvent * event);
 static GstPad *gst_video_inference_get_src_pad (GstVideoInference * self,
+    GstVideoInferencePrivate * priv, GstPad * pad);
+static GstPad *gst_video_inference_get_sink_pad (GstVideoInference * self,
     GstVideoInferencePrivate * priv, GstPad * pad);
 static void
 gst_video_inference_set_backend (GstVideoInference * self, gint backend);
@@ -486,6 +490,13 @@ gst_video_inference_create_pad (GstVideoInference * self,
     GST_ERROR_OBJECT (self, "Unable to add pad %s to element", name);
     goto remove_pad;
   }
+
+  gst_pad_set_iterate_internal_links_function (pad,
+      gst_video_inference_iterate_internal_links);
+
+  GST_PAD_SET_PROXY_CAPS (pad);
+  GST_PAD_SET_PROXY_ALLOCATION (pad);
+  GST_PAD_SET_PROXY_SCHEDULING (pad);
 
   return GST_PAD_CAST (gst_object_ref (pad));
 
@@ -1008,6 +1019,23 @@ gst_video_inference_get_src_pad (GstVideoInference * self,
   return pad;
 }
 
+static GstPad *
+gst_video_inference_get_sink_pad (GstVideoInference * self,
+    GstVideoInferencePrivate * priv, GstPad * srcpad)
+{
+  GstPad *pad;
+
+  if (srcpad == priv->src_model) {
+    pad = priv->sink_model;
+  } else if (srcpad == priv->src_bypass) {
+    pad = priv->sink_bypass;
+  } else {
+    g_return_val_if_reached (NULL);
+  }
+
+  return pad;
+}
+
 static void
 gst_video_inference_set_caps (GstVideoInference * self,
     GstVideoInferencePrivate * priv, GstCollectData * data, GstEvent * event)
@@ -1033,6 +1061,42 @@ gst_video_inference_set_caps (GstVideoInference * self,
     gst_video_info_init (info);
     gst_video_info_from_caps (info, caps);
   }
+}
+
+static GstIterator *
+gst_video_inference_iterate_internal_links (GstPad * pad, GstObject * parent)
+{
+  GstIterator *it = NULL;
+  GstPad *opad;
+  GValue val = { 0, };
+  GstVideoInference *self = GST_VIDEO_INFERENCE (parent);
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  GST_LOG_OBJECT (self, "Internal links");
+
+  GST_OBJECT_LOCK (parent);
+
+  if (GST_PAD_IS_SINK (pad)) {
+    opad = gst_video_inference_get_src_pad (self, priv, pad);
+    if (opad == NULL) {
+      goto out;
+    }
+  } else {
+    opad = gst_video_inference_get_sink_pad (self, priv, pad);
+    if (opad == NULL) {
+      goto out;
+    }
+  }
+
+  g_value_init (&val, GST_TYPE_PAD);
+  g_value_set_object (&val, opad);
+  it = gst_iterator_new_single (GST_TYPE_PAD, &val);
+  g_value_unset (&val);
+
+out:
+  GST_OBJECT_UNLOCK (parent);
+
+  return it;
 }
 
 static gboolean
