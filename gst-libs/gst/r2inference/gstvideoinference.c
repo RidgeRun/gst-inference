@@ -1108,6 +1108,9 @@ gst_video_inference_sink_event (GstCollectPads * pads, GstCollectData * pad,
   gboolean ret = FALSE;
   GstPad *srcpad;
 
+  GST_LOG_OBJECT (self, "Received event %s from %" GST_PTR_FORMAT,
+      GST_EVENT_TYPE_NAME (event), pad->pad);
+
   srcpad = gst_video_inference_get_src_pad (self, priv, pad->pad);
 
   switch (GST_EVENT_TYPE (event)) {
