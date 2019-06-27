@@ -8,7 +8,10 @@ libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gstinferencebackends.cc			\
 	gstbackend.cc				\
 	gstncsdk.cc				\
-	gsttensorflow.cc
+	gsttensorflow.cc			\
+	gstinferencepreprocess.c            	\
+	gstinferencepostprocess.c		\
+	gstinferencedebug.c
 
 libgstinference_@GST_API_VERSION@_la_CXXFLAGS=	\
 	$(GST_CXXFLAGS)				\
@@ -32,11 +35,14 @@ libgstinference_@GST_API_VERSION@_la_LIBADD=	\
 
 gstinferenceincludedir=@includedir@/gstreamer-@GST_API_VERSION@/gst/r2inference/
 
-gstinferenceinclude_HEADERS=	\
-	gstvideoinference.h	\
-	gstchildinspector.h	\
-	gstinferencebackends.h	\
-	gstbackend.h		\
-	gstbackendsubclass.h	\
-	gstncsdk.h		\
-	gsttensorflow.h
+gstinferenceinclude_HEADERS=		\
+	gstvideoinference.h		\
+	gstchildinspector.h		\
+	gstinferencebackends.h		\
+	gstbackend.h			\
+	gstbackendsubclass.h		\
+	gstncsdk.h			\
+	gsttensorflow.h 		\
+	gstinferencepreprocess.h 	\
+	gstinferencepostprocess.h	\
+	gstinferencedebug.h

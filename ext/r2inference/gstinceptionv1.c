@@ -20,19 +20,19 @@
  */
 
 /**
- * SECTION:element-gstresnet50v1
+ * SECTION:element-gstinceptionv1
  *
- * The resnet50v1 element allows the user to infer/execute a pretrained model
- * based on the ResNet (ResNet v1 or ResNet v2) architectures on 
+ * The inceptionv1 element allows the user to infer/execute a pretrained model
+ * based on the GoogLeNet (Inception v1 or Inception v2) architectures on 
  * incoming image frames.
  *
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch-1.0 -v videotestsrc ! resnet50v1 ! xvimagesink
+ * gst-launch-1.0 -v videotestsrc ! inceptionv1 ! xvimagesink
  * ]|
- * Process video frames from the camera using a GoogLeNet (Resnet50 v1 or 
- * Resnet50 v2) model.
+ * Process video frames from the camera using a GoogLeNet (Inception v1 or 
+ * Inception v2) model.
  * </refsect2>
  */
 
@@ -40,29 +40,27 @@
 #include "config.h"
 #endif
 
-#include "gstresnet50v1.h"
+#include "gstinceptionv1.h"
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 #include "gst/r2inference/gstinferencepreprocess.h"
 #include "gst/r2inference/gstinferencepostprocess.h"
 #include "gst/r2inference/gstinferencedebug.h"
 
-GST_DEBUG_CATEGORY_STATIC (gst_resnet50v1_debug_category);
-#define GST_CAT_DEFAULT gst_resnet50v1_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_inceptionv1_debug_category);
+#define GST_CAT_DEFAULT gst_inceptionv1_debug_category
 
-#define MEAN_RED 123.68
-#define MEAN_GREEN 116.78
-#define MEAN_BLUE 103.94
+#define MEAN 128.0
+#define STD 1/128.0
 #define MODEL_CHANNELS 3
 
-/* prototypes */
-static gboolean gst_resnet50v1_preprocess (GstVideoInference * vi,
+static gboolean gst_inceptionv1_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
-static gboolean gst_resnet50v1_postprocess (GstVideoInference * vi,
+static gboolean gst_inceptionv1_postprocess (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction);
-static gboolean gst_resnet50v1_start (GstVideoInference * vi);
-static gboolean gst_resnet50v1_stop (GstVideoInference * vi);
+static gboolean gst_inceptionv1_start (GstVideoInference * vi);
+static gboolean gst_inceptionv1_stop (GstVideoInference * vi);
 
 enum
 {
@@ -90,25 +88,25 @@ GST_STATIC_PAD_TEMPLATE ("src_model",
     GST_STATIC_CAPS (CAPS)
     );
 
-struct _GstResnet50v1
+struct _GstInceptionv1
 {
   GstVideoInference parent;
 };
 
-struct _GstResnet50v1Class
+struct _GstInceptionv1Class
 {
   GstVideoInferenceClass parent;
 };
 
 /* class initialization */
 
-G_DEFINE_TYPE_WITH_CODE (GstResnet50v1, gst_resnet50v1,
+G_DEFINE_TYPE_WITH_CODE (GstInceptionv1, gst_inceptionv1,
     GST_TYPE_VIDEO_INFERENCE,
-    GST_DEBUG_CATEGORY_INIT (gst_resnet50v1_debug_category, "resnet50v1", 0,
-        "debug category for resnet50v1 element"));
+    GST_DEBUG_CATEGORY_INIT (gst_inceptionv1_debug_category, "inceptionv1", 0,
+        "debug category for inceptionv1 element"));
 
 static void
-gst_resnet50v1_class_init (GstResnet50v1Class * klass)
+gst_inceptionv1_class_init (GstInceptionv1Class * klass)
 {
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
   GstVideoInferenceClass *vi_class = GST_VIDEO_INFERENCE_CLASS (klass);
@@ -118,37 +116,35 @@ gst_resnet50v1_class_init (GstResnet50v1Class * klass)
   gst_element_class_add_static_pad_template (element_class, &src_model_factory);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-      "resnet50v1", "Filter",
-      "Infers incoming image frames using a pretrained ResNet (Resnet50 v1 or Resnet50 v2) model",
+      "inceptionv1", "Filter",
+      "Infers incoming image frames using a pretrained GoogLeNet (Inception v1 or Inception v2) model",
       "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
       "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
       "   Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
-      "   Greivin Fallas <greivin.fallas@ridgerun.com>");
+      "   Mauricio Montero <mauricio.montero@ridgerun.com>");
 
-  vi_class->start = GST_DEBUG_FUNCPTR (gst_resnet50v1_start);
-  vi_class->stop = GST_DEBUG_FUNCPTR (gst_resnet50v1_stop);
-  vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_resnet50v1_preprocess);
-  vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_resnet50v1_postprocess);
+  vi_class->start = GST_DEBUG_FUNCPTR (gst_inceptionv1_start);
+  vi_class->stop = GST_DEBUG_FUNCPTR (gst_inceptionv1_stop);
+  vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_inceptionv1_preprocess);
+  vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_inceptionv1_postprocess);
   vi_class->inference_meta_info = gst_classification_meta_get_info ();
 }
 
 static void
-gst_resnet50v1_init (GstResnet50v1 * resnet50v1)
+gst_inceptionv1_init (GstInceptionv1 * inceptionv1)
 {
 }
 
 static gboolean
-gst_resnet50v1_preprocess (GstVideoInference * vi,
+gst_inceptionv1_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-
   GST_LOG_OBJECT (vi, "Preprocess");
-  return gst_subtract_mean (inframe, outframe, MEAN_RED, MEAN_GREEN, MEAN_BLUE,
-      MODEL_CHANNELS);
+  return gst_normalize (inframe, outframe, MEAN, STD, MODEL_CHANNELS);
 }
 
 static gboolean
-gst_resnet50v1_postprocess (GstVideoInference * vi, const gpointer prediction,
+gst_inceptionv1_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
@@ -158,7 +154,7 @@ gst_resnet50v1_postprocess (GstVideoInference * vi, const gpointer prediction,
 
   gst_fill_classification_meta (class_meta, prediction, predsize);
 
-  gst_inference_print_highest_probability (vi, gst_resnet50v1_debug_category,
+  gst_inference_print_highest_probability (vi, gst_inceptionv1_debug_category,
       class_meta, prediction, gst_debug_level);
 
   *valid_prediction = TRUE;
@@ -166,17 +162,17 @@ gst_resnet50v1_postprocess (GstVideoInference * vi, const gpointer prediction,
 }
 
 static gboolean
-gst_resnet50v1_start (GstVideoInference * vi)
+gst_inceptionv1_start (GstVideoInference * vi)
 {
-  GST_INFO_OBJECT (vi, "Starting Resnet50 v1");
+  GST_INFO_OBJECT (vi, "Starting Inception v1");
 
   return TRUE;
 }
 
 static gboolean
-gst_resnet50v1_stop (GstVideoInference * vi)
+gst_inceptionv1_stop (GstVideoInference * vi)
 {
-  GST_INFO_OBJECT (vi, "Stopping Resnet50 v1");
+  GST_INFO_OBJECT (vi, "Stopping Inception v1");
 
   return TRUE;
 }

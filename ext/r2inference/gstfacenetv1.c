@@ -42,9 +42,14 @@
 #include "gst/r2inference/gstinferencemeta.h"
 #include <string.h>
 #include <math.h>
+#include "gst/r2inference/gstinferencepreprocess.h"
+#include "gst/r2inference/gstinferencepostprocess.h"
+#include "gst/r2inference/gstinferencedebug.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_facenetv1_debug_category);
 #define GST_CAT_DEFAULT gst_facenetv1_debug_category
+
+#define MODEL_CHANNELS 3
 
 /* prototypes */
 static void gst_facenetv1_set_property (GObject * object,
@@ -195,66 +200,8 @@ static gboolean
 gst_facenetv1_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe)
 {
-  gint i, j, pixel_stride, width, height, channels;
-  gfloat mean, std, variance, sum, normalized, R, G, B;
-
   GST_LOG_OBJECT (vi, "Preprocess");
-  channels = GST_VIDEO_FRAME_N_COMPONENTS (inframe);
-  pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0) / channels;
-  width = GST_VIDEO_FRAME_WIDTH (inframe);
-  height = GST_VIDEO_FRAME_HEIGHT (inframe);
-
-  sum = 0;
-  normalized = 0;
-
-  for (i = 0; i < height; ++i) {
-    for (j = 0; j < width; ++j) {
-      sum =
-          sum + (((guchar *) inframe->data[0])[(i * pixel_stride +
-                  j) * channels + 0]);
-      sum =
-          sum + (((guchar *) inframe->data[0])[(i * pixel_stride +
-                  j) * channels + 1]);
-      sum =
-          sum + (((guchar *) inframe->data[0])[(i * pixel_stride +
-                  j) * channels + 2]);
-    }
-  }
-
-  mean = sum / (float) (width * height * channels);
-
-  for (i = 0; i < height; ++i) {
-    for (j = 0; j < width; ++j) {
-      R = (gfloat) ((((guchar *) inframe->data[0])[(i * pixel_stride +
-                      j) * channels + 0])) - mean;
-      G = (gfloat) ((((guchar *) inframe->data[0])[(i * pixel_stride +
-                      j) * channels + 1])) - mean;
-      B = (gfloat) ((((guchar *) inframe->data[0])[(i * pixel_stride +
-                      j) * channels + 2])) - mean;
-      normalized = normalized + pow (R, 2);
-      normalized = normalized + pow (G, 2);
-      normalized = normalized + pow (B, 2);
-    }
-  }
-
-  variance = normalized / (float) (width * height * channels);
-  std = sqrt (variance);
-
-  for (i = 0; i < height; ++i) {
-    for (j = 0; j < width; ++j) {
-      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 0] =
-          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
-              0] - mean) / std;
-      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 1] =
-          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
-              1] - mean) / std;
-      ((gfloat *) outframe->data[0])[(i * width + j) * channels + 2] =
-          (((guchar *) inframe->data[0])[(i * pixel_stride + j) * channels +
-              2] - mean) / std;
-    }
-  }
-
-  return TRUE;
+  return gst_normalize_face (inframe, outframe, MODEL_CHANNELS);
 }
 
 static gboolean
@@ -263,25 +210,13 @@ gst_facenetv1_postprocess (GstVideoInference * vi, const gpointer prediction,
     gboolean * valid_prediction)
 {
   GstClassificationMeta *class_meta = (GstClassificationMeta *) meta_model;
-  GstDebugLevel level;
+  GstDebugLevel gst_debug_level = GST_LEVEL_LOG;
   GST_LOG_OBJECT (vi, "Postprocess");
 
-  class_meta->num_labels = predsize / sizeof (gfloat);
-  class_meta->label_probs =
-      g_malloc (class_meta->num_labels * sizeof (gdouble));
-  for (gint i = 0; i < class_meta->num_labels; ++i) {
-    class_meta->label_probs[i] = (gdouble) ((gfloat *) prediction)[i];
-  }
+  gst_fill_classification_meta (class_meta, prediction, predsize);
 
-  /* Only display vector if debug level >= 6 */
-  level = gst_debug_category_get_threshold (gst_facenetv1_debug_category);
-  if (level >= GST_LEVEL_LOG) {
-    for (gint i = 0; i < class_meta->num_labels; ++i) {
-      gfloat current = ((gfloat *) prediction)[i];
-      GST_LOG_OBJECT (vi, "Output vector element %i : (%f)", i, current);
-    }
-  }
-
+  gst_inference_print_embedding (vi, gst_facenetv1_debug_category, class_meta,
+      prediction, gst_debug_level);
   *valid_prediction = TRUE;
   return TRUE;
 }
