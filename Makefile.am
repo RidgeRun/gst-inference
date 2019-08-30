@@ -54,3 +54,8 @@ CRUFT_DIRS =
 include $(top_srcdir)/common/cruft.mak
 
 all-local: check-cruft
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = gst-inference-@PACKAGE_VERSION@.pc
+
+EXTRA_DIST = gst-inference.pc.in
