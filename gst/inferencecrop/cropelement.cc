@@ -66,6 +66,10 @@ CropElement::SetImageSize (gint width, gint height)
   this->mutex.lock ();
   this->image_width = width;
   this->image_height = height;
+  this->x = 0;
+  this->y = 0;
+  this->width = width;
+  this->height = height;
 
   this->UpdateElement (this->element,
 		       this->image_width,

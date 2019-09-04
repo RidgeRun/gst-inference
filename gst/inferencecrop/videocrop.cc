@@ -20,7 +20,7 @@
  */
 
 #include "videocrop.h"
-
+#include <iostream>
 const std::string
 VideoCrop::GetFactory () const
 {

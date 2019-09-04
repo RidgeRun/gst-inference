@@ -61,6 +61,8 @@ static void gst_detection_crop_finalize (GObject * object);
 static GstStateChangeReturn gst_detection_crop_change_state (GstElement *
     element, GstStateChange transition);
 static gboolean gst_detection_crop_start (GstDetectionCrop * self);
+static void gst_detection_crop_set_caps (GstPad * pad, GParamSpec * unused,
+    GstDetectionCrop * self);
 
 enum
 {
@@ -131,6 +133,9 @@ gst_detection_crop_init (GstDetectionCrop * self)
   gst_pad_set_active (sinkgpad, TRUE);
   gst_element_add_pad (GST_ELEMENT (self), sinkgpad);
 
+  g_signal_connect (sinkgpad, "notify::caps",
+      G_CALLBACK (gst_detection_crop_set_caps), self);
+
   srcpad = self->element->GetSrcPad ();
   g_return_if_fail (srcpad);
 
@@ -187,6 +192,29 @@ gst_detection_crop_change_state (GstElement * element,
 
 out:
   return ret;
+}
+
+static void
+gst_detection_crop_set_caps (GstPad * pad, GParamSpec * unused,
+    GstDetectionCrop * self)
+{
+  GstCaps *caps;
+  GstStructure *st;
+  gint width;
+  gint height;
+
+  g_object_get (pad, "caps", &caps, NULL);
+  if (NULL == caps) {
+    return;
+  }
+
+  st = gst_caps_get_structure (caps, 0);
+  gst_structure_get_int (st, "width", &width);
+  gst_structure_get_int (st, "height", &height);
+
+  GST_INFO_OBJECT (self, "Set new caps to %" GST_PTR_FORMAT, caps);
+
+  self->element->SetImageSize (width, height);
 }
 
 static gboolean
