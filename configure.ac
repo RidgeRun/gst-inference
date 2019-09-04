@@ -387,7 +387,7 @@ gst-libs/gst/opencv/Makefile
 gst-libs/gst/r2inference/Makefile
 m4/Makefile
 tests/check/Makefile
-gst-inference-${PACKAGE_VERSION}.pc:gst-inference.pc.in
+gst-inference-${GST_API_VERSION}.pc:gst-inference.pc.in
 tests/Makefile
 tests/examples/classification/Makefile
 tests/examples/detection/Makefile
