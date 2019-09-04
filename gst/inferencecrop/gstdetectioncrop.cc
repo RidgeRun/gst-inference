@@ -41,6 +41,7 @@
 #include "gstdetectioncrop.h"
 
 #include "gst/r2inference/gstinferencemeta.h"
+#include "videocrop.h"
 
 /* generic templates */
 static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
@@ -56,6 +57,8 @@ static GstStaticPadTemplate src_template = GST_STATIC_PAD_TEMPLATE ("src",
 GST_DEBUG_CATEGORY_STATIC (gst_detection_crop_debug_category);
 #define GST_CAT_DEFAULT gst_detection_crop_debug_category
 
+static void gst_detection_crop_finalize (GObject * object);
+
 enum
 {
   PROP_0
@@ -64,6 +67,7 @@ enum
 struct _GstDetectionCrop
 {
   GstBin parent;
+  CropElement *element;
 };
 
 struct _GstDetectionCropClass
@@ -82,6 +86,7 @@ static void
 gst_detection_crop_class_init (GstDetectionCropClass * klass)
 {
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&sink_template));
@@ -92,11 +97,24 @@ gst_detection_crop_class_init (GstDetectionCropClass * klass)
       "detectioncrop", "Filter",
       "Crops an incoming image based on an inference prediction bounding box",
       "   Michael Gruner <michael.gruner@ridgerun.com>");
+
+  object_class->finalize = gst_detection_crop_finalize;
 }
 
 static void
-gst_detection_crop_init (GstDetectionCrop * detectioncrop)
+gst_detection_crop_init (GstDetectionCrop * self)
 {
+  self->element = new VideoCrop ();
+}
+
+static void
+gst_detection_crop_finalize (GObject * object)
+{
+  GstDetectionCrop *self = GST_DETECTION_CROP (object);
+
+  delete (self->element);
+
+  G_OBJECT_CLASS (gst_detection_crop_parent_class)->finalize (object);
 }
 
 static gboolean
