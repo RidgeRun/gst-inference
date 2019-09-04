@@ -28,8 +28,10 @@
 
 class VideoCrop : public CropElement
 {
-protected:
+public:
   const std::string GetFactory () const override;
+
+protected:
   void UpdateElement (GstElement * element,
 		      gint image_width,
 		      gint image_height,

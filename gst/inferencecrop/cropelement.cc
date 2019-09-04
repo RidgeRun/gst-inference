@@ -98,6 +98,8 @@ CropElement::SetBoundingBox (gint x, gint y, gint width, gint height)
 
 CropElement::~CropElement ()
 {
-  gst_object_unref (this->element);
-  this->element = nullptr;
+  if (nullptr != this->element) {
+    gst_object_unref (this->element);
+    this->element = nullptr;
+  }
 }

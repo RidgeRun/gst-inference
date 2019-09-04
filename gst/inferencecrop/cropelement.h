@@ -35,9 +35,9 @@ public:
   void SetImageSize (gint width, gint height);
   void SetBoundingBox (gint x, gint y, gint width, gint height);
   virtual ~CropElement ();
+  virtual const std::string GetFactory () const = 0;
   
 protected:
-  virtual const std::string GetFactory () const = 0;
   virtual void UpdateElement (GstElement * element,
 			      gint image_width,
 			      gint image_height,

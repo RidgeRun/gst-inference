@@ -58,6 +58,9 @@ GST_DEBUG_CATEGORY_STATIC (gst_detection_crop_debug_category);
 #define GST_CAT_DEFAULT gst_detection_crop_debug_category
 
 static void gst_detection_crop_finalize (GObject * object);
+static GstStateChangeReturn gst_detection_crop_change_state (GstElement *
+    element, GstStateChange transition);
+static gboolean gst_detection_crop_start (GstDetectionCrop * self);
 
 enum
 {
@@ -98,6 +101,9 @@ gst_detection_crop_class_init (GstDetectionCropClass * klass)
       "Crops an incoming image based on an inference prediction bounding box",
       "   Michael Gruner <michael.gruner@ridgerun.com>");
 
+  element_class->change_state =
+      GST_DEBUG_FUNCPTR (gst_detection_crop_change_state);
+
   object_class->finalize = gst_detection_crop_finalize;
 }
 
@@ -115,6 +121,51 @@ gst_detection_crop_finalize (GObject * object)
   delete (self->element);
 
   G_OBJECT_CLASS (gst_detection_crop_parent_class)->finalize (object);
+}
+
+static gboolean
+gst_detection_crop_start (GstDetectionCrop * self)
+{
+  gboolean ret;
+
+  g_return_val_if_fail (self, FALSE);
+
+  ret = self->element->Validate ();
+  if (FALSE == ret) {
+    const std::string factory = self->element->GetFactory ();
+    GST_ERROR_OBJECT (self, "Unable to find element %s", factory.c_str ());
+  }
+
+  return ret;
+}
+
+static GstStateChangeReturn
+gst_detection_crop_change_state (GstElement * element,
+    GstStateChange transition)
+{
+  GstStateChangeReturn ret;
+  GstDetectionCrop *self = GST_DETECTION_CROP (element);
+
+  switch (transition) {
+    case GST_STATE_CHANGE_READY_TO_PAUSED:
+      if (FALSE == gst_detection_crop_start (self)) {
+        GST_ERROR_OBJECT (self, "Failed to start");
+        ret = GST_STATE_CHANGE_FAILURE;
+        goto out;
+      }
+    default:
+      break;
+  }
+  ret =
+      GST_ELEMENT_CLASS (gst_detection_crop_parent_class)->change_state
+      (element, transition);
+  if (GST_STATE_CHANGE_FAILURE == ret) {
+    GST_ERROR_OBJECT (self, "Parent failed to change state");
+    goto out;
+  }
+
+out:
+  return ret;
 }
 
 static gboolean
