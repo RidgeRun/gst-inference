@@ -63,6 +63,8 @@ static GstStateChangeReturn gst_detection_crop_change_state (GstElement *
 static gboolean gst_detection_crop_start (GstDetectionCrop * self);
 static void gst_detection_crop_set_caps (GstPad * pad, GParamSpec * unused,
     GstDetectionCrop * self);
+static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad * pad,
+    GstPadProbeInfo * info, GstDetectionCrop * self);
 
 enum
 {
@@ -135,6 +137,8 @@ gst_detection_crop_init (GstDetectionCrop * self)
 
   g_signal_connect (sinkgpad, "notify::caps",
       G_CALLBACK (gst_detection_crop_set_caps), self);
+  gst_pad_add_probe (sinkgpad, GST_PAD_PROBE_TYPE_BUFFER,
+      (GstPadProbeCallback) gst_detection_crop_new_buffer, self, NULL);
 
   srcpad = self->element->GetSrcPad ();
   g_return_if_fail (srcpad);
@@ -215,6 +219,31 @@ gst_detection_crop_set_caps (GstPad * pad, GParamSpec * unused,
   GST_INFO_OBJECT (self, "Set new caps to %" GST_PTR_FORMAT, caps);
 
   self->element->SetImageSize (width, height);
+}
+
+static GstPadProbeReturn
+gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
+    GstDetectionCrop * self)
+{
+  GstBuffer *buffer;
+  GstDetectionMeta *meta;
+
+  buffer = gst_pad_probe_info_get_buffer (info);
+
+  meta =
+      (GstDetectionMeta *) gst_buffer_get_meta (buffer,
+      GST_DETECTION_META_API_TYPE);
+  if (NULL == meta || meta->num_boxes <= 0) {
+    GST_LOG_OBJECT (self, "No meta found, dropping buffer");
+    return GST_PAD_PROBE_DROP;
+  }
+
+  BBox box = meta->boxes[0];
+  GST_LOG_OBJECT (self, "BBox: %fx%fx%fx%f", box.x, box.y, box.width,
+      box.height);
+  self->element->SetBoundingBox ((gint) box.x, (gint) box.y, (gint) box.width,
+      (gint) box.height);
+  return GST_PAD_PROBE_OK;
 }
 
 static gboolean

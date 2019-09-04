@@ -38,6 +38,7 @@ public:
   virtual const std::string GetFactory () const = 0;
   virtual GstPad * GetSinkPad () = 0;
   virtual GstPad * GetSrcPad () = 0;
+  void Reset ();
   
 protected:
   virtual void UpdateElement (GstElement * element,

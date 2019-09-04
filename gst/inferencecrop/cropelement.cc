@@ -61,24 +61,20 @@ CropElement::GetElement ()
 }
 
 void
+CropElement::Reset ()
+{
+  this->SetBoundingBox(0, 0, this->image_width, this->image_height);
+}
+
+void
 CropElement::SetImageSize (gint width, gint height)
 {
   this->mutex.lock ();
   this->image_width = width;
   this->image_height = height;
-  this->x = 0;
-  this->y = 0;
-  this->width = width;
-  this->height = height;
-
-  this->UpdateElement (this->element,
-		       this->image_width,
-		       this->image_height,
-		       this->x,
-		       this->y,
-		       this->width,
-		       this->height);
   this->mutex.unlock ();
+
+  this->Reset ();
 }
 
 void
