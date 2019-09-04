@@ -26,7 +26,7 @@ m4/
 .libs/
 stamp-h*
 autoregen.sh
-gstinference-*.pc
+gst-inference-*.pc
 
 # Build outputs
 .deps/
