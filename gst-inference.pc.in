@@ -7,8 +7,6 @@ Name: GstInference
 Description: GStreamer framework for deep learning inference.
 URL: https://github.com/RidgeRun/gst-inference/
 Version: @VERSION@
-Requires: gtk-doc gstreamer-1.0 gstreamer-plugins-base-1.0 \
-gstreamer-plugins-good-1.0 gstreamer-audio-1.0 gstreamer-video-1.0 \
-r2inference-0.0
+Requires: gstreamer-1.0 gstreamer-plugins-base-1.0 gstreamer-video-1.0 r2inference-0.0
 Libs: -L${libdir} -lgstinference-@PACKAGE_VERSION@
 Cflags: -I${includedir}
