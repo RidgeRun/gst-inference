@@ -30,6 +30,8 @@ class VideoCrop : public CropElement
 {
 public:
   const std::string GetFactory () const override;
+  GstPad * GetSrcPad () override;
+  GstPad * GetSinkPad () override;
 
 protected:
   void UpdateElement (GstElement * element,
@@ -40,6 +42,7 @@ protected:
 		      gint width,
 		      gint height) override;
 private:
+  GstPad * GetPad (const std::string &name);
   const std::string factory = "videocrop";
 };
 

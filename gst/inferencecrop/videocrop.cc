@@ -29,12 +29,42 @@ VideoCrop::GetFactory () const
   
 void
 VideoCrop::UpdateElement (GstElement * element,
-			       gint image_width,
-			       gint image_height,
-			       gint x,
-			       gint y,
-			       gint width,
-			       gint height)
+			  gint image_width,
+			  gint image_height,
+			  gint x,
+			  gint y,
+			  gint width,
+			  gint height)
 {
-  
+  gint top = y;
+  gint bottom = image_height - y - height;
+  gint left = x;
+  gint right = image_width - x - width;
+
+  g_object_set (element,
+		"top", top,
+		"bottom", bottom,
+		"left", left,
+		"right", right, NULL);
+}
+
+GstPad *
+VideoCrop::GetSinkPad ()
+{
+  return this->GetPad ("sink");
+}
+
+GstPad *
+VideoCrop::GetSrcPad ()
+{
+  return this->GetPad ("src");
+}
+
+GstPad *
+VideoCrop::GetPad (const std::string &name)
+{
+  GstElement * element = this->GetElement ();
+  GstPad * pad = gst_element_get_static_pad (element, name.c_str());
+
+  return pad;
 }

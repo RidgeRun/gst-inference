@@ -110,7 +110,36 @@ gst_detection_crop_class_init (GstDetectionCropClass * klass)
 static void
 gst_detection_crop_init (GstDetectionCrop * self)
 {
+  GstElement *element;
+  GstPad *sinkpad, *sinkgpad, *srcpad, *srcgpad;
+
   self->element = new VideoCrop ();
+
+  if (FALSE == self->element->Validate ()) {
+    const std::string factory = self->element->GetFactory ();
+    GST_ERROR_OBJECT (self, "Unable to find element %s", factory.c_str ());
+    return;
+  }
+
+  element = self->element->GetElement ();
+  gst_bin_add (GST_BIN (self), GST_ELEMENT (gst_object_ref (element)));
+
+  sinkpad = self->element->GetSinkPad ();
+  g_return_if_fail (sinkpad);
+
+  sinkgpad = gst_ghost_pad_new ("sink", sinkpad);
+  gst_pad_set_active (sinkgpad, TRUE);
+  gst_element_add_pad (GST_ELEMENT (self), sinkgpad);
+
+  srcpad = self->element->GetSrcPad ();
+  g_return_if_fail (srcpad);
+
+  srcgpad = gst_ghost_pad_new ("src", srcpad);
+  gst_pad_set_active (srcgpad, TRUE);
+  gst_element_add_pad (GST_ELEMENT (self), srcgpad);
+
+  gst_object_unref (sinkpad);
+  gst_object_unref (srcpad);
 }
 
 static void
@@ -126,17 +155,9 @@ gst_detection_crop_finalize (GObject * object)
 static gboolean
 gst_detection_crop_start (GstDetectionCrop * self)
 {
-  gboolean ret;
-
   g_return_val_if_fail (self, FALSE);
 
-  ret = self->element->Validate ();
-  if (FALSE == ret) {
-    const std::string factory = self->element->GetFactory ();
-    GST_ERROR_OBJECT (self, "Unable to find element %s", factory.c_str ());
-  }
-
-  return ret;
+  return self->element->Validate ();
 }
 
 static GstStateChangeReturn
