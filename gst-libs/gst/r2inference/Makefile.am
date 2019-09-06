@@ -45,4 +45,10 @@ gstinferenceinclude_HEADERS=		\
 	gsttensorflow.h 		\
 	gstinferencepreprocess.h 	\
 	gstinferencepostprocess.h	\
-	gstinferencedebug.h
+	gstinferencedebug.h             \
+        gstinferencemeta.h
+
+
+
+
+
