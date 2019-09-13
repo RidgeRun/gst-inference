@@ -69,15 +69,26 @@ static void gst_detection_crop_set_caps (GstPad * pad, GParamSpec * unused,
     GstDetectionCrop * self);
 static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad * pad,
     GstPadProbeInfo * info, GstDetectionCrop * self);
+static gint gst_detection_crop_find_by_index (GstDetectionCrop * self,
+    guint crop_index, GstDetectionMeta * meta);
+static gint gst_detection_crop_find_by_class (GstDetectionCrop * self,
+    gint crop_class, GstDetectionMeta * meta);
+static gint gst_detection_crop_find_index (GstDetectionCrop * self,
+    guint crop_index, gint crop_class, GstDetectionMeta * meta);
 
 #define PROP_CROP_INDEX_DEFAULT 0
 #define PROP_CROP_INDEX_MAX G_MAXUINT
 #define PROP_CROP_INDEX_MIN 0
 
+#define PROP_CROP_CLASS_DEFAULT -1
+#define PROP_CROP_CLASS_MAX G_MAXINT
+#define PROP_CROP_CLASS_MIN -1
+
 enum
 {
   PROP_0,
   PROP_CROP_INDEX,
+  PROP_CROP_CLASS,
 };
 
 struct _GstDetectionCrop
@@ -85,6 +96,7 @@ struct _GstDetectionCrop
   GstBin parent;
   CropElement *element;
   guint crop_index;
+  gint crop_class;
 };
 
 struct _GstDetectionCropClass
@@ -124,8 +136,17 @@ gst_detection_crop_class_init (GstDetectionCropClass * klass)
 
   g_object_class_install_property (object_class, PROP_CROP_INDEX,
       g_param_spec_uint ("crop-index", "Crop Index", "Index of the detected "
-          "object to crop in the prediction array", PROP_CROP_INDEX_MIN,
+          "object to crop in the prediction array. This will be ignored if "
+          "crop-class is set to a non-negative value", PROP_CROP_INDEX_MIN,
           PROP_CROP_INDEX_MAX, PROP_CROP_INDEX_DEFAULT, G_PARAM_READWRITE));
+
+  g_object_class_install_property (object_class, PROP_CROP_CLASS,
+      g_param_spec_int ("crop-class", "Crop Class",
+          "Object class to crop look for "
+          "cropping. If set to -1, crop-index will be used. If set to a non-negative "
+          "value, the detections will be iterated until a valid class is found and then "
+          "used that one for cropping.", PROP_CROP_CLASS_MIN,
+          PROP_CROP_CLASS_MAX, PROP_CROP_CLASS_DEFAULT, G_PARAM_READWRITE));
 }
 
 static void
@@ -136,6 +157,7 @@ gst_detection_crop_init (GstDetectionCrop * self)
 
   self->element = new VideoCrop ();
   self->crop_index = PROP_CROP_INDEX_DEFAULT;
+  self->crop_class = PROP_CROP_CLASS_DEFAULT;
 
   if (FALSE == self->element->Validate ()) {
     const std::string factory = self->element->GetFactory ();
@@ -193,6 +215,11 @@ gst_detection_crop_set_property (GObject * object, guint property_id,
       self->crop_index = g_value_get_uint (value);
       GST_OBJECT_UNLOCK (self);
       break;
+    case PROP_CROP_CLASS:
+      GST_OBJECT_LOCK (self);
+      self->crop_class = g_value_get_int (value);
+      GST_OBJECT_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -211,6 +238,11 @@ gst_detection_crop_get_property (GObject * object, guint property_id,
     case PROP_CROP_INDEX:
       GST_OBJECT_LOCK (self);
       g_value_set_uint (value, self->crop_index);
+      GST_OBJECT_UNLOCK (self);
+      break;
+    case PROP_CROP_CLASS:
+      GST_OBJECT_LOCK (self);
+      g_value_set_int (value, self->crop_class);
       GST_OBJECT_UNLOCK (self);
       break;
     default:
@@ -279,6 +311,63 @@ gst_detection_crop_set_caps (GstPad * pad, GParamSpec * unused,
   self->element->SetImageSize (width, height);
 }
 
+static gint
+gst_detection_crop_find_by_index (GstDetectionCrop * self, guint crop_index,
+    GstDetectionMeta * meta)
+{
+  gint ret = crop_index;
+
+  g_return_val_if_fail (self, -1);
+  g_return_val_if_fail (meta, -1);
+
+  if (crop_index >= meta->num_boxes) {
+    GST_LOG_OBJECT (self, "Configured crop index is larger than "
+        "the amount of objects in the prediction");
+
+    ret = -1;
+  }
+
+  return ret;
+}
+
+static gint
+gst_detection_crop_find_by_class (GstDetectionCrop * self, gint crop_class,
+    GstDetectionMeta * meta)
+{
+  gint i;
+  gint ret = -1;
+
+  g_return_val_if_fail (self, -1);
+  g_return_val_if_fail (meta, -1);
+
+  for (i = 0; i < meta->num_boxes; ++i) {
+    if (meta->boxes[i].label == crop_class) {
+      ret = i;
+      break;
+    }
+  }
+
+  if (-1 == ret) {
+    GST_LOG_OBJECT (self, "No valid class detected");
+  }
+
+  return ret;
+}
+
+static gint
+gst_detection_crop_find_index (GstDetectionCrop * self, guint crop_index,
+    gint crop_class, GstDetectionMeta * meta)
+{
+  g_return_val_if_fail (self, -1);
+  g_return_val_if_fail (meta, -1);
+
+  if (-1 == crop_class) {
+    return gst_detection_crop_find_by_index (self, crop_index, meta);
+  } else {
+    return gst_detection_crop_find_by_class (self, crop_class, meta);
+  }
+}
+
 static GstPadProbeReturn
 gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
     GstDetectionCrop * self)
@@ -286,11 +375,14 @@ gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
   GstBuffer *buffer;
   GstDetectionMeta *meta;
   guint crop_index;
+  gint crop_class;
+  gint requested_index;
   BBox box;
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
 
   GST_OBJECT_LOCK (self);
   crop_index = self->crop_index;
+  crop_class = self->crop_class;
   GST_OBJECT_UNLOCK (self);
 
   buffer = gst_pad_probe_info_get_buffer (info);
@@ -309,13 +401,13 @@ gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
     goto out;
   }
 
-  if (crop_index >= meta->num_boxes) {
-    GST_LOG_OBJECT (self, "Configured crop index is larger than "
-        "the amount of objects in the prediction");
+  requested_index =
+      gst_detection_crop_find_index (self, crop_index, crop_class, meta);
+  if (-1 == requested_index) {
     goto out;
   }
 
-  box = meta->boxes[crop_index];
+  box = meta->boxes[requested_index];
   GST_LOG_OBJECT (self, "BBox: %fx%fx%fx%f", box.x, box.y, box.width,
       box.height);
   self->element->SetBoundingBox ((gint) box.x, (gint) box.y, (gint) box.width,
