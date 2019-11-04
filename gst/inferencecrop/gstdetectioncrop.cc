@@ -84,7 +84,7 @@ static gint gst_detection_crop_find_index (GstDetectionCrop * self,
 #define PROP_CROP_CLASS_MAX G_MAXINT
 #define PROP_CROP_CLASS_MIN -1
 
-#define PROP_CROP_RATIO_DEFAULT "0:0"
+#define PROP_CROP_RATIO_DEFAULT "1:1"
 
 enum
 {
@@ -156,7 +156,7 @@ gst_detection_crop_class_init (GstDetectionCropClass * klass)
   g_object_class_install_property (object_class, PROP_CROP_ASPECT_RATIO,
       g_param_spec_string ("aspect-ratio", "Aspect Ratio", 
           "Aspect ratio to crop the detections, width and height separated by ':'. "
-          "If set to 0:0 the detection crop ignore the aspect ratio.", PROP_CROP_RATIO_DEFAULT, G_PARAM_READWRITE)); 
+          "If set to 1:1 the detection crop ignore the aspect ratio.", PROP_CROP_RATIO_DEFAULT, G_PARAM_READWRITE));
 }
 
 static void
@@ -234,7 +234,6 @@ gst_detection_crop_set_property (GObject * object, guint property_id,
     case PROP_CROP_ASPECT_RATIO:
       GST_OBJECT_LOCK (self);
       self->aspect_ratio = g_value_dup_string (value);
-      self->aspect_ratio_tokens = g_strsplit (g_value_get_string (value), ":", 0); 
       GST_OBJECT_UNLOCK (self);
       break;
     default:
@@ -405,6 +404,7 @@ gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
 
   GST_OBJECT_LOCK (self);
+  self->aspect_ratio_tokens = g_strsplit (self->aspect_ratio, ":", 0);
   crop_index = self->crop_index;
   crop_class = self->crop_class;
   crop_width_ratio = atoi(self->aspect_ratio_tokens[0]);
