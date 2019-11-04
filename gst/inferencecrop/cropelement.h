@@ -47,7 +47,9 @@ protected:
 			      gint x,
 			      gint y,
 			      gint width,
-			      gint height) = 0;
+			      gint height,
+            gint width_ratio,
+            gint height_ratio) = 0;
 
 private:
   GstElement * element;

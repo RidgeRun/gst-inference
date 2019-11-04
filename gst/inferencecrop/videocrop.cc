@@ -21,6 +21,8 @@
 
 #include "videocrop.h"
 #include <iostream>
+#include <math.h>
+
 const std::string
 VideoCrop::GetFactory () const
 {
@@ -34,12 +36,42 @@ VideoCrop::UpdateElement (GstElement * element,
 			  gint x,
 			  gint y,
 			  gint width,
-			  gint height)
+			  gint height,
+        gint width_ratio,
+        gint height_ratio)
 {
   gint top = y;
   gint bottom = image_height - y - height;
   gint left = x;
   gint right = image_width - x - width;
+
+  if(width_ratio <= height_ratio){
+    if(width > height){
+      top = top - round(((height_ratio * width) / width_ratio - height) / 2);
+      bottom = bottom - round(((height_ratio * width) / width_ratio - height) / 2);
+    }else{
+      if(height <= (height_ratio * width)){
+        top = top - round(((height_ratio * width) / width_ratio - height) / 2);
+        bottom = bottom - round(((height_ratio * width) / width_ratio - height) / 2);
+      }else{
+        left = left - round(((width_ratio * height) / height_ratio - width) / 2);
+        right = right - round(((width_ratio * height) / height_ratio - width) / 2);
+      }
+    }
+  }else{
+    if(width < height){
+      left = left - round(((width_ratio * height) / height_ratio - width) / 2);
+      right = right - round(((width_ratio * height) / height_ratio - width) / 2);
+    }else{
+      if(width > (width_ratio * height)){
+        top = top - round(((height_ratio * width) / width_ratio - height) / 2);
+        bottom = bottom - round(((height_ratio * width) / width_ratio - height) / 2);
+      }else{
+        left = left - round(((width_ratio * height) / height_ratio - width) / 2);
+        right = right - round(((width_ratio * height) / height_ratio - width) / 2);
+      }
+    }
+  }
 
   if (top < 0) {
     top = 0;

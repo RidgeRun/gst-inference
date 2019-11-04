@@ -40,7 +40,9 @@ protected:
 		      gint x,
 		      gint y,
 		      gint width,
-		      gint height) override;
+		      gint height,
+		      gint width_ratio,
+		      gint height_ratio) override;
 private:
   GstPad * GetPad (const std::string &name);
   const std::string factory = "videocrop";
