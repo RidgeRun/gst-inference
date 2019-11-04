@@ -33,7 +33,7 @@ public:
   bool Validate ();
   GstElement * GetElement ();
   void SetImageSize (gint width, gint height);
-  void SetBoundingBox (gint x, gint y, gint width, gint height);
+  void SetBoundingBox (gint x, gint y, gint width, gint height, gint width_ratio, gint height_ratio);
   virtual ~CropElement ();
   virtual const std::string GetFactory () const = 0;
   virtual GstPad * GetSinkPad () = 0;
@@ -58,6 +58,8 @@ private:
   gint width;
   gint height;
   std::mutex mutex;
+  gint width_ratio;
+  gint height_ratio;
 };
 
 #endif //__CROP_ELEMENT_H__

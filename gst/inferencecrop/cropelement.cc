@@ -30,6 +30,8 @@ CropElement::CropElement ()
   this->y = 0;
   this->width = 0;
   this->height = 0;
+  this->width_ratio = 0;
+  this->height_ratio = 0;
 }
 
 bool
@@ -63,7 +65,7 @@ CropElement::GetElement ()
 void
 CropElement::Reset ()
 {
-  this->SetBoundingBox(0, 0, this->image_width, this->image_height);
+  this->SetBoundingBox(0, 0, this->image_width, this->image_height,1,1);
 }
 
 void
@@ -78,7 +80,7 @@ CropElement::SetImageSize (gint width, gint height)
 }
 
 void
-CropElement::SetBoundingBox (gint x, gint y, gint width, gint height)
+CropElement::SetBoundingBox (gint x, gint y, gint width, gint height, gint width_ratio, gint height_ratio)
 {
   this->mutex.lock ();
   this->x = x;

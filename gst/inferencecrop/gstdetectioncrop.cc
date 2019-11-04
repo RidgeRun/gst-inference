@@ -84,11 +84,14 @@ static gint gst_detection_crop_find_index (GstDetectionCrop * self,
 #define PROP_CROP_CLASS_MAX G_MAXINT
 #define PROP_CROP_CLASS_MIN -1
 
+#define PROP_CROP_RATIO_DEFAULT "0:0"
+
 enum
 {
   PROP_0,
   PROP_CROP_INDEX,
   PROP_CROP_CLASS,
+  PROP_CROP_ASPECT_RATIO,
 };
 
 struct _GstDetectionCrop
@@ -97,6 +100,8 @@ struct _GstDetectionCrop
   CropElement *element;
   guint crop_index;
   gint crop_class;
+  const gchar *aspect_ratio;
+  gchar **aspect_ratio_tokens;
 };
 
 struct _GstDetectionCropClass
@@ -147,6 +152,11 @@ gst_detection_crop_class_init (GstDetectionCropClass * klass)
           "value, the detections will be iterated until a valid class is found and then "
           "used that one for cropping.", PROP_CROP_CLASS_MIN,
           PROP_CROP_CLASS_MAX, PROP_CROP_CLASS_DEFAULT, G_PARAM_READWRITE));
+
+  g_object_class_install_property (object_class, PROP_CROP_ASPECT_RATIO,
+      g_param_spec_string ("aspect-ratio", "Aspect Ratio", 
+          "Aspect ratio to crop the detections, width and height separated by ':'. "
+          "If set to 0:0 the detection crop ignore the aspect ratio.", PROP_CROP_RATIO_DEFAULT, G_PARAM_READWRITE));
 }
 
 static void
@@ -158,6 +168,7 @@ gst_detection_crop_init (GstDetectionCrop * self)
   self->element = new VideoCrop ();
   self->crop_index = PROP_CROP_INDEX_DEFAULT;
   self->crop_class = PROP_CROP_CLASS_DEFAULT;
+  self->aspect_ratio = PROP_CROP_RATIO_DEFAULT;
 
   if (FALSE == self->element->Validate ()) {
     const std::string factory = self->element->GetFactory ();
@@ -220,6 +231,12 @@ gst_detection_crop_set_property (GObject * object, guint property_id,
       self->crop_class = g_value_get_int (value);
       GST_OBJECT_UNLOCK (self);
       break;
+    case PROP_CROP_ASPECT_RATIO:
+      GST_OBJECT_LOCK (self);
+      self->aspect_ratio = g_value_dup_string (value);
+      self->aspect_ratio_tokens = g_strsplit (g_value_get_string (value), ":", 0);
+      GST_OBJECT_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -243,6 +260,11 @@ gst_detection_crop_get_property (GObject * object, guint property_id,
     case PROP_CROP_CLASS:
       GST_OBJECT_LOCK (self);
       g_value_set_int (value, self->crop_class);
+      GST_OBJECT_UNLOCK (self);
+      break;
+    case PROP_CROP_ASPECT_RATIO:
+      GST_OBJECT_LOCK (self);
+      g_value_set_string (value, self->aspect_ratio);
       GST_OBJECT_UNLOCK (self);
       break;
     default:
@@ -376,6 +398,8 @@ gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
   GstDetectionMeta *meta;
   guint crop_index;
   gint crop_class;
+  gint crop_width_ratio;
+  gint crop_height_ratio;
   gint requested_index;
   BBox box;
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
@@ -383,6 +407,8 @@ gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
   GST_OBJECT_LOCK (self);
   crop_index = self->crop_index;
   crop_class = self->crop_class;
+  crop_width_ratio = atoi(self->aspect_ratio_tokens[0]);
+  crop_height_ratio = atoi(self->aspect_ratio_tokens[1]);
   GST_OBJECT_UNLOCK (self);
 
   buffer = gst_pad_probe_info_get_buffer (info);
@@ -411,7 +437,7 @@ gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
   GST_LOG_OBJECT (self, "BBox: %fx%fx%fx%f", box.x, box.y, box.width,
       box.height);
   self->element->SetBoundingBox ((gint) box.x, (gint) box.y, (gint) box.width,
-      (gint) box.height);
+      (gint) box.height, (gint) crop_width_ratio, (gint) crop_height_ratio);
 
   ret = GST_PAD_PROBE_OK;
 
