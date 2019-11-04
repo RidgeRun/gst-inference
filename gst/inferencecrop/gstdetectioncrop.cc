@@ -156,7 +156,7 @@ gst_detection_crop_class_init (GstDetectionCropClass * klass)
   g_object_class_install_property (object_class, PROP_CROP_ASPECT_RATIO,
       g_param_spec_string ("aspect-ratio", "Aspect Ratio", 
           "Aspect ratio to crop the detections, width and height separated by ':'. "
-          "If set to 0:0 the detection crop ignore the aspect ratio.", PROP_CROP_RATIO_DEFAULT, G_PARAM_READWRITE));
+          "If set to 0:0 the detection crop ignore the aspect ratio.", PROP_CROP_RATIO_DEFAULT, G_PARAM_READWRITE)); 
 }
 
 static void
@@ -234,7 +234,7 @@ gst_detection_crop_set_property (GObject * object, guint property_id,
     case PROP_CROP_ASPECT_RATIO:
       GST_OBJECT_LOCK (self);
       self->aspect_ratio = g_value_dup_string (value);
-      self->aspect_ratio_tokens = g_strsplit (g_value_get_string (value), ":", 0);
+      self->aspect_ratio_tokens = g_strsplit (g_value_get_string (value), ":", 0); 
       GST_OBJECT_UNLOCK (self);
       break;
     default:
