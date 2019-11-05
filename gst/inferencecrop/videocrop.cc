@@ -20,62 +20,53 @@
  */
 
 #include "videocrop.h"
+
 #include <iostream>
 #include <math.h>
 
-const std::string
-VideoCrop::GetFactory () const
-{
+const std::string&
+VideoCrop::GetFactory () const {
   return this->factory;
 }
-  
+
 void
-VideoCrop::UpdateElement (GstElement * element,
-			  gint image_width,
-			  gint image_height,
-			  gint x,
-			  gint y,
-			  gint width,
-			  gint height,
-        gint width_ratio,
-        gint height_ratio)
-{
+VideoCrop::UpdateElement (GstElement *element,
+                          gint image_width,
+                          gint image_height,
+                          gint x,
+                          gint y,
+                          gint width,
+                          gint height,
+                          gint width_ratio,
+                          gint height_ratio) {
   gint top = y;
   gint bottom = image_height - y - height;
   gint left = x;
   gint right = image_width - x - width;
-  if(width_ratio != 0 || height_ratio != 0 ){
 
-    if(width_ratio <= height_ratio){
-      if(width > height){
-        top = top - round(((height_ratio * width) / width_ratio - height) / 2);
-        bottom = bottom - round(((height_ratio * width) / width_ratio - height) / 2);
-      }else{
-        if(height <= (height_ratio * width)){
-          top = top - round(((height_ratio * width) / width_ratio - height) / 2);
-          bottom = bottom - round(((height_ratio * width) / width_ratio - height) / 2);
-        }else{
-          left = left - round(((width_ratio * height) / height_ratio - width) / 2);
-          right = right - round(((width_ratio * height) / height_ratio - width) / 2);
-        }
+  if (width_ratio > 0 && height_ratio > 0) {
+    gint top_bottom_modify = round(((height_ratio * width) / width_ratio - height) /
+                                   2);
+    gint left_right_modify = round(((width_ratio * height) / height_ratio - width) /
+                                   2);
+    if (width_ratio <= height_ratio) {
+      if (width > height) {
+        top = top - top_bottom_modify;
+        bottom = bottom - top_bottom_modify;
+      } else {
+        left = left - left_right_modify;
+        right = right - left_right_modify;
       }
-    }else{
-      if(width < height){
-        left = left - round(((width_ratio * height) / height_ratio - width) / 2);
-        right = right - round(((width_ratio * height) / height_ratio - width) / 2);
-      }else{
-        if(width > (width_ratio * height)){
-          top = top - round(((height_ratio * width) / width_ratio - height) / 2);
-          bottom = bottom - round(((height_ratio * width) / width_ratio - height) / 2);
-        }else{
-          left = left - round(((width_ratio * height) / height_ratio - width) / 2);
-          right = right - round(((width_ratio * height) / height_ratio - width) / 2);
-        }
+    } else {
+      if (width < height) {
+        left = left - left_right_modify;
+        right = right - left_right_modify;
+      } else {
+        top = top - top_bottom_modify;
+        bottom = bottom - top_bottom_modify;
       }
     }
-
   }
-  
 
   if (top < 0) {
     top = 0;
@@ -92,31 +83,30 @@ VideoCrop::UpdateElement (GstElement * element,
   if (right < 0) {
     right = 0;
   }
-  
+
+  g_return_if_fail (element);
+
   g_object_set (element,
-		"top", top,
-		"bottom", bottom,
-		"left", left,
-		"right", right, NULL);
+                "top", top,
+                "bottom", bottom,
+                "left", left,
+                "right", right, NULL);
 }
 
 GstPad *
-VideoCrop::GetSinkPad ()
-{
+VideoCrop::GetSinkPad () {
   return this->GetPad ("sink");
 }
 
 GstPad *
-VideoCrop::GetSrcPad ()
-{
+VideoCrop::GetSrcPad () {
   return this->GetPad ("src");
 }
 
 GstPad *
-VideoCrop::GetPad (const std::string &name)
-{
-  GstElement * element = this->GetElement ();
-  GstPad * pad = gst_element_get_static_pad (element, name.c_str());
+VideoCrop::GetPad (const std::string &name) {
+  GstElement *element = this->GetElement ();
+  GstPad *pad = gst_element_get_static_pad (element, name.c_str());
 
   return pad;
 }

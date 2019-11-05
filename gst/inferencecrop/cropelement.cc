@@ -21,8 +21,7 @@
 
 #include "cropelement.h"
 
-CropElement::CropElement ()
-{
+CropElement::CropElement () {
   this->element = nullptr;
   this->image_width = 0;
   this->image_height = 0;
@@ -30,15 +29,14 @@ CropElement::CropElement ()
   this->y = 0;
   this->width = 0;
   this->height = 0;
-  this->width_ratio = 1;
-  this->height_ratio = 1;
+  this->width_ratio = PROP_CROP_RATIO_DEFAULT_WIDTH;
+  this->height_ratio = PROP_CROP_RATIO_DEFAULT_HEIGHT;
 }
 
 bool
-CropElement::Validate ()
-{
-  GstElement * element;
-  
+CropElement::Validate () {
+  GstElement *element;
+
   this->mutex.lock ();
   if (nullptr == this->element) {
     const std::string factory = this->GetFactory ();
@@ -46,31 +44,36 @@ CropElement::Validate ()
   }
   element = this->element;
   this->mutex.unlock ();
-  
+
   return element != nullptr;
 }
 
 GstElement *
-CropElement::GetElement ()
-{
-  GstElement * element;
-
+CropElement::GetElement () {
+  GstElement *element;
+  element = nullptr;
+  bool validated = Validate();
   this->mutex.lock ();
-  element = this->element;
+  if (validated) {
+    element = this->element;
+  }else{
+    const std::string factory = this->GetFactory ();
+    GST_ERROR_OBJECT (this->element, "Unable to initialize the element %s", factory.c_str ());
+  }
+
   this->mutex.unlock ();
-  
+
   return element;
 }
 
 void
-CropElement::Reset ()
-{
-  this->SetBoundingBox(0, 0, this->image_width, this->image_height,1,1);
+CropElement::Reset () {
+  this->SetBoundingBox(0, 0, this->image_width, this->image_height,
+                       this->width_ratio, this->height_ratio);
 }
 
 void
-CropElement::SetImageSize (gint width, gint height)
-{
+CropElement::SetImageSize (gint width, gint height) {
   this->mutex.lock ();
   this->image_width = width;
   this->image_height = height;
@@ -80,8 +83,8 @@ CropElement::SetImageSize (gint width, gint height)
 }
 
 void
-CropElement::SetBoundingBox (gint x, gint y, gint width, gint height, gint width_ratio, gint height_ratio)
-{
+CropElement::SetBoundingBox (gint x, gint y, gint width, gint height,
+                             gint width_ratio, gint height_ratio) {
   this->mutex.lock ();
   this->x = x;
   this->y = y;
@@ -91,19 +94,18 @@ CropElement::SetBoundingBox (gint x, gint y, gint width, gint height, gint width
   this->height_ratio = height_ratio;
 
   this->UpdateElement (this->element,
-		       this->image_width,
-		       this->image_height,
-		       this->x,
-		       this->y,
-		       this->width,
-		       this->height,
-           this->width_ratio,
-           this->height_ratio);
+                       this->image_width,
+                       this->image_height,
+                       this->x,
+                       this->y,
+                       this->width,
+                       this->height,
+                       this->width_ratio,
+                       this->height_ratio);
   this->mutex.unlock ();
 }
 
-CropElement::~CropElement ()
-{
+CropElement::~CropElement () {
   if (nullptr != this->element) {
     gst_object_unref (this->element);
     this->element = nullptr;

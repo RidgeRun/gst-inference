@@ -28,7 +28,10 @@
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch-1.0 -v videotestsrc ! detectioncrop ! xvimagesink
+ * gst-launch-1.0 v4l2src device=$CAMERA ! videoconvert ! tee name=t t. ! videoscale ! queue !
+   net.sink_model t. ! queue ! net.sink_bypass tinyyolov2 name=net model-location=$MODEL_LOCATION ! \
+   backend=tensorflow backend::input-layer=$INPUT_LAYER backend::output-layer=OUTPUT_LAYER net.src_bypass \
+   detectioncrop aspect-ratio="1:1" ! videoscale ! ximagesink sync=false
  * ]|
  * Process video frames from the camera using a detectioncrop model.
  * </refsect2>
@@ -57,24 +60,24 @@ static GstStaticPadTemplate src_template = GST_STATIC_PAD_TEMPLATE ("src",
 GST_DEBUG_CATEGORY_STATIC (gst_detection_crop_debug_category);
 #define GST_CAT_DEFAULT gst_detection_crop_debug_category
 
-static void gst_detection_crop_finalize (GObject * object);
-static void gst_detection_crop_set_property (GObject * object,
-    guint property_id, const GValue * value, GParamSpec * pspec);
-static void gst_detection_crop_get_property (GObject * object,
-    guint property_id, GValue * value, GParamSpec * pspec);
+static void gst_detection_crop_finalize (GObject *object);
+static void gst_detection_crop_set_property (GObject *object,
+    guint property_id, const GValue *value, GParamSpec *pspec);
+static void gst_detection_crop_get_property (GObject *object,
+    guint property_id, GValue *value, GParamSpec *pspec);
 static GstStateChangeReturn gst_detection_crop_change_state (GstElement *
     element, GstStateChange transition);
-static gboolean gst_detection_crop_start (GstDetectionCrop * self);
-static void gst_detection_crop_set_caps (GstPad * pad, GParamSpec * unused,
-    GstDetectionCrop * self);
-static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad * pad,
-    GstPadProbeInfo * info, GstDetectionCrop * self);
-static gint gst_detection_crop_find_by_index (GstDetectionCrop * self,
-    guint crop_index, GstDetectionMeta * meta);
-static gint gst_detection_crop_find_by_class (GstDetectionCrop * self,
-    gint crop_class, GstDetectionMeta * meta);
-static gint gst_detection_crop_find_index (GstDetectionCrop * self,
-    guint crop_index, gint crop_class, GstDetectionMeta * meta);
+static gboolean gst_detection_crop_start (GstDetectionCrop *self);
+static void gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
+    GstDetectionCrop *self);
+static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
+    GstPadProbeInfo *info, GstDetectionCrop *self);
+static gint gst_detection_crop_find_by_index (GstDetectionCrop *self,
+    guint crop_index, GstDetectionMeta *meta);
+static gint gst_detection_crop_find_by_class (GstDetectionCrop *self,
+    gint crop_class, GstDetectionMeta *meta);
+static gint gst_detection_crop_find_index (GstDetectionCrop *self,
+    guint crop_index, gint crop_class, GstDetectionMeta *meta);
 
 #define PROP_CROP_INDEX_DEFAULT 0
 #define PROP_CROP_INDEX_MAX G_MAXUINT
@@ -84,92 +87,88 @@ static gint gst_detection_crop_find_index (GstDetectionCrop * self,
 #define PROP_CROP_CLASS_MAX G_MAXINT
 #define PROP_CROP_CLASS_MIN -1
 
-#define PROP_CROP_RATIO_DEFAULT "1:1"
-
-enum
-{
+enum {
   PROP_0,
   PROP_CROP_INDEX,
   PROP_CROP_CLASS,
   PROP_CROP_ASPECT_RATIO,
 };
 
-struct _GstDetectionCrop
-{
+struct _GstDetectionCrop {
   GstBin parent;
   CropElement *element;
   guint crop_index;
   gint crop_class;
-  const gchar *aspect_ratio;
-  gchar **aspect_ratio_tokens;
+  gint width_ratio;
+  gint height_ratio;
 };
 
-struct _GstDetectionCropClass
-{
+struct _GstDetectionCropClass {
   GstBinClass parent;
 };
 
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE (GstDetectionCrop, gst_detection_crop,
-    GST_TYPE_BIN,
-    GST_DEBUG_CATEGORY_INIT (gst_detection_crop_debug_category, "detectioncrop",
-        0, "debug category for detectioncrop element"));
+                         GST_TYPE_BIN,
+                         GST_DEBUG_CATEGORY_INIT (gst_detection_crop_debug_category, "detectioncrop",
+                             0, "debug category for detectioncrop element"));
 
 static void
-gst_detection_crop_class_init (GstDetectionCropClass * klass)
-{
+gst_detection_crop_class_init (GstDetectionCropClass *klass) {
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&sink_template));
+                                      gst_static_pad_template_get (&sink_template));
   gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&src_template));
+                                      gst_static_pad_template_get (&src_template));
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-      "detectioncrop", "Filter",
-      "Crops an incoming image based on an inference prediction bounding box",
-      "   Michael Gruner <michael.gruner@ridgerun.com>");
+                                         "detectioncrop", "Filter",
+                                         "Crops an incoming image based on an inference prediction bounding box",
+                                         "Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
+                                         "   Lenin Torres <lenin.torres@ridgerun.com>");
 
   element_class->change_state =
-      GST_DEBUG_FUNCPTR (gst_detection_crop_change_state);
+    GST_DEBUG_FUNCPTR (gst_detection_crop_change_state);
 
   object_class->finalize = gst_detection_crop_finalize;
   object_class->set_property = gst_detection_crop_set_property;
   object_class->get_property = gst_detection_crop_get_property;
 
   g_object_class_install_property (object_class, PROP_CROP_INDEX,
-      g_param_spec_uint ("crop-index", "Crop Index", "Index of the detected "
-          "object to crop in the prediction array. This will be ignored if "
-          "crop-class is set to a non-negative value", PROP_CROP_INDEX_MIN,
-          PROP_CROP_INDEX_MAX, PROP_CROP_INDEX_DEFAULT, G_PARAM_READWRITE));
+                                   g_param_spec_uint ("crop-index", "Crop Index", "Index of the detected "
+                                       "object to crop in the prediction array. This will be ignored if "
+                                       "crop-class is set to a non-negative value", PROP_CROP_INDEX_MIN,
+                                       PROP_CROP_INDEX_MAX, PROP_CROP_INDEX_DEFAULT, G_PARAM_READWRITE));
 
   g_object_class_install_property (object_class, PROP_CROP_CLASS,
-      g_param_spec_int ("crop-class", "Crop Class",
-          "Object class to crop look for "
-          "cropping. If set to -1, crop-index will be used. If set to a non-negative "
-          "value, the detections will be iterated until a valid class is found and then "
-          "used that one for cropping.", PROP_CROP_CLASS_MIN,
-          PROP_CROP_CLASS_MAX, PROP_CROP_CLASS_DEFAULT, G_PARAM_READWRITE));
+                                   g_param_spec_int ("crop-class", "Crop Class",
+                                       "Object class to crop look for "
+                                       "cropping. If set to -1, crop-index will be used. If set to a non-negative "
+                                       "value, the detections will be iterated until a valid class is found and then "
+                                       "used that one for cropping.", PROP_CROP_CLASS_MIN,
+                                       PROP_CROP_CLASS_MAX, PROP_CROP_CLASS_DEFAULT, G_PARAM_READWRITE));
 
   g_object_class_install_property (object_class, PROP_CROP_ASPECT_RATIO,
-      g_param_spec_string ("aspect-ratio", "Aspect Ratio", 
-          "Aspect ratio to crop the detections, width and height separated by ':'. "
-          "If set to 1:1 the detection crop ignore the aspect ratio.", PROP_CROP_RATIO_DEFAULT, G_PARAM_READWRITE));
+                                   gst_param_spec_fraction ("aspect-ratio", "Aspect Ratio",
+                                       "Aspect ratio to crop the detections, width and height separated by '/'. "
+                                       "If set to 0/1 it maintains the aspect ratio of each bounding box.", 0, 1, G_MAXINT, 1,
+                                       PROP_CROP_RATIO_DEFAULT_WIDTH, PROP_CROP_RATIO_DEFAULT_HEIGHT,
+                                       G_PARAM_READWRITE ));
 }
 
 static void
-gst_detection_crop_init (GstDetectionCrop * self)
-{
+gst_detection_crop_init (GstDetectionCrop *self) {
   GstElement *element;
   GstPad *sinkpad, *sinkgpad, *srcpad, *srcgpad;
 
   self->element = new VideoCrop ();
   self->crop_index = PROP_CROP_INDEX_DEFAULT;
   self->crop_class = PROP_CROP_CLASS_DEFAULT;
-  self->aspect_ratio = PROP_CROP_RATIO_DEFAULT;
-
+  self->width_ratio = PROP_CROP_RATIO_DEFAULT_WIDTH;
+  self->height_ratio = PROP_CROP_RATIO_DEFAULT_HEIGHT;
   if (FALSE == self->element->Validate ()) {
     const std::string factory = self->element->GetFactory ();
     GST_ERROR_OBJECT (self, "Unable to find element %s", factory.c_str ());
@@ -187,9 +186,9 @@ gst_detection_crop_init (GstDetectionCrop * self)
   gst_element_add_pad (GST_ELEMENT (self), sinkgpad);
 
   g_signal_connect (sinkgpad, "notify::caps",
-      G_CALLBACK (gst_detection_crop_set_caps), self);
+                    G_CALLBACK (gst_detection_crop_set_caps), self);
   gst_pad_add_probe (sinkgpad, GST_PAD_PROBE_TYPE_BUFFER,
-      (GstPadProbeCallback) gst_detection_crop_new_buffer, self, NULL);
+                     (GstPadProbeCallback) gst_detection_crop_new_buffer, self, NULL);
 
   srcpad = self->element->GetSrcPad ();
   g_return_if_fail (srcpad);
@@ -203,8 +202,7 @@ gst_detection_crop_init (GstDetectionCrop * self)
 }
 
 static void
-gst_detection_crop_finalize (GObject * object)
-{
+gst_detection_crop_finalize (GObject *object) {
   GstDetectionCrop *self = GST_DETECTION_CROP (object);
 
   delete (self->element);
@@ -213,9 +211,8 @@ gst_detection_crop_finalize (GObject * object)
 }
 
 static void
-gst_detection_crop_set_property (GObject * object, guint property_id,
-    const GValue * value, GParamSpec * pspec)
-{
+gst_detection_crop_set_property (GObject *object, guint property_id,
+                                 const GValue *value, GParamSpec *pspec) {
   GstDetectionCrop *self = GST_DETECTION_CROP (object);
 
   GST_DEBUG_OBJECT (self, "set_property");
@@ -233,7 +230,10 @@ gst_detection_crop_set_property (GObject * object, guint property_id,
       break;
     case PROP_CROP_ASPECT_RATIO:
       GST_OBJECT_LOCK (self);
-      self->aspect_ratio = g_value_dup_string (value);
+      if (GST_VALUE_HOLDS_FRACTION (value)) {
+        self->width_ratio = gst_value_get_fraction_numerator (value);
+        self->height_ratio = gst_value_get_fraction_denominator (value);
+      }
       GST_OBJECT_UNLOCK (self);
       break;
     default:
@@ -243,9 +243,8 @@ gst_detection_crop_set_property (GObject * object, guint property_id,
 }
 
 static void
-gst_detection_crop_get_property (GObject * object, guint property_id,
-    GValue * value, GParamSpec * pspec)
-{
+gst_detection_crop_get_property (GObject *object, guint property_id,
+                                 GValue *value, GParamSpec *pspec) {
   GstDetectionCrop *self = GST_DETECTION_CROP (object);
 
   GST_DEBUG_OBJECT (self, "get_property");
@@ -263,7 +262,7 @@ gst_detection_crop_get_property (GObject * object, guint property_id,
       break;
     case PROP_CROP_ASPECT_RATIO:
       GST_OBJECT_LOCK (self);
-      g_value_set_string (value, self->aspect_ratio);
+      gst_value_set_fraction (value, self->width_ratio, self->height_ratio);
       GST_OBJECT_UNLOCK (self);
       break;
     default:
@@ -273,17 +272,15 @@ gst_detection_crop_get_property (GObject * object, guint property_id,
 }
 
 static gboolean
-gst_detection_crop_start (GstDetectionCrop * self)
-{
+gst_detection_crop_start (GstDetectionCrop *self) {
   g_return_val_if_fail (self, FALSE);
 
   return self->element->Validate ();
 }
 
 static GstStateChangeReturn
-gst_detection_crop_change_state (GstElement * element,
-    GstStateChange transition)
-{
+gst_detection_crop_change_state (GstElement *element,
+                                 GstStateChange transition) {
   GstStateChangeReturn ret;
   GstDetectionCrop *self = GST_DETECTION_CROP (element);
 
@@ -298,8 +295,8 @@ gst_detection_crop_change_state (GstElement * element,
       break;
   }
   ret =
-      GST_ELEMENT_CLASS (gst_detection_crop_parent_class)->change_state
-      (element, transition);
+    GST_ELEMENT_CLASS (gst_detection_crop_parent_class)->change_state
+    (element, transition);
   if (GST_STATE_CHANGE_FAILURE == ret) {
     GST_ERROR_OBJECT (self, "Parent failed to change state");
     goto out;
@@ -310,9 +307,8 @@ out:
 }
 
 static void
-gst_detection_crop_set_caps (GstPad * pad, GParamSpec * unused,
-    GstDetectionCrop * self)
-{
+gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
+                             GstDetectionCrop *self) {
   GstCaps *caps;
   GstStructure *st;
   gint width;
@@ -330,20 +326,20 @@ gst_detection_crop_set_caps (GstPad * pad, GParamSpec * unused,
   GST_INFO_OBJECT (self, "Set new caps to %" GST_PTR_FORMAT, caps);
 
   self->element->SetImageSize (width, height);
+  gst_caps_unref(caps);
 }
 
 static gint
-gst_detection_crop_find_by_index (GstDetectionCrop * self, guint crop_index,
-    GstDetectionMeta * meta)
-{
+gst_detection_crop_find_by_index (GstDetectionCrop *self, guint crop_index,
+                                  GstDetectionMeta *meta) {
   gint ret = crop_index;
 
   g_return_val_if_fail (self, -1);
   g_return_val_if_fail (meta, -1);
 
-  if (crop_index >= meta->num_boxes) {
+  if ((gint)crop_index >= meta->num_boxes) {
     GST_LOG_OBJECT (self, "Configured crop index is larger than "
-        "the amount of objects in the prediction");
+                    "the amount of objects in the prediction");
 
     ret = -1;
   }
@@ -352,9 +348,8 @@ gst_detection_crop_find_by_index (GstDetectionCrop * self, guint crop_index,
 }
 
 static gint
-gst_detection_crop_find_by_class (GstDetectionCrop * self, gint crop_class,
-    GstDetectionMeta * meta)
-{
+gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
+                                  GstDetectionMeta *meta) {
   gint i;
   gint ret = -1;
 
@@ -376,9 +371,8 @@ gst_detection_crop_find_by_class (GstDetectionCrop * self, gint crop_class,
 }
 
 static gint
-gst_detection_crop_find_index (GstDetectionCrop * self, guint crop_index,
-    gint crop_class, GstDetectionMeta * meta)
-{
+gst_detection_crop_find_index (GstDetectionCrop *self, guint crop_index,
+                               gint crop_class, GstDetectionMeta *meta) {
   g_return_val_if_fail (self, -1);
   g_return_val_if_fail (meta, -1);
 
@@ -390,9 +384,8 @@ gst_detection_crop_find_index (GstDetectionCrop * self, guint crop_index,
 }
 
 static GstPadProbeReturn
-gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
-    GstDetectionCrop * self)
-{
+gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
+                               GstDetectionCrop *self) {
   GstBuffer *buffer;
   GstDetectionMeta *meta;
   guint crop_index;
@@ -404,18 +397,17 @@ gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
 
   GST_OBJECT_LOCK (self);
-  self->aspect_ratio_tokens = g_strsplit (self->aspect_ratio, ":", 0);
   crop_index = self->crop_index;
   crop_class = self->crop_class;
-  crop_width_ratio = atoi(self->aspect_ratio_tokens[0]);
-  crop_height_ratio = atoi(self->aspect_ratio_tokens[1]);
+  crop_width_ratio = self->width_ratio;
+  crop_height_ratio = self->height_ratio;
   GST_OBJECT_UNLOCK (self);
 
   buffer = gst_pad_probe_info_get_buffer (info);
 
   meta =
-      (GstDetectionMeta *) gst_buffer_get_meta (buffer,
-      GST_DETECTION_META_API_TYPE);
+    (GstDetectionMeta *) gst_buffer_get_meta (buffer,
+        GST_DETECTION_META_API_TYPE);
 
   if (NULL == meta) {
     GST_LOG_OBJECT (self, "No meta found, dropping buffer");
@@ -428,16 +420,16 @@ gst_detection_crop_new_buffer (GstPad * pad, GstPadProbeInfo * info,
   }
 
   requested_index =
-      gst_detection_crop_find_index (self, crop_index, crop_class, meta);
+    gst_detection_crop_find_index (self, crop_index, crop_class, meta);
   if (-1 == requested_index) {
     goto out;
   }
 
   box = meta->boxes[requested_index];
   GST_LOG_OBJECT (self, "BBox: %fx%fx%fx%f", box.x, box.y, box.width,
-      box.height);
+                  box.height);
   self->element->SetBoundingBox ((gint) box.x, (gint) box.y, (gint) box.width,
-      (gint) box.height, (gint) crop_width_ratio, (gint) crop_height_ratio);
+                                 (gint) box.height, (gint) crop_width_ratio, (gint) crop_height_ratio);
 
   ret = GST_PAD_PROBE_OK;
 
@@ -446,19 +438,18 @@ out:
 }
 
 static gboolean
-plugin_init (GstPlugin * plugin)
-{
+plugin_init (GstPlugin *plugin) {
   gboolean ret = TRUE;
 
   ret =
-      gst_element_register (plugin, "detectioncrop", GST_RANK_NONE,
-      GST_TYPE_DETECTION_CROP);
+    gst_element_register (plugin, "detectioncrop", GST_RANK_NONE,
+                          GST_TYPE_DETECTION_CROP);
 
   return ret;
 }
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
-    GST_VERSION_MINOR,
-    inferencecrop,
-    "Crops an incoming image based on an inference prediction bounding box",
-    plugin_init, VERSION, "LGPL", PACKAGE_NAME, GST_PACKAGE_ORIGIN)
+                   GST_VERSION_MINOR,
+                   inferencecrop,
+                   "Crops an incoming image based on an inference prediction bounding box",
+                   plugin_init, VERSION, "LGPL", PACKAGE_NAME, GST_PACKAGE_ORIGIN)

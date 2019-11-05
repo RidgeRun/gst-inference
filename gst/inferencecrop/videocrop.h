@@ -26,25 +26,24 @@
 
 #include <string>
 
-class VideoCrop : public CropElement
-{
-public:
-  const std::string GetFactory () const override;
-  GstPad * GetSrcPad () override;
-  GstPad * GetSinkPad () override;
+class VideoCrop: public CropElement {
+ public:
+  const std::string& GetFactory () const override;
+  GstPad *GetSrcPad () override;
+  GstPad *GetSinkPad () override;
 
-protected:
-  void UpdateElement (GstElement * element,
-		      gint image_width,
-		      gint image_height,
-		      gint x,
-		      gint y,
-		      gint width,
-		      gint height,
-		      gint width_ratio,
-		      gint height_ratio) override;
-private:
-  GstPad * GetPad (const std::string &name);
+ protected:
+  void UpdateElement (GstElement *element,
+                      gint image_width,
+                      gint image_height,
+                      gint x,
+                      gint y,
+                      gint width,
+                      gint height,
+                      gint width_ratio,
+                      gint height_ratio) override;
+ private:
+  GstPad *GetPad (const std::string &name);
   const std::string factory = "videocrop";
 };
 

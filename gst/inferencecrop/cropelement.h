@@ -26,33 +26,35 @@
 #include <mutex>
 #include <string>
 
-class CropElement
-{
-public:
+#define PROP_CROP_RATIO_DEFAULT_WIDTH 1
+#define PROP_CROP_RATIO_DEFAULT_HEIGHT 1
+class CropElement {
+ public:
   CropElement ();
   bool Validate ();
-  GstElement * GetElement ();
+  GstElement *GetElement ();
   void SetImageSize (gint width, gint height);
-  void SetBoundingBox (gint x, gint y, gint width, gint height, gint width_ratio, gint height_ratio);
-  virtual ~CropElement ();
-  virtual const std::string GetFactory () const = 0;
-  virtual GstPad * GetSinkPad () = 0;
-  virtual GstPad * GetSrcPad () = 0;
+  void SetBoundingBox (gint x, gint y, gint width, gint height, gint width_ratio,
+                       gint height_ratio);
+  virtual ~ CropElement ();
+  virtual const std::string& GetFactory () const = 0;
+  virtual GstPad *GetSinkPad () = 0;
+  virtual GstPad *GetSrcPad () = 0;
   void Reset ();
-  
-protected:
-  virtual void UpdateElement (GstElement * element,
-			      gint image_width,
-			      gint image_height,
-			      gint x,
-			      gint y,
-			      gint width,
-			      gint height,
-            gint width_ratio,
-            gint height_ratio) = 0;
 
-private:
-  GstElement * element;
+ protected:
+  virtual void UpdateElement (GstElement *element,
+                              gint image_width,
+                              gint image_height,
+                              gint x,
+                              gint y,
+                              gint width,
+                              gint height,
+                              gint width_ratio,
+                              gint height_ratio) = 0;
+
+ private:
+  GstElement *element;
   gint image_width;
   gint image_height;
   gint x;

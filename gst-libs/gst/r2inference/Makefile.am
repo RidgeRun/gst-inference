@@ -9,7 +9,7 @@ libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gstbackend.cc				\
 	gstncsdk.cc				\
 	gsttensorflow.cc			\
-	gstinferencepreprocess.c            	\
+	gstinferencepreprocess.c		\
 	gstinferencepostprocess.c		\
 	gstinferencedebug.c
 
@@ -28,8 +28,8 @@ libgstinference_@GST_API_VERSION@_la_CFLAGS=	\
 
 libgstinference_@GST_API_VERSION@_la_LIBADD=	\
 	$(GST_LIBS)				\
-	$(GST_BASE_LIBS)                        \
-	-lgstvideo-@GST_API_VERSION@	        \
+	$(GST_BASE_LIBS)			\
+	-lgstvideo-@GST_API_VERSION@		\
 	$(GST_PLUGINS_BASE_LIBS)		\
 	$(R2INFERENCE_LIBS)
 
@@ -42,13 +42,8 @@ gstinferenceinclude_HEADERS=		\
 	gstbackend.h			\
 	gstbackendsubclass.h		\
 	gstncsdk.h			\
-	gsttensorflow.h 		\
-	gstinferencepreprocess.h 	\
+	gsttensorflow.h			\
+	gstinferencepreprocess.h	\
 	gstinferencepostprocess.h	\
-	gstinferencedebug.h             \
-        gstinferencemeta.h
-
-
-
-
-
+	gstinferencedebug.h		\
+	gstinferencemeta.h

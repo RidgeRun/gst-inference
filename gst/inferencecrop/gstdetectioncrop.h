@@ -27,7 +27,8 @@
 G_BEGIN_DECLS
 
 #define GST_TYPE_DETECTION_CROP gst_detection_crop_get_type ()
-G_DECLARE_FINAL_TYPE (GstDetectionCrop, gst_detection_crop, GST, DETECTION_CROP, GstBin)
+G_DECLARE_FINAL_TYPE (GstDetectionCrop, gst_detection_crop, GST, DETECTION_CROP,
+                      GstBin)
 
 G_END_DECLS
 

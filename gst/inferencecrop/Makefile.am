@@ -1,12 +1,11 @@
 plugin_LTLIBRARIES = libgstinferencecrop.la
 
 libgstinferencecrop_la_SOURCES =	\
-	gstdetectioncrop.cc             \
-        cropelement.cc                  \
-        videocrop.cc
+	gstdetectioncrop.cc		\
+	cropelement.cc			\
+	videocrop.cc
 
-
-libgstinferencecrop_la_CFLAGS =		\
+libgstinferencecrop_la_CFLAGS =	\
 	$(GST_CFLAGS)			\
 	$(GST_BASE_CFLAGS)		\
 	$(GST_PLUGINS_BASE_CFLAGS)	\
@@ -16,10 +15,10 @@ libgstinferencecrop_la_CXXFLAGS =	\
 	$(GST_CFLAGS)			\
 	$(GST_BASE_CFLAGS)		\
 	$(GST_PLUGINS_BASE_CFLAGS)	\
-	-I$(top_srcdir)/gst-libs        \
-        -std=c++11
+	-I$(top_srcdir)/gst-libs	\
+	-std=c++11
 
-libgstinferencecrop_la_LIBADD =		\
+libgstinferencecrop_la_LIBADD =	\
 	$(GST_LIBS)			\
 	$(GST_BASE_LIBS)		\
 	$(GST_PLUGINS_BASE_LIBS)	\
@@ -32,6 +31,6 @@ libgstinferencecrop_la_LIBTOOLFLAGS =	\
 	$(GST_PLUGIN_LIBTOOLFLAGS)
 
 noinst_HEADERS =			\
-	gstdetectioncrop.h              \
-        cropelement.h                   \
-        videocrop.h
+	gstdetectioncrop.h		\
+	cropelement.h			\
+	videocrop.h
