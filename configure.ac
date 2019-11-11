@@ -367,6 +367,9 @@ AC_SUBST(GST_PLUGIN_LDFLAGS)
 
 dnl *** output files ***
 
+# Our Include path, to be shared in multiple makefiles
+AC_SUBST([GSTINCLUDEDIR],[$includedir/gstreamer-1.0])
+
 dnl keep this alphabetic per directory, please
 AC_CONFIG_FILES(
 Makefile
@@ -384,6 +387,7 @@ gst-libs/gst/opencv/Makefile
 gst-libs/gst/r2inference/Makefile
 m4/Makefile
 tests/check/Makefile
+gst-inference-${GST_API_VERSION}.pc:gst-inference.pc.in
 tests/Makefile
 tests/examples/classification/Makefile
 tests/examples/detection/Makefile
@@ -394,4 +398,3 @@ tests/files/Makefile
 AC_OUTPUT
 
 AG_GST_OUTPUT_PLUGINS
-
