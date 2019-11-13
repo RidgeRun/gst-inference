@@ -396,8 +396,7 @@ error:
 }
 
 static r2i::ImageFormat::Id
-gst_backend_cast_format (GstVideoFormat format)
-{
+gst_backend_cast_format (GstVideoFormat format) {
   r2i::ImageFormat::Id image_format;
 
   switch (format) {
@@ -441,7 +440,8 @@ gst_backend_process_frame (GstBackend *self, GstVideoFrame *input_frame,
 
   error =
     frame->Configure (input_frame->data[0], input_frame->info.width,
-                      input_frame->info.height, r2i::ImageFormat::Id::RGB);
+                      input_frame->info.height,
+                      gst_backend_cast_format(input_frame->info.finfo->format));
   if (error.IsError ()) {
     goto error;
   }
