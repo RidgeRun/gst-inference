@@ -102,6 +102,11 @@ gst_configure_format_values (GstVideoFrame * inframe, gint * first_index,
       *last_index = 0;
       *offset = 1;
       break;
+    case GST_VIDEO_FORMAT_GRAY8:
+      *first_index = 0;
+      *last_index = 0;
+      *offset = 0;
+      break;
     default:
       return FALSE;
       break;
