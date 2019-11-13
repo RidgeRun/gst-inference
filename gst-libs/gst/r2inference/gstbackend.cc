@@ -395,6 +395,28 @@ error:
   return FALSE;
 }
 
+static r2i::ImageFormat::Id
+gst_backend_cast_format (GstVideoFormat format)
+{
+  r2i::ImageFormat::Id image_format;
+
+  switch (format) {
+    case GST_VIDEO_FORMAT_RGB:
+      image_format = r2i::ImageFormat::Id::RGB;
+      break;
+    case GST_VIDEO_FORMAT_BGR:
+      image_format = r2i::ImageFormat::Id::BGR;
+      break;
+    case GST_VIDEO_FORMAT_GRAY8:
+      image_format = r2i::ImageFormat::Id::GRAY8;
+      break;
+    default:
+      image_format = r2i::ImageFormat::Id::RGB;
+      break;
+  }
+  return image_format;
+}
+
 gboolean
 gst_backend_process_frame (GstBackend *self, GstVideoFrame *input_frame,
                            gpointer *prediction_data, gsize *prediction_size, GError **err) {
