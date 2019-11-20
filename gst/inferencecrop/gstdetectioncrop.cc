@@ -72,12 +72,12 @@ static void gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
     GstDetectionCrop *self);
 static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
     GstPadProbeInfo *info, GstDetectionCrop *self);
-static gint gst_detection_crop_find_by_index (GstDetectionCrop *self,
+static GList *gst_detection_crop_find_by_index (GstDetectionCrop *self,
     guint crop_index, GstDetectionMeta *meta);
-static gint gst_detection_crop_find_by_class (GstDetectionCrop *self,
-    gint crop_class, GstDetectionMeta *meta, GList **list);
-static gint gst_detection_crop_find_index (GstDetectionCrop *self,
-    guint crop_index, gint crop_class, GstDetectionMeta *meta, GList **list);
+static GList *gst_detection_crop_find_by_class (GstDetectionCrop *self,
+    gint crop_class, GstDetectionMeta *meta);
+static GList *gst_detection_crop_find_index (GstDetectionCrop *self,
+    guint crop_index, gint crop_class, GstDetectionMeta *meta);
 
 #define PROP_CROP_INDEX_DEFAULT 0
 #define PROP_CROP_INDEX_MAX G_MAXUINT
@@ -165,7 +165,7 @@ static void
 gst_detection_crop_init (GstDetectionCrop *self) {
   GstElement *element;
   GstPad *sinkpad, *sinkgpad, *srcpad, *srcgpad;
-  
+
   self->pad = NULL;
   self->element = new VideoCrop ();
   self->crop_index = PROP_CROP_INDEX_DEFAULT;
@@ -184,7 +184,7 @@ gst_detection_crop_init (GstDetectionCrop *self) {
   sinkpad = self->element->GetSinkPad ();
   g_return_if_fail (sinkpad);
 
-  self->pad = (GstPad *)gst_object_ref(sinkpad);
+  self->pad = GST_PAD(gst_object_ref(sinkpad));
 
   sinkgpad = gst_ghost_pad_new ("sink", sinkpad);
   gst_pad_set_active (sinkgpad, TRUE);
@@ -336,37 +336,37 @@ gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
   gst_caps_unref(caps);
 }
 
-static gint
+static GList *
 gst_detection_crop_find_by_index (GstDetectionCrop *self, guint crop_index,
                                   GstDetectionMeta *meta) {
-  gint ret = crop_index;
+  GList *list = NULL;
 
-  g_return_val_if_fail (self, -1);
-  g_return_val_if_fail (meta, -1);
+  g_return_val_if_fail (self, list);
+  g_return_val_if_fail (meta, list);
 
-  if ((gint)crop_index >= meta->num_boxes) {
+  if ((gint)crop_index < meta->num_boxes) {
+    list =  g_list_append (list, GINT_TO_POINTER (crop_index));
+  } else {
     GST_LOG_OBJECT (self, "Configured crop index is larger than "
                     "the amount of objects in the prediction");
-
-    ret = -1;
   }
 
-  return ret;
+  return list;
 }
 
-static gint
+static GList *
 gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
-                                  GstDetectionMeta *meta, GList **list) {
+                                  GstDetectionMeta *meta) {
   gint i;
   gint ret = -1;
+  GList *list = NULL;
 
-  g_return_val_if_fail (self, -1);
-  g_return_val_if_fail (meta, -1);
-  g_return_val_if_fail (list, -1);
-  
+  g_return_val_if_fail (self, list);
+  g_return_val_if_fail (meta, list);
+
   for (i = 0; i < meta->num_boxes; ++i) {
     if (meta->boxes[i].label == crop_class) {
-      *list = g_list_append (*list, GINT_TO_POINTER (i));
+      list = g_list_append (list, GINT_TO_POINTER (i));
       ret = i;
     }
   }
@@ -375,20 +375,21 @@ gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
     GST_LOG_OBJECT (self, "No valid class detected");
   }
 
-  return ret;
+  return list;
 }
 
-static gint
+static GList *
 gst_detection_crop_find_index (GstDetectionCrop *self, guint crop_index,
-                               gint crop_class, GstDetectionMeta *meta, GList **list) {
-  g_return_val_if_fail (self, -1);
-  g_return_val_if_fail (meta, -1);
-  g_return_val_if_fail (list, -1);
+                               gint crop_class, GstDetectionMeta *meta) {
+  GList *list = NULL;
+
+  g_return_val_if_fail (self, list);
+  g_return_val_if_fail (meta, list);
 
   if (-1 == crop_class) {
     return gst_detection_crop_find_by_index (self, crop_index, meta);
   } else {
-    return gst_detection_crop_find_by_class (self, crop_class, meta, list);
+    return gst_detection_crop_find_by_class (self, crop_class, meta);
   }
 }
 
@@ -401,10 +402,10 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   gint crop_class;
   gint crop_width_ratio;
   gint crop_height_ratio;
-  gint requested_index;
+  GList *requested_index;
   BBox box;
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
-  GList *list = NULL;
+
   GList *iter = NULL;
 
   GST_OBJECT_LOCK (self);
@@ -431,12 +432,13 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   }
 
   requested_index =
-    gst_detection_crop_find_index (self, crop_index, crop_class, meta, &list);
-  if (-1 == requested_index) {
+    gst_detection_crop_find_index (self, crop_index, crop_class, meta);
+  if (NULL == requested_index) {
     goto out;
   }
 
-  for (iter = list; iter != NULL; iter = g_list_next(iter)) {
+  for (iter = requested_index; requested_index != NULL;
+       requested_index = g_list_next(requested_index)) {
     box = meta->boxes[GPOINTER_TO_INT(iter->data)];
     GST_LOG_OBJECT (self, "BBox: %fx%fx%fx%f", box.x, box.y, box.width,
                     box.height);
@@ -446,7 +448,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     gst_pad_chain(self->pad, buffer);
   }
 
-  ret = GST_PAD_PROBE_OK;
+  ret = GST_PAD_PROBE_DROP;
 
 out:
   return ret;
