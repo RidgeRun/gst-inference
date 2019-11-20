@@ -96,6 +96,7 @@ enum {
 
 struct _GstDetectionCrop {
   GstBin parent;
+  GstPad *pad;
   CropElement *element;
   guint crop_index;
   gint crop_class;
@@ -164,7 +165,7 @@ static void
 gst_detection_crop_init (GstDetectionCrop *self) {
   GstElement *element;
   GstPad *sinkpad, *sinkgpad, *srcpad, *srcgpad;
-
+  self->pad = NULL;
   self->element = new VideoCrop ();
   self->crop_index = PROP_CROP_INDEX_DEFAULT;
   self->crop_class = PROP_CROP_CLASS_DEFAULT;
@@ -181,6 +182,8 @@ gst_detection_crop_init (GstDetectionCrop *self) {
 
   sinkpad = self->element->GetSinkPad ();
   g_return_if_fail (sinkpad);
+
+  self->pad = (GstPad *)gst_object_ref(sinkpad);
 
   sinkgpad = gst_ghost_pad_new ("sink", sinkpad);
   gst_pad_set_active (sinkgpad, TRUE);
@@ -207,6 +210,8 @@ gst_detection_crop_finalize (GObject *object) {
   GstDetectionCrop *self = GST_DETECTION_CROP (object);
 
   delete (self->element);
+  gst_object_unref (self->pad);
+  self->pad = NULL;
 
   G_OBJECT_CLASS (gst_detection_crop_parent_class)->finalize (object);
 }
@@ -359,7 +364,7 @@ gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
 
   for (i = 0; i < meta->num_boxes; ++i) {
     if (meta->boxes[i].label == crop_class) {
-      *list = g_list_prepend (*list, GINT_TO_POINTER (i));
+      *list = g_list_append (*list, GINT_TO_POINTER (i));
       ret = i;
     }
   }
@@ -434,6 +439,8 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
                     box.height);
     self->element->SetBoundingBox ((gint) box.x, (gint) box.y, (gint) box.width,
                                    (gint) box.height, (gint) crop_width_ratio, (gint) crop_height_ratio);
+    gst_buffer_ref(buffer);
+    gst_pad_chain(self->pad, buffer);
   }
 
   ret = GST_PAD_PROBE_OK;
