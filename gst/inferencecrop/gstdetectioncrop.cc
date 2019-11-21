@@ -402,7 +402,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   gint crop_class;
   gint crop_width_ratio;
   gint crop_height_ratio;
-  GList *requested_index;
+  GList *detection_list;
   BBox box;
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
 
@@ -431,21 +431,24 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     goto out;
   }
 
-  requested_index =
+  detection_list =
     gst_detection_crop_find_index (self, crop_index, crop_class, meta);
-  if (NULL == requested_index) {
+  if (NULL == detection_list) {
     goto out;
   }
 
-  for (iter = requested_index; requested_index != NULL;
-       requested_index = g_list_next(requested_index)) {
+  for (iter = detection_list; iter != NULL;
+       iter = g_list_next(iter)) {
     box = meta->boxes[GPOINTER_TO_INT(iter->data)];
     GST_LOG_OBJECT (self, "BBox: %fx%fx%fx%f", box.x, box.y, box.width,
                     box.height);
     self->element->SetBoundingBox ((gint) box.x, (gint) box.y, (gint) box.width,
                                    (gint) box.height, (gint) crop_width_ratio, (gint) crop_height_ratio);
     gst_buffer_ref(buffer);
-    gst_pad_chain(self->pad, buffer);
+    if (GST_FLOW_OK != gst_pad_chain(self->pad, buffer)) {
+      GST_ELEMENT_ERROR(self, CORE, FAILED,
+                        ("Failed to push a new buffer into crop element"), (NULL));
+    }
   }
 
   ret = GST_PAD_PROBE_DROP;
