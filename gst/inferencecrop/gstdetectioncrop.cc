@@ -165,8 +165,10 @@ gst_detection_crop_class_init (GstDetectionCropClass *klass) {
                                        G_PARAM_READWRITE ));
   g_object_class_install_property (object_class, PROP_CROP_BIGGEST,
                                    g_param_spec_boolean ("biggest-object", "Biggest Object",
-                                       "Crop the biggest object detected, if crop-class is set to a non-negative"
-                                       "value, it crops the biggest object of that class", PROP_CROP_BIGGEST_DEFAULT,
+                                       "Crop the biggest object detected of the class given in crop-class."
+                                       "The biggest object usually implies the nearest object to the camera."
+                                       "This only applies if crop-class is non-negative.",
+                                       PROP_CROP_BIGGEST_DEFAULT,
                                        G_PARAM_READWRITE ));
 }
 
