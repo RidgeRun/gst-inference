@@ -87,11 +87,14 @@ static gint gst_detection_crop_find_index (GstDetectionCrop *self,
 #define PROP_CROP_CLASS_MAX G_MAXINT
 #define PROP_CROP_CLASS_MIN -1
 
+#define PROP_CROP_NEAREST_DEFAULT FALSE
+
 enum {
   PROP_0,
   PROP_CROP_INDEX,
   PROP_CROP_CLASS,
   PROP_CROP_ASPECT_RATIO,
+  PROP_CROP_NEAREST,
 };
 
 struct _GstDetectionCrop {
@@ -101,6 +104,7 @@ struct _GstDetectionCrop {
   gint crop_class;
   gint width_ratio;
   gint height_ratio;
+  gboolean nearest_object;
 };
 
 struct _GstDetectionCropClass {
@@ -157,6 +161,11 @@ gst_detection_crop_class_init (GstDetectionCropClass *klass) {
                                        "If set to 0/1 it maintains the aspect ratio of each bounding box.", 0, 1, G_MAXINT, 1,
                                        PROP_CROP_RATIO_DEFAULT_WIDTH, PROP_CROP_RATIO_DEFAULT_HEIGHT,
                                        G_PARAM_READWRITE ));
+  g_object_class_install_property (object_class, PROP_CROP_NEAREST,
+                                   g_param_spec_boolean ("nearest-object", "Nearest Object",
+                                       "Crop the nearest object detected, if crop-class is set to a non-negative"
+                                       "value, it crops the nearest object of that class", PROP_CROP_NEAREST_DEFAULT, 
+                                        G_PARAM_READWRITE ));
 }
 
 static void
@@ -169,6 +178,7 @@ gst_detection_crop_init (GstDetectionCrop *self) {
   self->crop_class = PROP_CROP_CLASS_DEFAULT;
   self->width_ratio = PROP_CROP_RATIO_DEFAULT_WIDTH;
   self->height_ratio = PROP_CROP_RATIO_DEFAULT_HEIGHT;
+  self->nearest_object = PROP_CROP_NEAREST_DEFAULT;
   if (FALSE == self->element->Validate ()) {
     const std::string factory = self->element->GetFactory ();
     GST_ERROR_OBJECT (self, "Unable to find element %s", factory.c_str ());
@@ -236,6 +246,11 @@ gst_detection_crop_set_property (GObject *object, guint property_id,
       }
       GST_OBJECT_UNLOCK (self);
       break;
+    case PROP_CROP_NEAREST:
+      GST_OBJECT_LOCK (self);
+      self->nearest_object = g_value_get_boolean (value);
+      GST_OBJECT_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -263,6 +278,11 @@ gst_detection_crop_get_property (GObject *object, guint property_id,
     case PROP_CROP_ASPECT_RATIO:
       GST_OBJECT_LOCK (self);
       gst_value_set_fraction (value, self->width_ratio, self->height_ratio);
+      GST_OBJECT_UNLOCK (self);
+      break;
+    case PROP_CROP_NEAREST:
+      GST_OBJECT_LOCK (self);
+      g_value_set_boolean (value, self->nearest_object);
       GST_OBJECT_UNLOCK (self);
       break;
     default:
