@@ -375,14 +375,17 @@ gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
                                   GstDetectionMeta *meta) {
   gint i;
   gint ret = -1;
-  gint near = -1;
+  gint biggest = -1;
+  gint box_size = -1;
 
   g_return_val_if_fail (self, -1);
   g_return_val_if_fail (meta, -1);
 
   for (i = 0; i < meta->num_boxes; ++i) {
     if (meta->boxes[i].label == crop_class) {
-      if (meta->boxes[i].width * meta->boxes[i].height > near) {
+      box_size = meta->boxes[i].width * meta->boxes[i].height;
+      if (box_size > biggest) {
+        biggest = box_size;
         ret = i;
         if (false == biggest_object) {
           break;
