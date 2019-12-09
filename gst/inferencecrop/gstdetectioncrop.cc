@@ -75,9 +75,9 @@ static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
 static gint gst_detection_crop_find_by_index (GstDetectionCrop *self,
     guint crop_index, GstDetectionMeta *meta);
 static gint gst_detection_crop_find_by_class (GstDetectionCrop *self,
-    gint crop_class, GstDetectionMeta *meta);
+    gint crop_class, gboolean nearest_object, GstDetectionMeta *meta);
 static gint gst_detection_crop_find_index (GstDetectionCrop *self,
-    guint crop_index, gint crop_class, GstDetectionMeta *meta);
+    guint crop_index, gint crop_class, gboolean nearest_object, GstDetectionMeta *meta);
 
 #define PROP_CROP_INDEX_DEFAULT 0
 #define PROP_CROP_INDEX_MAX G_MAXUINT
@@ -368,18 +368,23 @@ gst_detection_crop_find_by_index (GstDetectionCrop *self, guint crop_index,
 }
 
 static gint
-gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
+gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class, gboolean nearest_object,
                                   GstDetectionMeta *meta) {
   gint i;
   gint ret = -1;
+  gint near = -1;
 
   g_return_val_if_fail (self, -1);
   g_return_val_if_fail (meta, -1);
 
   for (i = 0; i < meta->num_boxes; ++i) {
     if (meta->boxes[i].label == crop_class) {
-      ret = i;
-      break;
+      if(meta->boxes[i].width*meta->boxes[i].height > near){
+        ret = i;
+        if(false == nearest_object){
+          break;
+        }
+      }
     }
   }
 
@@ -392,14 +397,14 @@ gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
 
 static gint
 gst_detection_crop_find_index (GstDetectionCrop *self, guint crop_index,
-                               gint crop_class, GstDetectionMeta *meta) {
+                               gint crop_class, gboolean nearest_object, GstDetectionMeta *meta) {
   g_return_val_if_fail (self, -1);
   g_return_val_if_fail (meta, -1);
 
   if (-1 == crop_class) {
     return gst_detection_crop_find_by_index (self, crop_index, meta);
   } else {
-    return gst_detection_crop_find_by_class (self, crop_class, meta);
+    return gst_detection_crop_find_by_class (self, crop_class, nearest_object, meta);
   }
 }
 
@@ -413,6 +418,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   gint crop_width_ratio;
   gint crop_height_ratio;
   gint requested_index;
+  gboolean nearest_object;
   BBox box;
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
 
@@ -421,6 +427,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   crop_class = self->crop_class;
   crop_width_ratio = self->width_ratio;
   crop_height_ratio = self->height_ratio;
+  nearest_object = self->nearest_object;
   GST_OBJECT_UNLOCK (self);
 
   buffer = gst_pad_probe_info_get_buffer (info);
@@ -440,7 +447,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   }
 
   requested_index =
-    gst_detection_crop_find_index (self, crop_index, crop_class, meta);
+    gst_detection_crop_find_index (self, crop_index, crop_class, nearest_object, meta);
   if (-1 == requested_index) {
     goto out;
   }
