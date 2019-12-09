@@ -77,7 +77,8 @@ static gint gst_detection_crop_find_by_index (GstDetectionCrop *self,
 static gint gst_detection_crop_find_by_class (GstDetectionCrop *self,
     gint crop_class, gboolean nearest_object, GstDetectionMeta *meta);
 static gint gst_detection_crop_find_index (GstDetectionCrop *self,
-    guint crop_index, gint crop_class, gboolean nearest_object, GstDetectionMeta *meta);
+    guint crop_index, gint crop_class, gboolean nearest_object,
+    GstDetectionMeta *meta);
 
 #define PROP_CROP_INDEX_DEFAULT 0
 #define PROP_CROP_INDEX_MAX G_MAXUINT
@@ -158,14 +159,15 @@ gst_detection_crop_class_init (GstDetectionCropClass *klass) {
   g_object_class_install_property (object_class, PROP_CROP_ASPECT_RATIO,
                                    gst_param_spec_fraction ("aspect-ratio", "Aspect Ratio",
                                        "Aspect ratio to crop the detections, width and height separated by '/'. "
-                                       "If set to 0/1 it maintains the aspect ratio of each bounding box.", 0, 1, G_MAXINT, 1,
+                                       "If set to 0/1 it maintains the aspect ratio of each bounding box.", 0, 1,
+                                       G_MAXINT, 1,
                                        PROP_CROP_RATIO_DEFAULT_WIDTH, PROP_CROP_RATIO_DEFAULT_HEIGHT,
                                        G_PARAM_READWRITE ));
   g_object_class_install_property (object_class, PROP_CROP_NEAREST,
                                    g_param_spec_boolean ("nearest-object", "Nearest Object",
                                        "Crop the nearest object detected, if crop-class is set to a non-negative"
-                                       "value, it crops the nearest object of that class", PROP_CROP_NEAREST_DEFAULT, 
-                                        G_PARAM_READWRITE ));
+                                       "value, it crops the nearest object of that class", PROP_CROP_NEAREST_DEFAULT,
+                                       G_PARAM_READWRITE ));
 }
 
 static void
@@ -368,7 +370,8 @@ gst_detection_crop_find_by_index (GstDetectionCrop *self, guint crop_index,
 }
 
 static gint
-gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class, gboolean nearest_object,
+gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
+                                  gboolean nearest_object,
                                   GstDetectionMeta *meta) {
   gint i;
   gint ret = -1;
@@ -379,9 +382,9 @@ gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class, gbool
 
   for (i = 0; i < meta->num_boxes; ++i) {
     if (meta->boxes[i].label == crop_class) {
-      if(meta->boxes[i].width*meta->boxes[i].height > near){
+      if (meta->boxes[i].width * meta->boxes[i].height > near) {
         ret = i;
-        if(false == nearest_object){
+        if (false == nearest_object) {
           break;
         }
       }
@@ -404,7 +407,8 @@ gst_detection_crop_find_index (GstDetectionCrop *self, guint crop_index,
   if (-1 == crop_class) {
     return gst_detection_crop_find_by_index (self, crop_index, meta);
   } else {
-    return gst_detection_crop_find_by_class (self, crop_class, nearest_object, meta);
+    return gst_detection_crop_find_by_class (self, crop_class, nearest_object,
+           meta);
   }
 }
 
@@ -447,7 +451,8 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   }
 
   requested_index =
-    gst_detection_crop_find_index (self, crop_index, crop_class, nearest_object, meta);
+    gst_detection_crop_find_index (self, crop_index, crop_class, nearest_object,
+                                   meta);
   if (-1 == requested_index) {
     goto out;
   }
