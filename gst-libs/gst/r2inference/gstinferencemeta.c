@@ -14,6 +14,12 @@
 #include <gst/video/video.h>
 #include <string.h>
 
+#define NUM_TEST_PREDICTIONS 3
+
+static gboolean gst_inference_meta_init (GstMeta * meta,
+    gpointer params, GstBuffer * buffer);
+static void gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer);
+
 static gboolean gst_classification_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static void gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer);
@@ -31,6 +37,38 @@ static gboolean gst_detection_meta_scale (GstBuffer * transbuf,
     GstMeta * meta, GstBuffer * buffer, GstVideoMetaTransform * data);
 static gboolean gst_classification_meta_copy (GstBuffer * transbuf,
     GstMeta * meta, GstBuffer * buffer);
+
+GType
+gst_inference_meta_api_get_type (void)
+{
+  static volatile GType type = 0;
+  static const gchar *tags[] =
+      { GST_META_TAG_VIDEO_STR, GST_META_TAG_VIDEO_ORIENTATION_STR,
+    GST_META_TAG_VIDEO_SIZE_STR, NULL
+  };
+
+  if (g_once_init_enter (&type)) {
+    GType _type = gst_meta_api_type_register ("GstInferenceMetaAPI", tags);
+    g_once_init_leave (&type, _type);
+  }
+  return type;
+}
+
+/* inference metadata */
+const GstMetaInfo *
+gst_inference_meta_get_info (void)
+{
+  static const GstMetaInfo *inference_meta_info = NULL;
+
+  if (g_once_init_enter (&inference_meta_info)) {
+    const GstMetaInfo *meta = gst_meta_register (GST_INFERENCE_META_API_TYPE,
+        "GstInferenceMeta", sizeof (GstInferenceMeta),
+        gst_inference_meta_init, gst_inference_meta_free,
+        NULL);
+    g_once_init_leave (&inference_meta_info, meta);
+  }
+  return inference_meta_info;
+}
 
 GType
 gst_embedding_meta_api_get_type (void)
@@ -318,4 +356,62 @@ gst_classification_meta_transform (GstBuffer * dest, GstMeta * meta,
 
   /* No transform supported */
   return FALSE;
+}
+
+/* inference metadata functions */
+static gboolean
+gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
+{
+  GstInferenceMeta *imeta = (GstInferenceMeta *) meta;
+  Prediction *root;
+  gint i;
+
+  /* Create root Prediction */
+  imeta->prediction = g_malloc (sizeof (Prediction));
+  root = imeta->prediction;
+  root->id = rand ();
+  root->enabled = TRUE;
+
+  /* This code is for testing purposes only */
+  root->num_predictions = NUM_TEST_PREDICTIONS;
+  root->predictions = g_malloc (root->num_predictions * sizeof (Prediction));
+  for (i = 0; i < root->num_predictions; i++) {
+    Prediction *predict = &root->predictions[i];
+    BBox *box;
+    predict->enabled = TRUE;
+    predict->id = root->id + i;
+    predict->predictions = NULL;
+    predict->box = g_malloc (sizeof (BBox));
+    box = predict->box;
+    /* Generate predictions with different information for testing purposes */
+    box->label = 14 + i;
+    box->prob = 1;
+    box->x = 10 * i;
+    box->y = 10 * i;
+    box->width = 100;
+    box->height = 100;
+  }
+
+  return TRUE;
+}
+
+static void
+gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer)
+{
+  GstInferenceMeta *imeta = (GstInferenceMeta *) meta;
+
+  g_return_if_fail (meta != NULL);
+  g_return_if_fail (buffer != NULL);
+
+  /* Free all the predictions tree recursively */
+  if (imeta->prediction) {
+    Prediction *root = imeta->prediction;
+    gint i;
+    for (i = 0; i < root->num_predictions; i++) {
+      Prediction *predict = &root->predictions[i];
+      g_free (predict->box);
+    }
+    g_free (root->predictions);
+    g_free (root);
+  }
 }
