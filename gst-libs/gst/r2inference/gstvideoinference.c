@@ -21,6 +21,7 @@
 
 #include "gstvideoinference.h"
 #include "gstinferencebackends.h"
+#include "gstinferencemeta.h"
 #include "gstbackend.h"
 
 #include <gst/base/gstcollectpads.h>
@@ -48,6 +49,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 enum
 {
   NEW_PREDICTION_SIGNAL,
+  NEW_INFERENCE_SIGNAL,
   LAST_SIGNAL
 };
 
@@ -73,6 +75,7 @@ struct _GstVideoInferencePrivate
   GstCollectPads *cpads;
   GstVideoInferencePad *sink_bypass_data;
   GstVideoInferencePad *sink_model_data;
+  const GstMetaInfo *inference_meta_info;
 
   GstPad *sink_bypass;
   GstPad *src_bypass;
@@ -222,6 +225,11 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
       G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 4, G_TYPE_POINTER,
       G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
 
+  gst_video_inference_signals[NEW_INFERENCE_SIGNAL] =
+      g_signal_new ("new-inference", G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 4, G_TYPE_POINTER,
+      G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
+
   klass->start = NULL;
   klass->stop = NULL;
   klass->preprocess = NULL;
@@ -240,6 +248,7 @@ gst_video_inference_init (GstVideoInference * self)
   priv->src_bypass = NULL;
   priv->sink_model = NULL;
   priv->src_model = NULL;
+  priv->inference_meta_info = gst_inference_meta_get_info ();
 
   priv->cpads = gst_collect_pads_new ();
   gst_collect_pads_set_function (priv->cpads, gst_video_inference_collected,
@@ -834,8 +843,11 @@ gst_video_inference_postprocess (GstVideoInference * self,
     GstVideoInferencePad * pad_model, GstBuffer * buffer_bypass,
     GstVideoInferencePad * pad_bypass)
 {
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstMeta *meta_model = NULL;
   GstMeta *meta_bypass = NULL;
+  GstMeta *inference_meta_model = NULL;
+  GstMeta *inference_meta_bypass = NULL;
   GstVideoFrame frame_model;
   GstVideoFrame frame_bypass;
   GstVideoInfo *info_model = NULL;
@@ -882,7 +894,18 @@ gst_video_inference_postprocess (GstVideoInference * self,
         video_inference_transform_meta (buffer_model, info_model, meta_model,
         buffer_bypass, info_bypass);
     g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL], 0,
-        meta_model, &frame_bypass, meta_bypass, pbpass);
+        meta_model, &frame_model, meta_bypass, pbpass);
+
+    /* This code is for testing purposes only */
+    inference_meta_model =
+        gst_buffer_add_meta (buffer_model, priv->inference_meta_info, NULL);
+    if (pbpass) {
+      inference_meta_bypass =
+          gst_buffer_add_meta (buffer_bypass, priv->inference_meta_info, NULL);
+    }
+    g_signal_emit (self, gst_video_inference_signals[NEW_INFERENCE_SIGNAL], 0,
+        inference_meta_model, &frame_model, inference_meta_bypass,
+        buffer_bypass ? &frame_bypass : NULL);
   } else {
     video_inference_remove_meta (buffer_model, meta_model);
     video_inference_remove_meta (buffer_bypass, meta_bypass);
