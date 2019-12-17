@@ -60,6 +60,6 @@ out:
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
-    inferenceoverlay,
+    inferenceoverlayplugin,
     "Create overlays on incomming image frames with proper inference metadata",
     plugin_init, VERSION, "LGPL", PACKAGE_NAME, GST_PACKAGE_ORIGIN)

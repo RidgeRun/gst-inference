@@ -84,7 +84,7 @@ struct _GstClassificationOverlayClass
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE (GstEmbeddingOverlay, gst_embedding_overlay,
-    GST_TYPE_INFERENCE_OVERLAY,
+    GST_TYPE_INFERENCE_BASE_OVERLAY,
     GST_DEBUG_CATEGORY_INIT (gst_embedding_overlay_debug_category,
         "embeddingoverlay", 0, "debug category for embedding_overlay element"));
 
@@ -92,7 +92,7 @@ static void
 gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
-  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
 
   gobject_class->set_property = gst_embedding_overlay_set_property;
   gobject_class->get_property = gst_embedding_overlay_get_property;

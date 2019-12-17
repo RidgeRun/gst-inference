@@ -4,6 +4,7 @@ libgstinferenceoverlayplugin_la_SOURCES =	\
 	gstclassificationoverlay.cc	\
 	gstdetectionoverlay.cc		\
 	gstinferenceoverlayplugin.c		\
+	gstinferenceoverlay.cc		\
 	gstembeddingoverlay.cc
 
 libgstinferenceoverlayplugin_la_CFLAGS =	\
@@ -33,7 +34,7 @@ libgstinferenceoverlayplugin_la_LIBADD =	\
 	$(OPENCV_LIBS)			\
 	$(R2INFERENCE_LIBS)		\
 	$(top_builddir)/gst-libs/gst/r2inference/libgstinference-@GST_API_VERSION@.la \
-	$(top_builddir)/gst-libs/gst/opencv/libgstinferenceoverlay-@GST_API_VERSION@.la
+	$(top_builddir)/gst-libs/gst/opencv/libgstinferencebaseoverlay-@GST_API_VERSION@.la
 
 libgstinferenceoverlayplugin_la_LDFLAGS = 	\
 	$(GST_PLUGIN_LDFLAGS)
@@ -44,4 +45,5 @@ libgstinferenceoverlayplugin_la_LIBTOOLFLAGS = \
 noinst_HEADERS =			\
 	gstclassificationoverlay.h 	\
 	gstdetectionoverlay.h		\
+	gstinferenceoverlay.h		\
 	gstembeddingoverlay.h

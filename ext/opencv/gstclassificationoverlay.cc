@@ -62,7 +62,7 @@ struct _GstClassificationOverlayClass
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE (GstClassificationOverlay, gst_classification_overlay,
-    GST_TYPE_INFERENCE_OVERLAY,
+    GST_TYPE_INFERENCE_BASE_OVERLAY,
     GST_DEBUG_CATEGORY_INIT (gst_classification_overlay_debug_category,
         "classificationoverlay", 0,
         "debug category for classification_overlay element"));
@@ -70,7 +70,7 @@ G_DEFINE_TYPE_WITH_CODE (GstClassificationOverlay, gst_classification_overlay,
 static void
 gst_classification_overlay_class_init (GstClassificationOverlayClass * klass)
 {
-  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "classificationoverlay", "Filter",
