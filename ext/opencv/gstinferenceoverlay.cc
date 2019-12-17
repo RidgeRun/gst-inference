@@ -104,22 +104,45 @@ gst_inference_overlay_init (GstInferenceOverlay *inference_overlay) {
 }
 
 static
+void
+gst_get_meta (Prediction *pred, cv::Mat cv_mat, gdouble font_scale,
+              gint thickness,
+              gchar **labels_list, gint num_labels) {
+  gint i;
+  cv::Size size;
+  cv::String label;
+  cv::String prob;
+  BBox box;
+  for (i = 0; i < pred->num_predictions ; ++i) {
+    Prediction   *predict = &pred->predictions[i];
+    gst_get_meta (predict, cv_mat, font_scale, thickness,
+                  labels_list,  num_labels);
+  }
+  if (NULL != pred->box) {
+    box = *pred->box;
+    if (num_labels > box.label) {
+      label = cv::format ("%s  Prob: %f", labels_list[box.label], box.prob);
+    } else {
+      label = cv::format ("Label #%d  Prob: %f", box.label, box.prob);
+    }
+    cv::putText (cv_mat, label, cv::Point (box.x, box.y - 5),
+                 cv::FONT_HERSHEY_PLAIN, font_scale, colors[box.label % N_C], thickness);
+    cv::rectangle (cv_mat, cv::Point (box.x, box.y),
+                   cv::Point (box.x + box.width, box.y + box.height),
+                   colors[box.label % N_C], thickness);
+
+  }
+}
+
+static
 GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
                                     gchar **labels_list, gint num_labels) {
   GstInferenceMeta *
   detect_meta;
-  gint
-  i,
-  width,
-  height,
-  channels;
+  gint  width, height, channels;
   cv::Mat cv_mat;
-  cv::Size size;
-  cv::String str;
-  BBox
-  box;
 
   switch (GST_VIDEO_FRAME_FORMAT (frame)) {
     case GST_VIDEO_FORMAT_RGB:
@@ -133,28 +156,12 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
   width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / channels;
   height = GST_VIDEO_FRAME_HEIGHT (frame);
 
-
   detect_meta = (GstInferenceMeta *) meta;
-  g_print ("Id = %d \n ", detect_meta->prediction->id);
+
   cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
                     (char *) frame->data[0]);
-  for (i = 0; i < 3; ++i) {
-    Prediction *
-    predict = &detect_meta->prediction->predictions[i];
-    box = *predict->box;
-
-    if (num_labels > box.label) {
-      str = labels_list[box.label];
-    } else {
-      str = cv::format ("Label #%d", box.label);
-    }
-
-    cv::putText (cv_mat, str, cv::Point (box.x, box.y - 5),
-                 cv::FONT_HERSHEY_PLAIN, font_scale, colors[box.label % N_C], thickness);
-    cv::rectangle (cv_mat, cv::Point (box.x, box.y),
-                   cv::Point (box.x + box.width, box.y + box.height),
-                   colors[box.label % N_C], thickness);
-  }
+  gst_get_meta (detect_meta->prediction, cv_mat, font_scale, thickness,
+                labels_list,  num_labels);
 
   return GST_FLOW_OK;
 }
