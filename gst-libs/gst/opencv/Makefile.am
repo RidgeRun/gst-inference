@@ -2,7 +2,7 @@
 lib_LTLIBRARIES = libgstinferenceoverlay-@GST_API_VERSION@.la
 
 libgstinferenceoverlay_@GST_API_VERSION@_la_SOURCES=	\
-	gstinferenceoverlay.c
+	gstinferencebaseoverlay.c
 
 libgstinferenceoverlay_@GST_API_VERSION@_la_CFLAGS=	\
 	$(GST_CFLAGS)				\
@@ -20,4 +20,4 @@ libgstinferenceoverlay_@GST_API_VERSION@_la_LIBADD=	\
 gstinferenceoverlayincludedir=@includedir@/gstreamer-@GST_API_VERSION@/gst/opencv/
 
 gstinferenceoverlayinclude_HEADERS=	\
-	gstinferenceoverlay.h
+	gstinferencebaseoverlay.h

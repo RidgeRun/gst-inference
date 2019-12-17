@@ -22,12 +22,12 @@
 #ifndef _GST_EMBEDDING_OVERLAY_H_
 #define _GST_EMBEDDING_OVERLAY_H_
 
-#include <gst/opencv/gstinferenceoverlay.h>
+#include <gst/opencv/gstinferencebaseoverlay.h>
 
 G_BEGIN_DECLS
 
 #define GST_TYPE_EMBEDDING_OVERLAY   (gst_embedding_overlay_get_type())
-G_DECLARE_FINAL_TYPE (GstEmbeddingOverlay, gst_embedding_overlay, GST, EMBEDDING_OVERLAY, GstInferenceOverlay)
+G_DECLARE_FINAL_TYPE (GstEmbeddingOverlay, gst_embedding_overlay, GST, EMBEDDING_OVERLAY, GstInferenceBaseOverlay)
 
 G_END_DECLS
 

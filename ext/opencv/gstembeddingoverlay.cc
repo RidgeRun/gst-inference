@@ -52,7 +52,7 @@ static void gst_embedding_overlay_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
 static void gst_embedding_overlay_finalize (GObject * object);
 static GstFlowReturn
-gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
+gst_embedding_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
     gchar ** labels_list, gint num_labels);
 static gboolean 
@@ -68,7 +68,7 @@ enum
 
 struct _GstEmbeddingOverlay
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
   gchar *embeddings;
   gchar **embeddings_list;
   gint num_embeddings;
@@ -78,7 +78,7 @@ struct _GstEmbeddingOverlay
 
 struct _GstClassificationOverlayClass
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
 };
 
 /* class initialization */
@@ -92,7 +92,7 @@ static void
 gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
-  GstInferenceOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
 
   gobject_class->set_property = gst_embedding_overlay_set_property;
   gobject_class->get_property = gst_embedding_overlay_get_property;
@@ -209,7 +209,7 @@ gst_embedding_overlay_finalize (GObject * object)
 }
 
 static GstFlowReturn
-gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
+gst_embedding_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
     gchar ** labels_list, gint num_labels)
 {

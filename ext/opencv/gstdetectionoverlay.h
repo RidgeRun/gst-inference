@@ -22,12 +22,12 @@
 #ifndef _GST_DETECTION_OVERLAY_H_
 #define _GST_DETECTION_OVERLAY_H_
 
-#include <gst/opencv/gstinferenceoverlay.h>
+#include <gst/opencv/gstinferencebaseoverlay.h>
 
 G_BEGIN_DECLS
 
 #define GST_TYPE_DETECTION_OVERLAY   (gst_detection_overlay_get_type())
-G_DECLARE_FINAL_TYPE (GstDetectionOverlay, gst_detection_overlay, GST, DETECTION_OVERLAY, GstInferenceOverlay)
+G_DECLARE_FINAL_TYPE (GstDetectionOverlay, gst_detection_overlay, GST, DETECTION_OVERLAY, GstInferenceBaseOverlay)
 
 G_END_DECLS
 

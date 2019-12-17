@@ -40,7 +40,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 
 /* prototypes */
 static GstFlowReturn
-gst_classification_overlay_process_meta (GstInferenceOverlay *
+gst_classification_overlay_process_meta (GstInferenceBaseOverlay *
     inference_overlay, GstVideoFrame * frame, GstMeta * meta,
     gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels);
 
@@ -51,12 +51,12 @@ enum
 
 struct _GstClassificationOverlay
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
 };
 
 struct _GstClassificationOverlayClass
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
 };
 
 /* class initialization */
@@ -70,7 +70,7 @@ G_DEFINE_TYPE_WITH_CODE (GstClassificationOverlay, gst_classification_overlay,
 static void
 gst_classification_overlay_class_init (GstClassificationOverlayClass * klass)
 {
-  GstInferenceOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "classificationoverlay", "Filter",
@@ -94,7 +94,7 @@ gst_classification_overlay_init (GstClassificationOverlay *
 }
 
 static GstFlowReturn
-gst_classification_overlay_process_meta (GstInferenceOverlay *
+gst_classification_overlay_process_meta (GstInferenceBaseOverlay *
     inference_overlay, GstVideoFrame * frame, GstMeta * meta,
     gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels)
 {
