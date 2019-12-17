@@ -29,8 +29,8 @@
 #define VIDEO_SINK_CAPS \
     GST_VIDEO_CAPS_MAKE("{RGB, RGBx, RGBA, BGR, BGRx, BGRA, xRGB, ARGB, xBGR, ABGR}")
 
-GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
-#define GST_CAT_DEFAULT gst_inference_overlay_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_inference_base_overlay_debug_category);
+#define GST_CAT_DEFAULT gst_inference_base_overlay_debug_category
 
 #define MIN_FONT_SCALE 0
 #define DEFAULT_FONT_SCALE 2
@@ -59,32 +59,32 @@ struct _GstInferenceBaseOverlayPrivate
   gint num_labels;
 };
 /* prototypes */
-static void gst_inference_overlay_set_property (GObject * object,
+static void gst_inference_base_overlay_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
-static void gst_inference_overlay_get_property (GObject * object,
+static void gst_inference_base_overlay_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
-static void gst_inference_overlay_dispose (GObject * object);
-static void gst_inference_overlay_finalize (GObject * object);
+static void gst_inference_base_overlay_dispose (GObject * object);
+static void gst_inference_base_overlay_finalize (GObject * object);
 
-static gboolean gst_inference_overlay_start (GstBaseTransform * trans);
-static gboolean gst_inference_overlay_stop (GstBaseTransform * trans);
+static gboolean gst_inference_base_overlay_start (GstBaseTransform * trans);
+static gboolean gst_inference_base_overlay_stop (GstBaseTransform * trans);
 static GstFlowReturn
-gst_inference_overlay_transform_frame_ip (GstVideoFilter * trans,
+gst_inference_base_overlay_transform_frame_ip (GstVideoFilter * trans,
     GstVideoFrame * frame);
 
 /* class initialization */
 
-G_DEFINE_TYPE_WITH_CODE (GstInferenceBaseOverlay, gst_inference_overlay,
+G_DEFINE_TYPE_WITH_CODE (GstInferenceBaseOverlay, gst_inference_base_overlay,
     GST_TYPE_VIDEO_FILTER,
-    GST_DEBUG_CATEGORY_INIT (gst_inference_overlay_debug_category,
+    GST_DEBUG_CATEGORY_INIT (gst_inference_base_overlay_debug_category,
         "inferenceoverlay", 0, "debug category for inferenceoverlay class");
     G_ADD_PRIVATE (GstInferenceBaseOverlay));
 
-#define GST_INFERENCE_OVERLAY_PRIVATE(self) \
-  (GstInferenceBaseOverlayPrivate *)(gst_inference_overlay_get_instance_private (self))
+#define GST_INFERENCE_BASE_OVERLAY_PRIVATE(self) \
+  (GstInferenceBaseOverlayPrivate *)(gst_inference_base_overlay_get_instance_private (self))
 
 static void
-gst_inference_overlay_class_init (GstInferenceBaseOverlayClass * klass)
+gst_inference_base_overlay_class_init (GstInferenceBaseOverlayClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstBaseTransformClass *base_transform_class =
@@ -98,10 +98,10 @@ gst_inference_overlay_class_init (GstInferenceBaseOverlayClass * klass)
       gst_pad_template_new ("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
           gst_caps_from_string (VIDEO_SINK_CAPS)));
 
-  gobject_class->set_property = gst_inference_overlay_set_property;
-  gobject_class->get_property = gst_inference_overlay_get_property;
-  gobject_class->dispose = gst_inference_overlay_dispose;
-  gobject_class->finalize = gst_inference_overlay_finalize;
+  gobject_class->set_property = gst_inference_base_overlay_set_property;
+  gobject_class->get_property = gst_inference_base_overlay_get_property;
+  gobject_class->dispose = gst_inference_base_overlay_dispose;
+  gobject_class->finalize = gst_inference_base_overlay_finalize;
 
   g_object_class_install_property (gobject_class, PROP_FONT_SCALE,
       g_param_spec_double ("font-scale", "font", "Font scale", MIN_FONT_SCALE,
@@ -117,18 +117,20 @@ gst_inference_overlay_class_init (GstInferenceBaseOverlayClass * klass)
           "Semicolon separated string containing inference labels",
           DEFAULT_LABELS, G_PARAM_READWRITE));
 
-  base_transform_class->start = GST_DEBUG_FUNCPTR (gst_inference_overlay_start);
-  base_transform_class->stop = GST_DEBUG_FUNCPTR (gst_inference_overlay_stop);
+  base_transform_class->start =
+      GST_DEBUG_FUNCPTR (gst_inference_base_overlay_start);
+  base_transform_class->stop =
+      GST_DEBUG_FUNCPTR (gst_inference_base_overlay_stop);
   video_filter_class->transform_frame_ip =
-      GST_DEBUG_FUNCPTR (gst_inference_overlay_transform_frame_ip);
+      GST_DEBUG_FUNCPTR (gst_inference_base_overlay_transform_frame_ip);
 
 }
 
 static void
-gst_inference_overlay_init (GstInferenceBaseOverlay * inference_overlay)
+gst_inference_base_overlay_init (GstInferenceBaseOverlay * inference_overlay)
 {
   GstInferenceBaseOverlayPrivate *priv =
-      GST_INFERENCE_OVERLAY_PRIVATE (inference_overlay);
+      GST_INFERENCE_BASE_OVERLAY_PRIVATE (inference_overlay);
   priv->font_scale = DEFAULT_FONT_SCALE;
   priv->thickness = DEFAULT_THICKNESS;
   priv->labels = DEFAULT_LABELS;
@@ -137,12 +139,13 @@ gst_inference_overlay_init (GstInferenceBaseOverlay * inference_overlay)
 }
 
 void
-gst_inference_overlay_set_property (GObject * object, guint property_id,
+gst_inference_base_overlay_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstInferenceBaseOverlay *inference_overlay = GST_INFERENCE_OVERLAY (object);
+  GstInferenceBaseOverlay *inference_overlay =
+      GST_INFERENCE_BASE_OVERLAY (object);
   GstInferenceBaseOverlayPrivate *priv =
-      GST_INFERENCE_OVERLAY_PRIVATE (inference_overlay);
+      GST_INFERENCE_BASE_OVERLAY_PRIVATE (inference_overlay);
 
   GST_DEBUG_OBJECT (inference_overlay, "set_property");
 
@@ -177,12 +180,13 @@ gst_inference_overlay_set_property (GObject * object, guint property_id,
 }
 
 void
-gst_inference_overlay_get_property (GObject * object, guint property_id,
+gst_inference_base_overlay_get_property (GObject * object, guint property_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstInferenceBaseOverlay *inference_overlay = GST_INFERENCE_OVERLAY (object);
+  GstInferenceBaseOverlay *inference_overlay =
+      GST_INFERENCE_BASE_OVERLAY (object);
   GstInferenceBaseOverlayPrivate *priv =
-      GST_INFERENCE_OVERLAY_PRIVATE (inference_overlay);
+      GST_INFERENCE_BASE_OVERLAY_PRIVATE (inference_overlay);
 
   GST_DEBUG_OBJECT (inference_overlay, "get_property");
 
@@ -203,11 +207,12 @@ gst_inference_overlay_get_property (GObject * object, guint property_id,
 }
 
 void
-gst_inference_overlay_dispose (GObject * object)
+gst_inference_base_overlay_dispose (GObject * object)
 {
-  GstInferenceBaseOverlay *inference_overlay = GST_INFERENCE_OVERLAY (object);
+  GstInferenceBaseOverlay *inference_overlay =
+      GST_INFERENCE_BASE_OVERLAY (object);
   GstInferenceBaseOverlayPrivate *priv =
-      GST_INFERENCE_OVERLAY_PRIVATE (inference_overlay);
+      GST_INFERENCE_BASE_OVERLAY_PRIVATE (inference_overlay);
 
   GST_DEBUG_OBJECT (inference_overlay, "dispose");
 
@@ -219,25 +224,27 @@ gst_inference_overlay_dispose (GObject * object)
     g_free (priv->labels);
   }
 
-  G_OBJECT_CLASS (gst_inference_overlay_parent_class)->dispose (object);
+  G_OBJECT_CLASS (gst_inference_base_overlay_parent_class)->dispose (object);
 }
 
 void
-gst_inference_overlay_finalize (GObject * object)
+gst_inference_base_overlay_finalize (GObject * object)
 {
-  GstInferenceBaseOverlay *inference_overlay = GST_INFERENCE_OVERLAY (object);
+  GstInferenceBaseOverlay *inference_overlay =
+      GST_INFERENCE_BASE_OVERLAY (object);
 
   GST_DEBUG_OBJECT (inference_overlay, "finalize");
 
   /* clean up object here */
 
-  G_OBJECT_CLASS (gst_inference_overlay_parent_class)->finalize (object);
+  G_OBJECT_CLASS (gst_inference_base_overlay_parent_class)->finalize (object);
 }
 
 static gboolean
-gst_inference_overlay_start (GstBaseTransform * trans)
+gst_inference_base_overlay_start (GstBaseTransform * trans)
 {
-  GstInferenceBaseOverlay *inference_overlay = GST_INFERENCE_OVERLAY (trans);
+  GstInferenceBaseOverlay *inference_overlay =
+      GST_INFERENCE_BASE_OVERLAY (trans);
 
   GST_DEBUG_OBJECT (inference_overlay, "start");
 
@@ -245,9 +252,10 @@ gst_inference_overlay_start (GstBaseTransform * trans)
 }
 
 static gboolean
-gst_inference_overlay_stop (GstBaseTransform * trans)
+gst_inference_base_overlay_stop (GstBaseTransform * trans)
 {
-  GstInferenceBaseOverlay *inference_overlay = GST_INFERENCE_OVERLAY (trans);
+  GstInferenceBaseOverlay *inference_overlay =
+      GST_INFERENCE_BASE_OVERLAY (trans);
 
   GST_DEBUG_OBJECT (inference_overlay, "stop");
 
@@ -256,14 +264,15 @@ gst_inference_overlay_stop (GstBaseTransform * trans)
 
 /* transform */
 static GstFlowReturn
-gst_inference_overlay_transform_frame_ip (GstVideoFilter * trans,
+gst_inference_base_overlay_transform_frame_ip (GstVideoFilter * trans,
     GstVideoFrame * frame)
 {
   GstInferenceBaseOverlayClass *io_class =
-      GST_INFERENCE_OVERLAY_GET_CLASS (trans);
-  GstInferenceBaseOverlay *inference_overlay = GST_INFERENCE_OVERLAY (trans);
+      GST_INFERENCE_BASE_OVERLAY_GET_CLASS (trans);
+  GstInferenceBaseOverlay *inference_overlay =
+      GST_INFERENCE_BASE_OVERLAY (trans);
   GstInferenceBaseOverlayPrivate *priv =
-      GST_INFERENCE_OVERLAY_PRIVATE (inference_overlay);
+      GST_INFERENCE_BASE_OVERLAY_PRIVATE (inference_overlay);
   GstMeta *meta;
   GstFlowReturn ret = GST_FLOW_ERROR;
 
