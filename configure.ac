@@ -20,7 +20,7 @@ AS_NANO(GST_GIT="no", GST_GIT="yes")
 
 dnl can autoconf find the source ?
 AC_CONFIG_SRCDIR([ext/r2inference/gstinference.c])
-AC_CONFIG_SRCDIR([ext/opencv/gstinferenceoverlay.c])
+AC_CONFIG_SRCDIR([ext/opencv/gstinferenceoverlayplugin.c])
 
 dnl define the output header for config
 AC_CONFIG_HEADERS([config.h])
