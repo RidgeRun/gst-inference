@@ -19,7 +19,7 @@
 static gboolean gst_inference_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static void gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer);
-
+static gboolean gst_inference_clean_nodes (GNode * node, gpointer data);
 static gboolean gst_classification_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static void gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer);
@@ -364,54 +364,48 @@ gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
 {
   GstInferenceMeta *imeta = (GstInferenceMeta *) meta;
   Prediction *root;
-  gint i;
 
   /* Create root Prediction */
-  imeta->prediction = g_malloc (sizeof (Prediction));
-  root = imeta->prediction;
+  root = g_malloc (sizeof (Prediction));
   root->id = rand ();
   root->enabled = TRUE;
+  root->box = NULL;
 
-  /* This code is for testing purposes only */
-  root->num_predictions = NUM_TEST_PREDICTIONS;
-  root->predictions = g_malloc (root->num_predictions * sizeof (Prediction));
-  for (i = 0; i < root->num_predictions; i++) {
-    Prediction *predict = &root->predictions[i];
-    BBox *box;
-    predict->enabled = TRUE;
-    predict->id = root->id + i;
-    predict->predictions = NULL;
-    predict->box = g_malloc (sizeof (BBox));
-    box = predict->box;
-    /* Generate predictions with different information for testing purposes */
-    box->label = 14 + i;
-    box->prob = 1;
-    box->x = 10 * i;
-    box->y = 10 * i;
-    box->width = 100;
-    box->height = 100;
-  }
+  imeta->prediction = root;
+  imeta->node = g_node_new (imeta->prediction);
 
   return TRUE;
+}
+
+static gboolean
+gst_inference_clean_nodes (GNode * node, gpointer data)
+{
+  Prediction *predict = (Prediction *) node->data;
+
+  g_return_val_if_fail (predict != NULL, TRUE);
+
+  /* Delete the Box in the Prediction */
+  if (predict->box) {
+    g_free (predict->box);
+    predict->box = NULL;
+  }
+  /* Delete the prediction */
+  g_free (predict);
+
+  return FALSE;
 }
 
 static void
 gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer)
 {
-  GstInferenceMeta *imeta = (GstInferenceMeta *) meta;
+  GstInferenceMeta *imeta = NULL;
 
   g_return_if_fail (meta != NULL);
   g_return_if_fail (buffer != NULL);
 
-  /* Free all the predictions tree recursively */
-  if (imeta->prediction) {
-    Prediction *root = imeta->prediction;
-    gint i;
-    for (i = 0; i < root->num_predictions; i++) {
-      Prediction *predict = &root->predictions[i];
-      g_free (predict->box);
-    }
-    g_free (root->predictions);
-    g_free (root);
-  }
+  imeta = (GstInferenceMeta *) meta;
+
+  g_node_traverse (imeta->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
+      gst_inference_clean_nodes, NULL);
+  g_node_destroy (imeta->node);
 }
