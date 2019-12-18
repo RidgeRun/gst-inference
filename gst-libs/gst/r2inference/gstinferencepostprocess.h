@@ -69,6 +69,13 @@ gboolean gst_create_boxes_float (GstVideoInference * vi,
     BBox ** resulting_boxes, gint * elements, gdouble obj_thresh,
     gdouble prob_thresh, gdouble iou_thresh);
 
-G_END_DECLS
+/**
+ * \brief Create Prediction from box
+ *
+ * \param vi Father object of every architecture
+ * \param box Box used to fill Prediction
+ */
+Prediction *gst_create_prediction_from_box (GstVideoInference * vi, BBox * box);
 
+G_END_DECLS
 #endif
