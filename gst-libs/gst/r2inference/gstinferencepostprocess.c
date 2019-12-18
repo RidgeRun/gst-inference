@@ -224,7 +224,6 @@ gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
 
 gboolean
 gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
-    GstDetectionMeta * detect_meta, GstVideoInfo * info_model,
     gboolean * valid_prediction, BBox ** resulting_boxes,
     gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh)
 {
@@ -236,8 +235,6 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
 
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (prediction != NULL, FALSE);
-  g_return_val_if_fail (detect_meta != NULL, FALSE);
-  g_return_val_if_fail (info_model != NULL, FALSE);
   g_return_val_if_fail (valid_prediction != NULL, FALSE);
   g_return_val_if_fail (resulting_boxes != NULL, FALSE);
   g_return_val_if_fail (elements != NULL, FALSE);
@@ -307,7 +304,6 @@ gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
 
 gboolean
 gst_create_boxes_float (GstVideoInference * vi, const gpointer prediction,
-    GstDetectionMeta * detect_meta, GstVideoInfo * info_model,
     gboolean * valid_prediction, BBox ** resulting_boxes,
     gint * elements, gdouble obj_thresh, gdouble prob_thresh,
     gdouble iou_thresh)
@@ -318,8 +314,6 @@ gst_create_boxes_float (GstVideoInference * vi, const gpointer prediction,
 
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (prediction != NULL, FALSE);
-  g_return_val_if_fail (detect_meta != NULL, FALSE);
-  g_return_val_if_fail (info_model != NULL, FALSE);
   g_return_val_if_fail (valid_prediction != NULL, FALSE);
   g_return_val_if_fail (resulting_boxes != NULL, FALSE);
   g_return_val_if_fail (elements != NULL, FALSE);

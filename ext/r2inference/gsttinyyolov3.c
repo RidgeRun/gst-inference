@@ -255,7 +255,7 @@ gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
   detect_meta->num_boxes = 0;
   tinyyolov3 = GST_TINYYOLOV3 (vi);
 
-  gst_create_boxes_float (vi, prediction, detect_meta, info_model,
+  gst_create_boxes_float (vi, prediction,
       valid_prediction, &detect_meta->boxes, &detect_meta->num_boxes,
       tinyyolov3->obj_thresh, tinyyolov3->prob_thresh, tinyyolov3->iou_thresh);
 
