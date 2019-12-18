@@ -20,6 +20,8 @@
  */
 #include "gstinferencedebug.h"
 
+static gboolean gst_inference_print_prediction (GNode * node, gpointer data);
+
 void
 gst_inference_print_embedding (GstVideoInference * vi,
     GstDebugCategory * category, GstClassificationMeta * class_meta,
@@ -91,4 +93,40 @@ gst_inference_print_boxes (GstVideoInference * vi, GstDebugCategory * category,
         detect_meta->boxes[index].y, detect_meta->boxes[index].width,
         detect_meta->boxes[index].height, detect_meta->boxes[index].prob);
   }
+}
+
+static gboolean
+gst_inference_print_prediction (GNode * node, gpointer data)
+{
+  Prediction *predict = (Prediction *) node->data;
+  GstDebugCategory *category = (GstDebugCategory *) data;
+  BBox *box = NULL;
+
+  g_return_val_if_fail (category != NULL, FALSE);
+  g_return_val_if_fail (predict != NULL, FALSE);
+
+  box = predict->box;
+
+  if (box != NULL) {
+    GST_CAT_LOG (category,
+        "Prediction ID:%d - Level:%d - Box: [class:%d, x:%f, y:%f, width:%f, height:%f, prob:%f]",
+        predict->id, g_node_depth (node), box->label, box->x, box->y,
+        box->width, box->height, box->prob);
+  } else {
+    GST_CAT_LOG (category, "Prediction ID:%d - Level:%d - No Box",
+        predict->id, g_node_depth (node));
+  }
+
+  return FALSE;
+}
+
+void
+gst_inference_print_predictions (GstVideoInference * vi,
+    GstDebugCategory * category, GstInferenceMeta * inference_meta)
+{
+  g_return_if_fail (vi != NULL);
+  g_return_if_fail (inference_meta != NULL);
+
+  g_node_traverse (inference_meta->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
+      gst_inference_print_prediction, (gpointer) category);
 }
