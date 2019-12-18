@@ -45,6 +45,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define GST_CAT_DEFAULT gst_video_inference_debug_category
 
 #define DEFAULT_MODEL_LOCATION   NULL
+#define DEFAULT_NEW_META   FALSE
 
 enum
 {
@@ -57,7 +58,8 @@ enum
 {
   PROP_0,
   PROP_BACKEND,
-  PROP_MODEL_LOCATION
+  PROP_MODEL_LOCATION,
+  PROP_NEW_META
 };
 
 
@@ -85,6 +87,7 @@ struct _GstVideoInferencePrivate
   GstBackend *backend;
 
   gchar *model_location;
+  gboolean use_new_meta;
 };
 
 /* GObject methods */
@@ -220,6 +223,11 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
           "Path to the model to use", DEFAULT_MODEL_LOCATION,
           G_PARAM_READWRITE));
 
+  g_object_class_install_property (oclass, PROP_NEW_META,
+      g_param_spec_boolean ("new-meta", "Use new Meta",
+          "Use new inference meta instead of old metas implementation",
+          DEFAULT_NEW_META, G_PARAM_READWRITE));
+
   gst_video_inference_signals[NEW_PREDICTION_SIGNAL] =
       g_signal_new ("new-prediction", G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 4, G_TYPE_POINTER,
@@ -249,6 +257,7 @@ gst_video_inference_init (GstVideoInference * self)
   priv->sink_model = NULL;
   priv->src_model = NULL;
   priv->inference_meta_info = gst_inference_meta_get_info ();
+  priv->use_new_meta = DEFAULT_NEW_META;
 
   priv->cpads = gst_collect_pads_new ();
   gst_collect_pads_set_function (priv->cpads, gst_video_inference_collected,
@@ -291,6 +300,11 @@ gst_video_inference_set_property (GObject * object,
       }
       GST_OBJECT_UNLOCK (self);
       break;
+    case PROP_NEW_META:
+      GST_OBJECT_LOCK (self);
+      priv->use_new_meta = g_value_get_boolean (value);
+      GST_OBJECT_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -312,6 +326,9 @@ gst_video_inference_get_property (GObject * object,
       break;
     case PROP_MODEL_LOCATION:
       g_value_set_string (value, priv->model_location);
+      break;
+    case PROP_NEW_META:
+      g_value_set_boolean (value, priv->use_new_meta);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
