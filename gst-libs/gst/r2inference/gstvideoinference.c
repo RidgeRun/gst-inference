@@ -863,8 +863,6 @@ gst_video_inference_postprocess (GstVideoInference * self,
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstMeta *meta_model = NULL;
   GstMeta *meta_bypass = NULL;
-  GstMeta *inference_meta_model = NULL;
-  GstMeta *inference_meta_bypass = NULL;
   GstVideoFrame frame_model;
   GstVideoFrame frame_bypass;
   GstVideoInfo *info_model = NULL;
@@ -878,54 +876,92 @@ gst_video_inference_postprocess (GstVideoInference * self,
   g_return_val_if_fail (buffer_model, FALSE);
   g_return_val_if_fail (pad_model, FALSE);
 
-  /* Subclass didn't implement a post-process, dont fail, just ignore */
-  if (NULL == klass->postprocess) {
-    return TRUE;
-  }
-
   info_model = &(pad_model->info);
   info_bypass = pad_bypass ? &(pad_bypass->info) : NULL;
 
-  if (!video_inference_prepare_postprocess (klass->inference_meta_info,
-          buffer_model, info_model, &frame_model, &meta_model)) {
-    return FALSE;
-  }
-
-  if (!video_inference_prepare_postprocess (klass->inference_meta_info,
-          buffer_bypass, info_bypass, &frame_bypass, NULL)) {
-    return FALSE;
-  }
-
-  GST_LOG_OBJECT (self, "Calling frame postprocess");
-  if (!klass->postprocess (self, prediction_data, prediction_size, meta_model,
-          info_model, &pred_valid)) {
-    GST_ELEMENT_ERROR (self, STREAM, FAILED, ("Subclass failed at preprocess"),
-        (NULL));
-    return FALSE;
-  }
-
-  if (pred_valid) {
-    GstVideoFrame *pbpass = buffer_bypass ? &frame_bypass : NULL;
-
-    meta_bypass =
-        video_inference_transform_meta (buffer_model, info_model, meta_model,
-        buffer_bypass, info_bypass);
-    g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL], 0,
-        meta_model, &frame_model, meta_bypass, pbpass);
-
-    /* This code is for testing purposes only */
-    inference_meta_model =
-        gst_buffer_add_meta (buffer_model, priv->inference_meta_info, NULL);
-    if (pbpass) {
-      inference_meta_bypass =
-          gst_buffer_add_meta (buffer_bypass, priv->inference_meta_info, NULL);
+  /* This conditional contains some duplicated code
+     that will be removed once the old metas implementation
+     is removed. For now let's keep it in that way to
+     avoid breaking the old method.
+   */
+  if (priv->use_new_meta) {
+    /* Subclass didn't implement a post-process, dont fail, just ignore */
+    if (NULL == klass->postprocess_meta) {
+      return TRUE;
     }
-    g_signal_emit (self, gst_video_inference_signals[NEW_INFERENCE_SIGNAL], 0,
-        inference_meta_model, &frame_model, inference_meta_bypass,
-        buffer_bypass ? &frame_bypass : NULL);
+
+    meta_model =
+        gst_buffer_get_meta (buffer_model, gst_inference_meta_api_get_type ());
+    if (!meta_model) {
+      /* Create New Inference Meta */
+      meta_model =
+          gst_buffer_add_meta (buffer_model, priv->inference_meta_info, NULL);
+    }
+
+    /* Prepare postprocess */
+    if (!video_inference_prepare_postprocess (priv->inference_meta_info,
+            buffer_model, info_model, &frame_model, NULL)) {
+      return FALSE;
+    }
+
+    if (!video_inference_prepare_postprocess (priv->inference_meta_info,
+            buffer_bypass, info_bypass, &frame_bypass, NULL)) {
+      return FALSE;
+    }
+
+    /* Subclass Processing */
+    if (!klass->postprocess_meta (self, prediction_data, prediction_size,
+            meta_model, info_model, &pred_valid)) {
+      GST_ELEMENT_ERROR (self, STREAM, FAILED,
+          ("Subclass failed at preprocess"), (NULL));
+      return FALSE;
+    }
+    if (pred_valid) {
+      GstVideoFrame *pbpass = buffer_bypass ? &frame_bypass : NULL;
+
+      /* TODO: Transfer model meta to bypass */
+
+      g_signal_emit (self, gst_video_inference_signals[NEW_INFERENCE_SIGNAL], 0,
+          meta_model, &frame_model, meta_bypass, pbpass);
+    }
   } else {
-    video_inference_remove_meta (buffer_model, meta_model);
-    video_inference_remove_meta (buffer_bypass, meta_bypass);
+    /* Subclass didn't implement a post-process, dont fail, just ignore */
+    if (NULL == klass->postprocess) {
+      return TRUE;
+    }
+
+    if (!video_inference_prepare_postprocess (klass->inference_meta_info,
+            buffer_model, info_model, &frame_model, &meta_model)) {
+      return FALSE;
+    }
+
+    if (!video_inference_prepare_postprocess (klass->inference_meta_info,
+            buffer_bypass, info_bypass, &frame_bypass, NULL)) {
+      return FALSE;
+    }
+
+    GST_LOG_OBJECT (self, "Calling frame postprocess");
+    if (!klass->postprocess (self, prediction_data, prediction_size, meta_model,
+            info_model, &pred_valid)) {
+      GST_ELEMENT_ERROR (self, STREAM, FAILED,
+          ("Subclass failed at preprocess"), (NULL));
+      return FALSE;
+    }
+
+    if (pred_valid) {
+      GstVideoFrame *pbpass = buffer_bypass ? &frame_bypass : NULL;
+
+      meta_bypass =
+          video_inference_transform_meta (buffer_model, info_model, meta_model,
+          buffer_bypass, info_bypass);
+      g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL],
+          0, meta_model, &frame_model, meta_bypass, pbpass);
+
+    } else {
+      video_inference_remove_meta (buffer_model, meta_model);
+      video_inference_remove_meta (buffer_bypass, meta_bypass);
+    }
+
   }
 
   video_inference_frame_unmap (buffer_model, &frame_model);
@@ -995,6 +1031,20 @@ gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
   }
 
   if (buffer_model) {
+    if (priv->use_new_meta) {
+      GstMeta *meta_model = gst_buffer_get_meta (buffer_model,
+          gst_inference_meta_api_get_type ());
+      if (meta_model) {
+        /* Check if root is enabled to be processed, if not, just forward buffer */
+        GstInferenceMeta *inference_meta = (GstInferenceMeta *) meta_model;
+        Prediction *root = inference_meta->prediction;
+        if (!root->enabled) {
+          GST_INFO_OBJECT (self,
+              "Current Prediction is not enabled, bypassing processing...");
+          goto buffers_forward;
+        }
+      }
+    }
     /* Run preprocess and inference on the model and generate prediction */
     if (!gst_video_inference_model_buffer_process (self, klass, priv,
             buffer_model, &prediction_data, &prediction_size)) {
@@ -1011,6 +1061,7 @@ gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
     }
   }
 
+buffers_forward:
   /* Forward buffer to model src pad */
   ret = gst_video_inference_forward_buffer (self, buffer_model,
       priv->src_model);
