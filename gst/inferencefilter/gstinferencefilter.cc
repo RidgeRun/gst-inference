@@ -64,9 +64,7 @@ static void gst_inferencefilter_get_property (GObject * object,
 static gboolean gst_inferencefilter_start (GstBaseTransform * trans);
 static gboolean gst_inferencefilter_stop (GstBaseTransform * trans);
 static void gst_inferencefilter_finalize (GObject * object);
-
-static gboolean gst_inferencefilter_transform_meta (GstBaseTransform * trans,
-    GstBuffer * outbuf, GstMeta * meta, GstBuffer * inbuf);
+static void gst_inferencefilter_filter_enable(GstInferencefilter * inferencefilter, GstInferencePrediction *rot, gint class_id, gboolean reset);
 static GstFlowReturn gst_inferencefilter_transform_ip (GstBaseTransform * trans,
     GstBuffer * buf);
 
@@ -129,11 +127,11 @@ gst_inferencefilter_class_init (GstInferencefilterClass * klass)
 
   gobject_class->set_property = gst_inferencefilter_set_property;
   gobject_class->get_property = gst_inferencefilter_get_property;
-  
+
   base_transform_class->start = GST_DEBUG_FUNCPTR (gst_inferencefilter_start);
   base_transform_class->stop = GST_DEBUG_FUNCPTR (gst_inferencefilter_stop);
   gobject_class->finalize = gst_inferencefilter_finalize;
- 
+
   g_object_class_install_property (gobject_class, PROP_FILTER_CLASS_LABEL,
                                    g_param_spec_int ("filter-class", "filter-class", "Filter class", PROP_FILTER_CLASS_LABEL_MIN, G_MAXINT,
                                                      PROP_FILTER_CLASS_LABEL_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
@@ -238,24 +236,61 @@ gst_inferencefilter_finalize (GObject * object)
   G_OBJECT_CLASS (gst_inferencefilter_parent_class)->finalize (object);
 }
 
-
-static gboolean
-gst_inferencefilter_transform_meta (GstBaseTransform * trans,
-    GstBuffer * outbuf, GstMeta * meta, GstBuffer * inbuf)
+static void
+gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter, GstInferencePrediction *root, gint class_id, gboolean reset)
 {
-  GstInferencefilter *inferencefilter = GST_INFERENCEFILTER (trans);
-  GST_DEBUG_OBJECT (inferencefilter, "transform_ip");
-  return TRUE;
+  guint i;
+  GList *iter = NULL;
+  if (root == NULL) {
+    GST_ERROR_OBJECT (inferencefilter, "Invalid inference prediction.");
+  }
+
+  if (root->classifications == NULL) {
+    GST_LOG_OBJECT (inferencefilter, "No inference classification on prediction.");
+  }
+
+  for (iter = root->classifications; iter != NULL; iter = g_list_next(iter)) {
+    GstInferenceClassification *classification = (GstInferenceClassification *)iter->data;
+    if (classification->class_id == class_id || reset) {
+      GST_DEBUG_OBJECT(inferencefilter, "Enabling classification id %d", classification->class_id);
+      root->enabled = TRUE;
+      break;
+    } else {
+      GST_DEBUG_OBJECT(inferencefilter, "Disabling classification id %d", classification->class_id);
+      root->enabled = FALSE;
+    }
+  }
+
+  for (i = 0; i < g_node_n_children(root->predictions) ; ++i) {
+    GstInferencePrediction   *predict = (GstInferencePrediction*)g_node_nth_child (root->predictions,i)->data;
+    gst_inferencefilter_filter_enable (inferencefilter, predict, class_id, reset);
+  }
 }
 
 static GstFlowReturn
 gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 {
   GstInferencefilter *inferencefilter = GST_INFERENCEFILTER (trans);
-
+  GstInferenceMeta *meta;
   GST_DEBUG_OBJECT (inferencefilter, "transform_ip");
 
-  return GST_FLOW_OK;
+  meta = (GstInferenceMeta *) gst_buffer_get_meta (buf,
+        GST_INFERENCE_META_API_TYPE);
+
+  if (NULL == meta) {
+    GST_LOG_OBJECT (inferencefilter, "No inference meta found. Buffer passthrough.");
+    return GST_FLOW_OK;
+  }
+
+  g_return_val_if_fail(meta->prediction, GST_FLOW_ERROR);
+
+  if (inferencefilter->filter_class < 0 && !inferencefilter->reset_enable) {
+    GST_ERROR_OBJECT (inferencefilter, "Invalid filter-class value");
+    return GST_FLOW_ERROR;
+  } else {
+    gst_inferencefilter_filter_enable (inferencefilter, meta->prediction, inferencefilter->filter_class, inferencefilter->reset_enable);
+    return GST_FLOW_OK;
+  }
 }
 
 static gboolean
