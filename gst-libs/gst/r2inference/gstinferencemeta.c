@@ -14,8 +14,6 @@
 #include <gst/video/video.h>
 #include <string.h>
 
-#define NUM_TEST_PREDICTIONS 3
-
 static gboolean gst_inference_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static void gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer);
@@ -370,9 +368,9 @@ gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
   root->id = rand ();
   root->enabled = TRUE;
   root->box = NULL;
+  root->node = g_node_new (root);
 
   imeta->prediction = root;
-  imeta->node = g_node_new (imeta->prediction);
 
   return TRUE;
 }
@@ -399,13 +397,15 @@ static void
 gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer)
 {
   GstInferenceMeta *imeta = NULL;
+  Prediction *root = NULL;
 
   g_return_if_fail (meta != NULL);
   g_return_if_fail (buffer != NULL);
 
   imeta = (GstInferenceMeta *) meta;
+  root = imeta->prediction;
 
-  g_node_traverse (imeta->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
+  g_node_traverse (root->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
       gst_inference_clean_nodes, NULL);
-  g_node_destroy (imeta->node);
+  g_node_destroy (root->node);
 }

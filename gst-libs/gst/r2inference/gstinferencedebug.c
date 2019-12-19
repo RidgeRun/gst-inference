@@ -124,9 +124,13 @@ void
 gst_inference_print_predictions (GstVideoInference * vi,
     GstDebugCategory * category, GstInferenceMeta * inference_meta)
 {
+  Prediction *root = NULL;
+
   g_return_if_fail (vi != NULL);
   g_return_if_fail (inference_meta != NULL);
 
-  g_node_traverse (inference_meta->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
+  root = inference_meta->prediction;
+
+  g_node_traverse (root->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
       gst_inference_print_prediction, (gpointer) category);
 }

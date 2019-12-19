@@ -46,6 +46,7 @@ struct _Prediction
   gint id;
   gboolean enabled;
   BBox *box;
+  GNode *node;
 };
 
 /**
@@ -56,7 +57,6 @@ struct _GstInferenceMeta
 {
   GstMeta meta;
   Prediction *prediction;
-  GNode *node;
 };
 
 /**
