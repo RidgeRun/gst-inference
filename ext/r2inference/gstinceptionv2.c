@@ -241,7 +241,7 @@ gst_inceptionv2_postprocess_meta (GstVideoInference * vi,
 {
   GstInferenceMeta *imeta = NULL;
   Classification *class = NULL;
-  Prediction *root = NULL;
+  GstInferencePrediction *root = NULL;
 
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (meta_model != NULL, FALSE);

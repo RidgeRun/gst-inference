@@ -17,8 +17,8 @@
 extern "C" {
 #endif
 
-typedef struct _BoundingBox BoundingBox;
-struct _BoundingBox {
+typedef struct _PredictionBox PredictionBox;
+struct _PredictionBox {
   int category;
   double probability;
   int x;
@@ -32,7 +32,7 @@ handle_prediction (unsigned char *image,
                    int width, 
                    int height,
                    unsigned int size,
-                   BoundingBox *boxes,
+                   PredictionBox *boxes,
                    int num_boxes);
 
 #ifdef __cplusplus

@@ -361,15 +361,10 @@ static gboolean
 gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
 {
   GstInferenceMeta *imeta = (GstInferenceMeta *) meta;
-  Prediction *root;
+  GstInferencePrediction *root;
 
   /* Create root Prediction */
-  root = g_malloc (sizeof (Prediction));
-  root->id = rand ();
-  root->enabled = TRUE;
-  root->box = NULL;
-  root->classifications = NULL;
-  root->node = g_node_new (root);
+  root = gst_inference_prediction_new ();
 
   imeta->prediction = root;
 
@@ -396,22 +391,18 @@ gst_inference_clean_classifications (gpointer data)
 static gboolean
 gst_inference_clean_nodes (GNode * node, gpointer data)
 {
-  Prediction *predict = (Prediction *) node->data;
+  GstInferencePrediction *prediction = (GstInferencePrediction *) node->data;
 
-  g_return_val_if_fail (predict != NULL, TRUE);
+  g_return_val_if_fail (prediction != NULL, TRUE);
 
-  /* Delete the Box in the Prediction */
-  if (predict->box != NULL) {
-    g_free (predict->box);
-    predict->box = NULL;
-  }
   /* Delete classifications */
-  if (predict->classifications != NULL) {
-    g_list_free_full (predict->classifications,
+  if (prediction->classifications != NULL) {
+    g_list_free_full (prediction->classifications,
         gst_inference_clean_classifications);
   }
+
   /* Delete the prediction */
-  g_free (predict);
+  gst_inference_prediction_unref (prediction);
 
   return FALSE;
 }
@@ -420,7 +411,7 @@ static void
 gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer)
 {
   GstInferenceMeta *imeta = NULL;
-  Prediction *root = NULL;
+  GstInferencePrediction *root = NULL;
 
   g_return_if_fail (meta != NULL);
   g_return_if_fail (buffer != NULL);
@@ -428,7 +419,7 @@ gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer)
   imeta = (GstInferenceMeta *) meta;
   root = imeta->prediction;
 
-  g_node_traverse (root->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
+  g_node_traverse (imeta->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
       gst_inference_clean_nodes, NULL);
-  g_node_destroy (root->node);
+  g_node_destroy (imeta->node);
 }

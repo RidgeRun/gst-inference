@@ -248,22 +248,19 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
   return TRUE;
 }
 
-Prediction *
+GstInferencePrediction *
 gst_create_prediction_from_box (GstVideoInference * vi, BBox * box)
 {
-  Prediction *predict = NULL;
-  BBox *new_box = NULL;
+  GstInferencePrediction *predict = NULL;
 
   g_return_val_if_fail (vi != NULL, NULL);
   g_return_val_if_fail (box != NULL, NULL);
 
-  predict = g_malloc (sizeof (Prediction));
-  new_box = g_malloc (sizeof (BBox));
-  memcpy (new_box, box, sizeof (BBox));
-  predict->box = new_box;
-  predict->id = rand ();
-  predict->enabled = TRUE;
-  predict->classifications = NULL;
+  predict = gst_inference_prediction_new ();
+  predict->bbox.x = box->x;
+  predict->bbox.y = box->x;
+  predict->bbox.width = box->width;
+  predict->bbox.height = box->height;
 
   return predict;
 }

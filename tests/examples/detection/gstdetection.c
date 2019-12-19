@@ -172,7 +172,7 @@ gst_detection_process_inference (GstElement * element,
     gpointer user_data)
 {
   gint index;
-  BoundingBox *boxes;
+  PredictionBox *boxes;
 
   g_return_if_fail (element);
   g_return_if_fail (model_meta);
@@ -182,7 +182,8 @@ gst_detection_process_inference (GstElement * element,
   g_return_if_fail (user_data);
 
   boxes =
-      (BoundingBox *) g_malloc (bypass_meta->num_boxes * sizeof (BoundingBox));
+      (PredictionBox *) g_malloc (bypass_meta->num_boxes *
+      sizeof (PredictionBox));
 
   for (index = 0; index < bypass_meta->num_boxes; index++) {
     boxes[index].category = bypass_meta->boxes[index].label;

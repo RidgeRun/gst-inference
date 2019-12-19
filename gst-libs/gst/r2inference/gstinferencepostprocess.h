@@ -75,7 +75,7 @@ gboolean gst_create_boxes_float (GstVideoInference * vi,
  * \param vi Father object of every architecture
  * \param box Box used to fill Prediction
  */
-Prediction *gst_create_prediction_from_box (GstVideoInference * vi, BBox * box);
+GstInferencePrediction *gst_create_prediction_from_box (GstVideoInference * vi, BBox * box);
 
 /**
  * \brief Create Classification from prediction data

@@ -99,24 +99,19 @@ gst_inference_print_boxes (GstVideoInference * vi, GstDebugCategory * category,
 static gboolean
 gst_inference_print_prediction (GNode * node, gpointer data)
 {
-  Prediction *predict = (Prediction *) node->data;
+  GstInferencePrediction *predict = (GstInferencePrediction *) node->data;
   GstDebugCategory *category = (GstDebugCategory *) data;
-  BBox *box = NULL;
+  BoundingBox *box = NULL;
 
   g_return_val_if_fail (category != NULL, FALSE);
   g_return_val_if_fail (predict != NULL, FALSE);
 
-  box = predict->box;
+  box = &predict->bbox;
 
-  if (box != NULL) {
-    GST_CAT_LOG (category,
-        "Prediction ID:%d - Level:%d - Box: [class:%d, x:%f, y:%f, width:%f, height:%f, prob:%f]",
-        predict->id, g_node_depth (node), box->label, box->x, box->y,
-        box->width, box->height, box->prob);
-  } else {
-    GST_CAT_LOG (category, "Prediction ID:%d - Level:%d - No Box",
-        predict->id, g_node_depth (node));
-  }
+  GST_CAT_LOG (category,
+      "GstInferencePrediction ID:%llu - Level: %d - Enabled:%s - Box: [x:%u, y:%u, width:%u, height:%u]",
+      predict->id, g_node_depth (node), predict->enabled ? "true" : "false",
+      box->x, box->y, box->width, box->height);
 
   return FALSE;
 }
@@ -125,14 +120,14 @@ void
 gst_inference_print_predictions (GstVideoInference * vi,
     GstDebugCategory * category, GstInferenceMeta * inference_meta)
 {
-  Prediction *root = NULL;
+  GstInferencePrediction *root = NULL;
 
   g_return_if_fail (vi != NULL);
   g_return_if_fail (inference_meta != NULL);
 
   root = inference_meta->prediction;
 
-  g_node_traverse (root->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
+  g_node_traverse (inference_meta->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
       gst_inference_print_prediction, (gpointer) category);
 }
 
@@ -154,7 +149,7 @@ void
 gst_inference_print_classes (GstVideoInference * vi,
     GstDebugCategory * category, GstInferenceMeta * inference_meta)
 {
-  Prediction *root = NULL;
+  GstInferencePrediction *root = NULL;
 
   g_return_if_fail (vi != NULL);
   g_return_if_fail (inference_meta != NULL);

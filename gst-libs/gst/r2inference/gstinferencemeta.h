@@ -14,6 +14,8 @@
 
 #include <gst/gst.h>
 
+#include <gst/r2inference/gstinferenceprediction.h>
+
 G_BEGIN_DECLS
 #define GST_EMBEDDING_META_API_TYPE (gst_embedding_meta_api_get_type())
 #define GST_EMBEDDING_META_INFO  (gst_embedding_meta_get_info())
@@ -23,6 +25,7 @@ G_BEGIN_DECLS
 #define GST_DETECTION_META_INFO  (gst_detection_meta_get_info())
 #define GST_INFERENCE_META_API_TYPE (gst_inference_meta_api_get_type())
 #define GST_INFERENCE_META_INFO  (gst_inference_meta_get_info())
+
 /**
  * Basic bounding box structure for detection
  */
@@ -38,39 +41,15 @@ struct _BBox
 };
 
 /**
- * Basic class structure for inference
- */
-typedef struct _Classification Classification;
-struct _Classification
-{
-  gint class_id;
-  gdouble class_prob;
-  gchar *class_label;
-  gint num_classes;
-  gdouble *classes_probs;
-};
-
-/**
- * Prediction structure for inference meta
- */
-typedef struct _Prediction Prediction;
-struct _Prediction
-{
-  gint id;
-  gboolean enabled;
-  BBox *box;
-  GList *classifications;
-  GNode *node;
-};
-
-/**
  * Implements the placeholder for inference information.
  */
 typedef struct _GstInferenceMeta GstInferenceMeta;
 struct _GstInferenceMeta
 {
   GstMeta meta;
-  Prediction *prediction;
+
+  GstInferencePrediction *prediction;
+  GNode *node;
 };
 
 /**

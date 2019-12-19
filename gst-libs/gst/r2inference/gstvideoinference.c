@@ -1037,7 +1037,7 @@ gst_video_inference_collected (GstCollectPads * pads, gpointer user_data)
       if (meta_model) {
         /* Check if root is enabled to be processed, if not, just forward buffer */
         GstInferenceMeta *inference_meta = (GstInferenceMeta *) meta_model;
-        Prediction *root = inference_meta->prediction;
+        GstInferencePrediction *root = inference_meta->prediction;
         if (!root->enabled) {
           GST_INFO_OBJECT (self,
               "Current Prediction is not enabled, bypassing processing...");
