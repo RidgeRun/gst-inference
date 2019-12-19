@@ -15,6 +15,8 @@ static GType gst_inference_prediction_get_type (void);
 GST_DEFINE_MINI_OBJECT_TYPE (GstInferencePrediction, gst_inference_prediction);
 
 static void bounding_box_reset (BoundingBox * bbox);
+static gchar *bounding_box_to_string_with_level (BoundingBox * bbox,
+    gint level);
 static GstMiniObject *_gst_inference_prediction_copy (const GstMiniObject *
     obj);
 
@@ -109,4 +111,41 @@ gst_inference_prediction_unref (GstInferencePrediction * self)
   g_return_if_fail (self);
 
   gst_mini_object_unref (GST_MINI_OBJECT_CAST (self));
+}
+
+gchar *
+gst_inference_prediction_to_string (GstInferencePrediction * self)
+{
+  gchar *bbox = NULL;
+  gchar *prediction = NULL;
+
+  g_return_val_if_fail (self, NULL);
+
+  bbox = bounding_box_to_string_with_level (&self->bbox, 1);
+  prediction = g_strdup_printf ("{\n"
+      "  id : %llu\n"
+      "  enabled : %s\n"
+      "  bbox : %s\n" "}", self->id, self->enabled ? "True" : "False", bbox);
+
+  g_free (bbox);
+
+  return prediction;
+}
+
+static gchar *
+bounding_box_to_string_with_level (BoundingBox * bbox, gint level)
+{
+  gint indent = level * 2;
+
+  g_return_val_if_fail (bbox, NULL);
+
+  return g_strdup_printf ("{\n"
+      "%*s  x : %u\n"
+      "%*s  y : %u\n"
+      "%*s  width : %u\n"
+      "%*s  height : %u\n"
+      "%*s}",
+      indent, "", bbox->x,
+      indent, "", bbox->y,
+      indent, "", bbox->width, indent, "", bbox->height, indent, "");
 }

@@ -62,6 +62,7 @@ GstInferencePrediction * gst_inference_prediction_copy (const GstInferencePredic
 void gst_inference_prediction_free (GstInferencePrediction * self);
 GstInferencePrediction * gst_inference_prediction_ref (GstInferencePrediction * self);
 void gst_inference_prediction_unref (GstInferencePrediction * self);
+gchar * gst_inference_prediction_to_string (GstInferencePrediction * self);
 
 G_END_DECLS
 

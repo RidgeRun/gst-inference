@@ -101,17 +101,16 @@ gst_inference_print_prediction (GNode * node, gpointer data)
 {
   GstInferencePrediction *predict = (GstInferencePrediction *) node->data;
   GstDebugCategory *category = (GstDebugCategory *) data;
-  BoundingBox *box = NULL;
+  gchar *spred = NULL;
 
   g_return_val_if_fail (category != NULL, FALSE);
   g_return_val_if_fail (predict != NULL, FALSE);
 
-  box = &predict->bbox;
+  spred = gst_inference_prediction_to_string (predict);
 
-  GST_CAT_LOG (category,
-      "GstInferencePrediction ID:%llu - Level: %d - Enabled:%s - Box: [x:%u, y:%u, width:%u, height:%u]",
-      predict->id, g_node_depth (node), predict->enabled ? "true" : "false",
-      box->x, box->y, box->width, box->height);
+  GST_CAT_LOG (category, "\n%s", spred);
+
+  g_free (spred);
 
   return FALSE;
 }
