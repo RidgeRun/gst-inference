@@ -53,6 +53,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_inferencefilter_debug_category);
 #define GST_INFERENCEFILTER_PROPERTY_FLAGS (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)
 #define PROP_FILTER_CLASS_LABEL_DEFAULT -1
 #define PROP_FILTER_CLASS_LABEL_MIN -1
+#define PROP_RESET_ENABLE_DEFAULT FALSE
 
 /* prototypes */
 
@@ -73,12 +74,14 @@ enum
 {
   PROP_0,
   PROP_FILTER_CLASS_LABEL,
+  PROP_RESET_ENABLE,
 };
 
 struct _GstInferencefilter
 {
   GstBaseTransform base_inferencefilter;
   gint filter_class;
+  gboolean reset_enable;
 };
 
 
@@ -133,7 +136,13 @@ gst_inferencefilter_class_init (GstInferencefilterClass * klass)
  
   g_object_class_install_property (gobject_class, PROP_FILTER_CLASS_LABEL,
                                    g_param_spec_int ("filter-class", "filter-class", "Filter class", PROP_FILTER_CLASS_LABEL_MIN, G_MAXINT,
-                                                     PROP_FILTER_CLASS_LABEL_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS)); 
+                                                     PROP_FILTER_CLASS_LABEL_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
+  g_object_class_install_property (gobject_class,
+                                   PROP_RESET_ENABLE, g_param_spec_boolean ("reset-enable",
+                                                                                          "Reset enable",
+                                                                                          "Enables all inference meta to be processed",
+                                                                                          PROP_RESET_ENABLE_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
+
   base_transform_class->transform_meta =
       GST_DEBUG_FUNCPTR (gst_inferencefilter_transform_meta);
   base_transform_class->transform_ip =
@@ -145,6 +154,7 @@ static void
 gst_inferencefilter_init (GstInferencefilter * inferencefilter)
 {
   inferencefilter->filter_class = -1;
+  inferencefilter->reset_enable = FALSE;
 }
 
 void
@@ -159,6 +169,11 @@ gst_inferencefilter_set_property (GObject * object, guint property_id,
     case PROP_FILTER_CLASS_LABEL:
       GST_OBJECT_LOCK (inferencefilter);
       inferencefilter->filter_class = g_value_get_int (value);
+      GST_OBJECT_UNLOCK(inferencefilter);
+      break;
+    case PROP_RESET_ENABLE:
+      GST_OBJECT_LOCK (inferencefilter);
+      inferencefilter->reset_enable = g_value_get_boolean (value);
       GST_OBJECT_UNLOCK(inferencefilter);
       break;
     default:
@@ -179,6 +194,11 @@ gst_inferencefilter_get_property (GObject * object, guint property_id,
     case PROP_FILTER_CLASS_LABEL:
       GST_OBJECT_LOCK (inferencefilter);
       g_value_set_int (value, inferencefilter->filter_class);
+      GST_OBJECT_UNLOCK (inferencefilter);
+      break;
+    case PROP_RESET_ENABLE:
+      GST_OBJECT_LOCK (inferencefilter);
+      g_value_set_boolean (value, inferencefilter->reset_enable);
       GST_OBJECT_UNLOCK (inferencefilter);
       break;
     default:
