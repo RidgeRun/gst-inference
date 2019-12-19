@@ -38,6 +38,19 @@ struct _BBox
 };
 
 /**
+ * Basic class structure for inference
+ */
+typedef struct _Classification Classification;
+struct _Classification
+{
+  gint class_id;
+  gdouble class_prob;
+  gchar *class_label;
+  gint num_classes;
+  gdouble *classes_probs;
+};
+
+/**
  * Prediction structure for inference meta
  */
 typedef struct _Prediction Prediction;
@@ -46,6 +59,7 @@ struct _Prediction
   gint id;
   gboolean enabled;
   BBox *box;
+  GList *classifications;
   GNode *node;
 };
 

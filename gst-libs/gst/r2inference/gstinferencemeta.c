@@ -368,11 +368,29 @@ gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
   root->id = rand ();
   root->enabled = TRUE;
   root->box = NULL;
+  root->classifications = NULL;
   root->node = g_node_new (root);
 
   imeta->prediction = root;
 
   return TRUE;
+}
+
+static void
+gst_inference_clean_classifications (gpointer data)
+{
+  Classification *class = (Classification *) data;
+
+  g_return_if_fail (class != NULL);
+
+  /* Delete class */
+  if (class->classes_probs)
+    g_free (class->classes_probs);
+
+  if (class->class_label)
+    g_free (class->class_label);
+
+  g_free (class);
 }
 
 static gboolean
@@ -383,9 +401,14 @@ gst_inference_clean_nodes (GNode * node, gpointer data)
   g_return_val_if_fail (predict != NULL, TRUE);
 
   /* Delete the Box in the Prediction */
-  if (predict->box) {
+  if (predict->box != NULL) {
     g_free (predict->box);
     predict->box = NULL;
+  }
+  /* Delete classifications */
+  if (predict->classifications != NULL) {
+    g_list_free_full (predict->classifications,
+        gst_inference_clean_classifications);
   }
   /* Delete the prediction */
   g_free (predict);

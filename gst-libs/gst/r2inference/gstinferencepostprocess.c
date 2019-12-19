@@ -263,6 +263,7 @@ gst_create_prediction_from_box (GstVideoInference * vi, BBox * box)
   predict->box = new_box;
   predict->id = rand ();
   predict->enabled = TRUE;
+  predict->classifications = NULL;
 
   return predict;
 }
