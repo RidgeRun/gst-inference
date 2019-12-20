@@ -74,5 +74,16 @@ void gst_inference_print_boxes (GstVideoInference * vi,
 void gst_inference_print_predictions (GstVideoInference * vi,
     GstDebugCategory * category, GstInferenceMeta * inference_meta);
 
+/**
+ * \brief Display the classes in the inference meta
+ *
+ * \param vi Father object of every architecture
+ * \param category The debug category
+ * \param inference_meta Inference Meta
+ */
+
+void gst_inference_print_classes (GstVideoInference * vi,
+    GstDebugCategory * category, GstInferenceMeta * inference_meta);
+
 G_END_DECLS
 #endif // GST_INFERENCE_DEBUG_H
