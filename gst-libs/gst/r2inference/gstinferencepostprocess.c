@@ -268,6 +268,43 @@ gst_create_prediction_from_box (GstVideoInference * vi, BBox * box)
   return predict;
 }
 
+Classification *
+gst_create_class_from_prediction (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize)
+{
+  Classification *new_class = NULL;
+  gdouble max = -1;
+  gint index = 0;
+
+  g_return_val_if_fail (vi != NULL, NULL);
+
+  /* Create new Classification */
+  new_class = g_malloc (sizeof (Classification));
+  /* Fill Classification with inference output */
+  new_class->num_classes = predsize / sizeof (gfloat);
+  new_class->classes_probs =
+      g_malloc (new_class->num_classes * sizeof (gdouble));
+  for (gint i = 0; i < new_class->num_classes; ++i) {
+    new_class->classes_probs[i] = (gdouble) ((gfloat *) prediction)[i];
+  }
+
+  /* Obtain the highest probability and set it as class */
+  for (gint i = 0; i < new_class->num_classes; ++i) {
+    gfloat current = ((gfloat *) prediction)[i];
+    if (current > max) {
+      max = current;
+      index = i;
+    }
+  }
+
+  new_class->class_id = index;
+  new_class->class_prob = max;
+  /* TODO: Fill class label based on labels file */
+  new_class->class_label = NULL;
+
+  return new_class;
+}
+
 static void
 gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
     gpointer prediction, BBox * boxes, gint * elements, gint total_boxes)

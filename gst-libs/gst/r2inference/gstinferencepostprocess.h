@@ -77,5 +77,15 @@ gboolean gst_create_boxes_float (GstVideoInference * vi,
  */
 Prediction *gst_create_prediction_from_box (GstVideoInference * vi, BBox * box);
 
+/**
+ * \brief Create Classification from prediction data
+ *
+ * \param vi Father object of every architecture
+ * \param prediction Value of the prediction
+ * \param predsize Size of the prediction
+ */
+Classification *gst_create_class_from_prediction (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize);
+
 G_END_DECLS
 #endif
