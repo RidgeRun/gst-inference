@@ -67,6 +67,10 @@ static gboolean gst_inceptionv2_preprocess (GstVideoInference * vi,
 static gboolean gst_inceptionv2_postprocess (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction);
+static gboolean
+gst_inceptionv2_postprocess_meta (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    GstVideoInfo * info_model, gboolean * valid_prediction);
 static gboolean gst_inceptionv2_start (GstVideoInference * vi);
 static gboolean gst_inceptionv2_stop (GstVideoInference * vi);
 
@@ -140,6 +144,8 @@ gst_inceptionv2_class_init (GstInceptionv2Class * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_inceptionv2_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_inceptionv2_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_inceptionv2_postprocess);
+  vi_class->postprocess_meta =
+      GST_DEBUG_FUNCPTR (gst_inceptionv2_postprocess_meta);
   vi_class->inference_meta_info = gst_classification_meta_get_info ();
 }
 
@@ -223,6 +229,39 @@ gst_inceptionv2_postprocess (GstVideoInference * vi, const gpointer prediction,
 
   gst_inference_print_highest_probability (vi, gst_inceptionv2_debug_category,
       class_meta, prediction, gst_debug_level);
+
+  *valid_prediction = TRUE;
+  return TRUE;
+}
+
+static gboolean
+gst_inceptionv2_postprocess_meta (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    GstVideoInfo * info_model, gboolean * valid_prediction)
+{
+  GstInferenceMeta *imeta = NULL;
+  Classification *class = NULL;
+  Prediction *root = NULL;
+
+  g_return_val_if_fail (vi != NULL, FALSE);
+  g_return_val_if_fail (meta_model != NULL, FALSE);
+  g_return_val_if_fail (info_model != NULL, FALSE);
+
+  GST_LOG_OBJECT (vi, "Postprocess Meta");
+
+  imeta = (GstInferenceMeta *) meta_model;
+
+  root = imeta->prediction;
+  if (!root) {
+    GST_ERROR_OBJECT (vi, "Prediction is not part of the Inference Meta");
+    return FALSE;
+  }
+
+  class = gst_create_class_from_prediction (vi, prediction, predsize);
+  root->classifications =
+      g_list_append (root->classifications, (gpointer) class);
+
+  gst_inference_print_classes (vi, gst_inceptionv2_debug_category, imeta);
 
   *valid_prediction = TRUE;
   return TRUE;
