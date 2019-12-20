@@ -54,6 +54,7 @@ struct _GstInferencePrediction
   gboolean enabled;
   BoundingBox bbox;
   GList * classifications;
+  GNode * predictions;
 };
 
 GstInferencePrediction * gst_inference_prediction_new (void);
