@@ -14,6 +14,8 @@
 static GType gst_inference_prediction_get_type (void);
 GST_DEFINE_MINI_OBJECT_TYPE (GstInferencePrediction, gst_inference_prediction);
 
+static GstInferencePrediction *prediction_copy (const GstInferencePrediction *
+    self);
 static void prediction_free (GstInferencePrediction * obj);
 static GSList *prediction_get_children (GstInferencePrediction * self);
 static void prediction_reset (GstInferencePrediction * self);
@@ -25,6 +27,8 @@ static gchar *bounding_box_to_string (BoundingBox * bbox, gint level);
 static void classification_reset (GList * classification);
 
 static void node_get_children (GNode * node, gpointer data);
+static gpointer node_copy (gconstpointer node, gpointer data);
+static gboolean node_assign (GNode * node, gpointer data);
 
 GstInferencePrediction *
 gst_inference_prediction_new (void)
@@ -35,7 +39,7 @@ gst_inference_prediction_new (void)
       gst_inference_prediction_get_type (),
       (GstMiniObjectCopyFunction) gst_inference_prediction_copy, NULL,
       (GstMiniObjectFreeFunction) prediction_free);
-  
+
   self->predictions = NULL;
   prediction_reset (self);
 
@@ -62,10 +66,10 @@ gst_inference_prediction_unref (GstInferencePrediction * self)
 static void
 classification_reset (GList * classifications)
 {
-  GList * iter = NULL;
+  GList *iter = NULL;
 
   for (iter = classifications; iter != NULL; iter = g_list_next (iter)) {
-    Classification *c = (Classification *)iter->data;
+    Classification *c = (Classification *) iter->data;
     c->class_id = 0;
     c->class_prob = 0.0f;
     c->class_label = NULL;
@@ -74,8 +78,8 @@ classification_reset (GList * classifications)
   }
 }
 
-GstInferencePrediction *
-gst_inference_prediction_copy (const GstInferencePrediction * self)
+static GstInferencePrediction *
+prediction_copy (const GstInferencePrediction * self)
 {
   GstInferencePrediction *other = NULL;
 
@@ -88,6 +92,40 @@ gst_inference_prediction_copy (const GstInferencePrediction * self)
   other->bbox = self->bbox;
 
   return other;
+}
+
+static gpointer
+node_copy (gconstpointer node, gpointer data)
+{
+  GstInferencePrediction *self = (GstInferencePrediction *) node;
+
+  return prediction_copy (self);
+}
+
+static gboolean
+node_assign (GNode * node, gpointer data)
+{
+  GstInferencePrediction *pred = (GstInferencePrediction *) node->data;
+
+  pred->predictions = node;
+
+  return FALSE;
+}
+
+GstInferencePrediction *
+gst_inference_prediction_copy (const GstInferencePrediction * self)
+{
+  GNode *other = NULL;
+
+  g_return_val_if_fail (self, NULL);
+
+  /* Copy the binary tree */
+  other = g_node_copy_deep (self->predictions, node_copy, NULL);
+
+  /* Now finish assigning the nodes to the predictions */
+  g_node_traverse (other, G_IN_ORDER, G_TRAVERSE_ALL, -1, node_assign, NULL);
+
+  return (GstInferencePrediction *) other->data;
 }
 
 static gchar *
