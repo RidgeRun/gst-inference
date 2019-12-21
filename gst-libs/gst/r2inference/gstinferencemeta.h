@@ -49,7 +49,6 @@ struct _GstInferenceMeta
   GstMeta meta;
 
   GstInferencePrediction *prediction;
-  GNode *node;
 };
 
 /**

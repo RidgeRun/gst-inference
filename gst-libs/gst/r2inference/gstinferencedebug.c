@@ -20,9 +20,6 @@
  */
 #include "gstinferencedebug.h"
 
-static gboolean gst_inference_print_prediction (GNode * node, gpointer data);
-static void gst_inference_print_class (gpointer data, gpointer user_data);
-
 void
 gst_inference_print_embedding (GstVideoInference * vi,
     GstDebugCategory * category, GstClassificationMeta * class_meta,
@@ -96,38 +93,22 @@ gst_inference_print_boxes (GstVideoInference * vi, GstDebugCategory * category,
   }
 }
 
-static gboolean
-gst_inference_print_prediction (GNode * node, gpointer data)
-{
-  GstInferencePrediction *predict = (GstInferencePrediction *) node->data;
-  GstDebugCategory *category = (GstDebugCategory *) data;
-  gchar *spred = NULL;
-
-  g_return_val_if_fail (category != NULL, FALSE);
-  g_return_val_if_fail (predict != NULL, FALSE);
-
-  spred = gst_inference_prediction_to_string (predict);
-
-  GST_CAT_LOG (category, "\n%s", spred);
-
-  g_free (spred);
-
-  return FALSE;
-}
-
 void
 gst_inference_print_predictions (GstVideoInference * vi,
     GstDebugCategory * category, GstInferenceMeta * inference_meta)
 {
-  GstInferencePrediction *root = NULL;
+  GstInferencePrediction *pred = NULL;
+  gchar *spred = NULL;
 
   g_return_if_fail (vi != NULL);
+  g_return_if_fail (category != NULL);
   g_return_if_fail (inference_meta != NULL);
 
-  root = inference_meta->prediction;
+  pred = inference_meta->prediction;
 
-  g_node_traverse (inference_meta->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
-      gst_inference_print_prediction, (gpointer) category);
+  spred = gst_inference_prediction_to_string (pred);
+  GST_CAT_LOG (category, "\n%s", spred);
+  g_free (spred);
 }
 
 static void

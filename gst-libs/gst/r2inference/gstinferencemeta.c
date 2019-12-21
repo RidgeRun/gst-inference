@@ -17,7 +17,6 @@
 static gboolean gst_inference_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static void gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer);
-static gboolean gst_inference_clean_nodes (GNode * node, gpointer data);
 static gboolean gst_classification_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static void gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer);
@@ -372,54 +371,13 @@ gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
 }
 
 static void
-gst_inference_clean_classifications (gpointer data)
-{
-  Classification *class = (Classification *) data;
-
-  g_return_if_fail (class != NULL);
-
-  /* Delete class */
-  if (class->classes_probs)
-    g_free (class->classes_probs);
-
-  if (class->class_label)
-    g_free (class->class_label);
-
-  g_free (class);
-}
-
-static gboolean
-gst_inference_clean_nodes (GNode * node, gpointer data)
-{
-  GstInferencePrediction *prediction = (GstInferencePrediction *) node->data;
-
-  g_return_val_if_fail (prediction != NULL, TRUE);
-
-  /* Delete classifications */
-  if (prediction->classifications != NULL) {
-    g_list_free_full (prediction->classifications,
-        gst_inference_clean_classifications);
-  }
-
-  /* Delete the prediction */
-  gst_inference_prediction_unref (prediction);
-
-  return FALSE;
-}
-
-static void
 gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer)
 {
   GstInferenceMeta *imeta = NULL;
-  GstInferencePrediction *root = NULL;
 
   g_return_if_fail (meta != NULL);
   g_return_if_fail (buffer != NULL);
 
   imeta = (GstInferenceMeta *) meta;
-  root = imeta->prediction;
-
-  g_node_traverse (imeta->node, G_LEVEL_ORDER, G_TRAVERSE_ALL, -1,
-      gst_inference_clean_nodes, NULL);
-  g_node_destroy (imeta->node);
+  gst_inference_prediction_unref (imeta->prediction);
 }

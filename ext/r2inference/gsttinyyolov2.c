@@ -332,13 +332,16 @@ gst_tinyyolov2_postprocess_meta (GstVideoInference * vi,
 
   GST_LOG_OBJECT (tinyyolov2, "Number of predictions: %d", num_boxes);
 
+  if (NULL == imeta->prediction) {
+    imeta->prediction = gst_inference_prediction_new ();
+    imeta->prediction->bbox.width = info_model->width;
+    imeta->prediction->bbox.height = info_model->height;
+  }
+
   for (i = 0; i < num_boxes; i++) {
-    GstInferencePrediction *predict =
+    GstInferencePrediction *pred =
         gst_create_prediction_from_box (vi, &boxes[i]);
-    /* Create new node */
-    GNode *new_node = g_node_new (predict);
-    /* Add new node as child of parent node */
-    g_node_append (imeta->node, new_node);
+    g_node_append (imeta->prediction->predictions, pred->predictions);
   }
 
   /* Free boxes after creation */
