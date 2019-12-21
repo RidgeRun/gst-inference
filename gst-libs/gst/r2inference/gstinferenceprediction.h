@@ -64,6 +64,8 @@ void gst_inference_prediction_free (GstInferencePrediction * self);
 GstInferencePrediction * gst_inference_prediction_ref (GstInferencePrediction * self);
 void gst_inference_prediction_unref (GstInferencePrediction * self);
 gchar * gst_inference_prediction_to_string (GstInferencePrediction * self);
+void gst_inference_prediction_append (GstInferencePrediction * self, GstInferencePrediction * child);
+GSList * gst_inference_prediction_get_children (GstInferencePrediction * self);
 
 G_END_DECLS
 

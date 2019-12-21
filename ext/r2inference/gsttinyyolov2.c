@@ -341,7 +341,7 @@ gst_tinyyolov2_postprocess_meta (GstVideoInference * vi,
   for (i = 0; i < num_boxes; i++) {
     GstInferencePrediction *pred =
         gst_create_prediction_from_box (vi, &boxes[i]);
-    g_node_append (imeta->prediction->predictions, pred->predictions);
+    gst_inference_prediction_append (imeta->prediction, pred);
   }
 
   /* Free boxes after creation */

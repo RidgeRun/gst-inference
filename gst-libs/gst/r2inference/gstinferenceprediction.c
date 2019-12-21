@@ -17,7 +17,6 @@ GST_DEFINE_MINI_OBJECT_TYPE (GstInferencePrediction, gst_inference_prediction);
 static GstInferencePrediction *prediction_copy (const GstInferencePrediction *
     self);
 static void prediction_free (GstInferencePrediction * obj);
-static GSList *prediction_get_children (GstInferencePrediction * self);
 static void prediction_reset (GstInferencePrediction * self);
 static gchar *prediction_to_string (GstInferencePrediction * self, gint level);
 
@@ -63,19 +62,14 @@ gst_inference_prediction_unref (GstInferencePrediction * self)
   gst_mini_object_unref (GST_MINI_OBJECT_CAST (self));
 }
 
-static void
-classification_reset (GList * classifications)
+void
+gst_inference_prediction_append (GstInferencePrediction * self,
+    GstInferencePrediction * child)
 {
-  GList *iter = NULL;
+  g_return_if_fail (self);
+  g_return_if_fail (child);
 
-  for (iter = classifications; iter != NULL; iter = g_list_next (iter)) {
-    Classification *c = (Classification *) iter->data;
-    c->class_id = 0;
-    c->class_prob = 0.0f;
-    c->class_label = NULL;
-    c->num_classes = 0;
-    c->classes_probs = NULL;
-  }
+  g_node_append (self->predictions, child->predictions);
 }
 
 static GstInferencePrediction *
@@ -161,7 +155,7 @@ prediction_to_string (GstInferencePrediction * self, gint level)
 
   string = g_string_new (NULL);
 
-  subpreds = prediction_get_children (self);
+  subpreds = gst_inference_prediction_get_children (self);
   for (iter = subpreds; iter != NULL; iter = g_slist_next (iter)) {
     GstInferencePrediction *pred = (GstInferencePrediction *) iter->data;
     gchar *child = prediction_to_string (pred, level + 2);
@@ -199,6 +193,50 @@ gst_inference_prediction_to_string (GstInferencePrediction * self)
 }
 
 static void
+node_get_children (GNode * node, gpointer data)
+{
+  GSList **children = (GSList **) data;
+  GstInferencePrediction *prediction;
+
+  g_return_if_fail (node);
+  g_return_if_fail (children);
+
+  prediction = (GstInferencePrediction *) node->data;
+
+  *children = g_slist_append (*children, prediction);
+}
+
+GSList *
+gst_inference_prediction_get_children (GstInferencePrediction * self)
+{
+  GSList *children = NULL;
+
+  g_return_val_if_fail (self, NULL);
+
+  if (self->predictions) {
+    g_node_children_foreach (self->predictions, G_TRAVERSE_ALL,
+        node_get_children, &children);
+  }
+
+  return children;
+}
+
+static void
+classification_reset (GList * classifications)
+{
+  GList * iter = NULL;
+
+  for (iter = classifications; iter != NULL; iter = g_list_next (iter)) {
+    Classification *c = (Classification *)iter->data;
+    c->class_id = 0;
+    c->class_prob = 0.0f;
+    c->class_label = NULL;
+    c->num_classes = 0;
+    c->classes_probs = NULL;
+  }
+}
+
+static void
 bounding_box_reset (BoundingBox * bbox)
 {
   g_return_if_fail (bbox);
@@ -227,38 +265,9 @@ prediction_reset (GstInferencePrediction * self)
 }
 
 static void
-node_get_children (GNode * node, gpointer data)
-{
-  GSList **children = (GSList **) data;
-  GstInferencePrediction *prediction;
-
-  g_return_if_fail (node);
-  g_return_if_fail (children);
-
-  prediction = (GstInferencePrediction *) node->data;
-
-  *children = g_slist_append (*children, prediction);
-}
-
-static GSList *
-prediction_get_children (GstInferencePrediction * self)
-{
-  GSList *children = NULL;
-
-  g_return_val_if_fail (self, NULL);
-
-  if (self->predictions) {
-    g_node_children_foreach (self->predictions, G_TRAVERSE_ALL,
-        node_get_children, &children);
-  }
-
-  return children;
-}
-
-static void
 prediction_free (GstInferencePrediction * self)
 {
-  GSList *children = prediction_get_children (self);
+  GSList *children = gst_inference_prediction_get_children (self);
   GSList *iter = NULL;
 
   for (iter = children; iter != NULL; iter = g_slist_next (iter)) {
