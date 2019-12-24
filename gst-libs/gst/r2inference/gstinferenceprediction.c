@@ -23,7 +23,7 @@ static gchar *prediction_to_string (GstInferencePrediction * self, gint level);
 static void bounding_box_reset (BoundingBox * bbox);
 static gchar *bounding_box_to_string (BoundingBox * bbox, gint level);
 
-static void classification_reset (GList * classification);
+static void classification_free (GList ** classification);
 
 static void node_get_children (GNode * node, gpointer data);
 static gpointer node_copy (gconstpointer node, gpointer data);
@@ -40,6 +40,8 @@ gst_inference_prediction_new (void)
       (GstMiniObjectFreeFunction) prediction_free);
 
   self->predictions = NULL;
+  self->classifications = NULL;
+
   prediction_reset (self);
 
   return self;
@@ -222,21 +224,6 @@ gst_inference_prediction_get_children (GstInferencePrediction * self)
 }
 
 static void
-classification_reset (GList * classifications)
-{
-  GList * iter = NULL;
-
-  for (iter = classifications; iter != NULL; iter = g_list_next (iter)) {
-    Classification *c = (Classification *)iter->data;
-    c->class_id = 0;
-    c->class_prob = 0.0f;
-    c->class_label = NULL;
-    c->num_classes = 0;
-    c->classes_probs = NULL;
-  }
-}
-
-static void
 bounding_box_reset (BoundingBox * bbox)
 {
   g_return_if_fail (bbox);
@@ -256,12 +243,18 @@ prediction_reset (GstInferencePrediction * self)
   self->enabled = FALSE;
 
   bounding_box_reset (&self->bbox);
-  classification_reset (self->classifications);
 
   /* Free al children */
   prediction_free (self);
 
   self->predictions = g_node_new (self);
+}
+
+static void
+classification_free (GList ** classifications)
+{
+  g_list_free_full (*classifications, g_free);
+  *classifications = NULL;
 }
 
 static void
@@ -275,6 +268,8 @@ prediction_free (GstInferencePrediction * self)
 
     gst_inference_prediction_unref (child);
   }
+
+  classification_free (&self->classifications);
 
   if (self->predictions) {
     g_node_destroy (self->predictions);
