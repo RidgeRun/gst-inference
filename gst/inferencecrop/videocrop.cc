@@ -90,7 +90,8 @@ VideoCrop::UpdateElement (GstElement *element,
                 "top", top,
                 "bottom", bottom,
                 "left", left,
-                "right", right, NULL);
+                "right", right,
+                "qos",FALSE, NULL);
 }
 
 GstPad *
