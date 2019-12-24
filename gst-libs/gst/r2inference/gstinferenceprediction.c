@@ -276,3 +276,13 @@ prediction_free (GstInferencePrediction * self)
     self->predictions = NULL;
   }
 }
+
+void
+gst_inference_prediction_append_classification (GstInferencePrediction * self,
+    Classification * c)
+{
+  g_return_if_fail (self);
+  g_return_if_fail (c);
+
+  self->classifications = g_list_append (self->classifications, c);
+}
