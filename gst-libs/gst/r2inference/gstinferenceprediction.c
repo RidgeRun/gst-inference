@@ -19,11 +19,16 @@ static GstInferencePrediction *prediction_copy (const GstInferencePrediction *
 static void prediction_free (GstInferencePrediction * obj);
 static void prediction_reset (GstInferencePrediction * self);
 static gchar *prediction_to_string (GstInferencePrediction * self, gint level);
+static gchar *prediction_children_to_string (GstInferencePrediction * self,
+    gint level);
+static gchar *prediction_classes_to_string (GstInferencePrediction * self,
+    gint level);
 
 static void bounding_box_reset (BoundingBox * bbox);
 static gchar *bounding_box_to_string (BoundingBox * bbox, gint level);
 
 static void classification_free (GList ** classification);
+static gchar *classification_to_string (Classification * c, gint level);
 
 static void node_get_children (GNode * node, gpointer data);
 static gpointer node_copy (gconstpointer node, gpointer data);
@@ -125,6 +130,22 @@ gst_inference_prediction_copy (const GstInferencePrediction * self)
 }
 
 static gchar *
+classification_to_string (Classification * c, gint level)
+{
+  gint indent = level * 2;
+
+  g_return_val_if_fail (c, NULL);
+
+  return g_strdup_printf ("{\n"
+      "%*s  ID : %u\n"
+      "%*s  Label : %s\n"
+      "%*s  Probability : %f\n"
+      "%*s}",
+      indent, "", c->class_id,
+      indent, "", c->class_label, indent, "", c->class_prob, indent, "");
+}
+
+static gchar *
 bounding_box_to_string (BoundingBox * bbox, gint level)
 {
   gint indent = level * 2;
@@ -143,36 +164,74 @@ bounding_box_to_string (BoundingBox * bbox, gint level)
 }
 
 static gchar *
-prediction_to_string (GstInferencePrediction * self, gint level)
+prediction_children_to_string (GstInferencePrediction * self, gint level)
 {
   GSList *subpreds = NULL;
   GSList *iter = NULL;
   GString *string = NULL;
-  gint indent = level * 2;
-  gchar *bbox = NULL;
-  gchar *children = NULL;
-  gchar *prediction = NULL;
 
   g_return_val_if_fail (self, NULL);
 
+  /* Build the child predictions using a GString */
   string = g_string_new (NULL);
 
   subpreds = gst_inference_prediction_get_children (self);
+
   for (iter = subpreds; iter != NULL; iter = g_slist_next (iter)) {
     GstInferencePrediction *pred = (GstInferencePrediction *) iter->data;
-    gchar *child = prediction_to_string (pred, level + 2);
+    gchar *child = prediction_to_string (pred, level + 1);
 
     g_string_append_printf (string, "%s, ", child);
     g_free (child);
   }
 
-  children = g_string_free (string, FALSE);
+  return g_string_free (string, FALSE);
+}
+
+static gchar *
+prediction_classes_to_string (GstInferencePrediction * self, gint level)
+{
+  GList *iter = NULL;
+  GString *string = NULL;
+
+  g_return_val_if_fail (self, NULL);
+
+  /* Build the classes for this predictions using a GString */
+  string = g_string_new (NULL);
+
+  for (iter = self->classifications; iter != NULL; iter = g_list_next (iter)) {
+    Classification *c = (Classification *) iter->data;
+    gchar *sclass = classification_to_string (c, level + 1);
+
+    g_string_append_printf (string, "%s, ", sclass);
+    g_free (sclass);
+  }
+
+  return g_string_free (string, FALSE);
+}
+
+static gchar *
+prediction_to_string (GstInferencePrediction * self, gint level)
+{
+  gint indent = level * 2;
+  gchar *bbox = NULL;
+  gchar *children = NULL;
+  gchar *classes = NULL;
+  gchar *prediction = NULL;
+
+  g_return_val_if_fail (self, NULL);
+
   bbox = bounding_box_to_string (&self->bbox, level + 1);
+  classes = prediction_classes_to_string (self, level + 1);
+  children = prediction_children_to_string (self, level + 1);
 
   prediction = g_strdup_printf ("{\n"
       "%*s  id : %llu,\n"
       "%*s  enabled : %s,\n"
       "%*s  bbox : %s,\n"
+      "%*s  classes : [\n"
+      "%*s    %s\n"
+      "%*s  ],\n"
       "%*s  predictions : [\n"
       "%*s    %s\n"
       "%*s  ]\n"
@@ -180,10 +239,12 @@ prediction_to_string (GstInferencePrediction * self, gint level)
       indent, "", self->id,
       indent, "", self->enabled ? "True" : "False",
       indent, "", bbox,
+      indent, "", indent, "", classes, indent, "",
       indent, "", indent, "", children, indent, "", indent, "");
 
   g_free (bbox);
   g_free (children);
+  g_free (classes);
 
   return prediction;
 }
