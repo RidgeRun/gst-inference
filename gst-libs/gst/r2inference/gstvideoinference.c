@@ -796,10 +796,16 @@ video_inference_prepare_postprocess (const GstMetaInfo * meta_info,
   }
 
   if (out_meta) {
+    GstInferenceMeta *imeta = NULL;
+
     g_return_val_if_fail (gst_buffer_is_writable (buffer), FALSE);
     out_meta[0] = gst_buffer_add_meta (buffer, meta_info, NULL);
     out_meta[1] =
         gst_buffer_add_meta (buffer, gst_inference_meta_get_info (), NULL);
+
+    imeta = (GstInferenceMeta *) out_meta[1];
+    imeta->prediction->bbox.width = video_info->width;
+    imeta->prediction->bbox.height = video_info->height;
   }
 
   flags = (GstMapFlags) (GST_MAP_READ | GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
