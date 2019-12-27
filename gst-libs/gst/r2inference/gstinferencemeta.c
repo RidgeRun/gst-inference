@@ -200,10 +200,6 @@ gst_inference_meta_transform (GstBuffer * dest, GstMeta * meta,
 
   GST_LOG ("Transforming inference metadata");
 
-  if (!GST_META_TRANSFORM_IS_COPY (type)) {
-    GST_WARNING ("inference meta only supports copying as per now");
-  }
-
   smeta = (GstInferenceMeta *) meta;
   dmeta =
       (GstInferenceMeta *) gst_buffer_add_meta (dest, GST_INFERENCE_META_INFO,
@@ -213,9 +209,26 @@ gst_inference_meta_transform (GstBuffer * dest, GstMeta * meta,
     return FALSE;
   }
 
-  dmeta->prediction = gst_inference_prediction_copy (smeta->prediction);
+  gst_inference_prediction_unref (dmeta->prediction);
 
-  return TRUE;
+  if (GST_META_TRANSFORM_IS_COPY (type)) {
+    GST_LOG ("Copy detection metadata");
+
+    dmeta->prediction = gst_inference_prediction_copy (smeta->prediction);
+    return TRUE;
+  }
+
+  if (GST_VIDEO_META_TRANSFORM_IS_SCALE (type)) {
+    GstVideoMetaTransform *trans = (GstVideoMetaTransform *) data;
+    dmeta->prediction =
+        gst_inference_prediction_scale (smeta->prediction, trans->out_info,
+        trans->in_info);
+    return TRUE;
+  }
+
+  /* Invalid transformation */
+  gst_buffer_remove_meta (dest, (GstMeta *) dmeta);
+  return FALSE;
 }
 
 static gboolean

@@ -23,6 +23,8 @@ static gchar *prediction_children_to_string (GstInferencePrediction * self,
     gint level);
 static gchar *prediction_classes_to_string (GstInferencePrediction * self,
     gint level);
+static GstInferencePrediction *prediction_scale (const GstInferencePrediction *
+    self, GstVideoInfo * to, GstVideoInfo * from);
 
 static GstInferenceClassification
     * classification_copy (GstInferenceClassification * from, gpointer data);
@@ -32,7 +34,15 @@ static gchar *bounding_box_to_string (BoundingBox * bbox, gint level);
 
 static void node_get_children (GNode * node, gpointer data);
 static gpointer node_copy (gconstpointer node, gpointer data);
+static gpointer node_scale (gconstpointer node, gpointer data);
 static gboolean node_assign (GNode * node, gpointer data);
+
+typedef struct _PredictionScaleData PredictionScaleData;
+struct _PredictionScaleData
+{
+  GstVideoInfo *from;
+  GstVideoInfo *to;
+};
 
 GstInferencePrediction *
 gst_inference_prediction_new (void)
@@ -335,4 +345,71 @@ gst_inference_prediction_append_classification (GstInferencePrediction * self,
   g_return_if_fail (c);
 
   self->classifications = g_list_append (self->classifications, c);
+}
+
+static GstInferencePrediction *
+prediction_scale (const GstInferencePrediction * self, GstVideoInfo * to,
+    GstVideoInfo * from)
+{
+  GstInferencePrediction *dest = NULL;
+  gint fw, fh, tw, th;
+  gdouble hfactor, vfactor;
+
+  g_return_val_if_fail (self, NULL);
+  g_return_val_if_fail (to, NULL);
+  g_return_val_if_fail (from, NULL);
+
+  dest = gst_inference_prediction_new ();
+
+  fw = GST_VIDEO_INFO_WIDTH (from);
+  tw = GST_VIDEO_INFO_WIDTH (to);
+  fh = GST_VIDEO_INFO_HEIGHT (from);
+  th = GST_VIDEO_INFO_HEIGHT (to);
+
+  g_return_val_if_fail (fw, FALSE);
+  g_return_val_if_fail (fh, FALSE);
+
+  hfactor = tw * 1.0 / fw;
+  vfactor = th * 1.0 / fh;
+
+  dest->bbox.x = self->bbox.x * hfactor;
+  dest->bbox.y = self->bbox.y * vfactor;
+
+  dest->bbox.width = self->bbox.width * hfactor;
+  dest->bbox.height = self->bbox.height * vfactor;
+
+  GST_LOG ("scaled bbox: %dx%d@%dx%d -> %dx%d@%dx%d",
+      self->bbox.x, self->bbox.y, self->bbox.width,
+      self->bbox.height, dest->bbox.x, dest->bbox.y,
+      dest->bbox.width, dest->bbox.height);
+
+  return dest;
+}
+
+static gpointer
+node_scale (gconstpointer node, gpointer data)
+{
+  const GstInferencePrediction *self = (GstInferencePrediction *) node;
+  PredictionScaleData *sdata = (PredictionScaleData *) data;
+
+  return prediction_scale (self, sdata->to, sdata->from);
+}
+
+GstInferencePrediction *
+gst_inference_prediction_scale (GstInferencePrediction * self,
+    GstVideoInfo * to, GstVideoInfo * from)
+{
+  GNode *other = NULL;
+  PredictionScaleData data = {.from = from,.to = to };
+
+  g_return_val_if_fail (self, NULL);
+  g_return_val_if_fail (to, NULL);
+  g_return_val_if_fail (from, NULL);
+
+  other = g_node_copy_deep (self->predictions, node_scale, &data);
+
+  /* Now finish assigning the nodes to the predictions */
+  g_node_traverse (other, G_IN_ORDER, G_TRAVERSE_ALL, -1, node_assign, NULL);
+
+  return (GstInferencePrediction *) other->data;
 }

@@ -13,6 +13,7 @@
 #define __GST_INFERENCE_PREDICTION__
 
 #include <gst/r2inference/gstinferenceclassification.h>
+#include <gst/video/video.h>
 
 G_BEGIN_DECLS
 
@@ -55,6 +56,8 @@ void gst_inference_prediction_append (GstInferencePrediction * self, GstInferenc
 GSList * gst_inference_prediction_get_children (GstInferencePrediction * self);
 void gst_inference_prediction_append_classification (GstInferencePrediction * self,
     GstInferenceClassification * c);
+GstInferencePrediction * gst_inference_prediction_scale (GstInferencePrediction * self,
+    GstVideoInfo * to, GstVideoInfo * from);
 
 G_END_DECLS
 
