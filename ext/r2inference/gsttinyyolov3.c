@@ -73,7 +73,7 @@ static gboolean gst_tinyyolov3_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean
 gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction);
 static gboolean gst_tinyyolov3_start (GstVideoInference * vi);
 static gboolean gst_tinyyolov3_stop (GstVideoInference * vi);
@@ -246,14 +246,15 @@ gst_tinyyolov3_preprocess (GstVideoInference * vi,
 
 static gboolean
 gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
-  GstTinyyolov3 *tinyyolov3;
-  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
+  GstTinyyolov3 *tinyyolov3 = GST_TINYYOLOV3 (vi);
+  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model[0];
+
   GST_LOG_OBJECT (vi, "Postprocess");
+
   detect_meta->num_boxes = 0;
-  tinyyolov3 = GST_TINYYOLOV3 (vi);
 
   gst_create_boxes_float (vi, prediction,
       valid_prediction, &detect_meta->boxes, &detect_meta->num_boxes,

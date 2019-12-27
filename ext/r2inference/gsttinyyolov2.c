@@ -81,10 +81,14 @@ static gboolean gst_tinyyolov2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean
 gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction);
 static gboolean
-gst_tinyyolov2_postprocess_meta (GstVideoInference * vi,
+gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    GstVideoInfo * info_model, gboolean * valid_prediction);
+static gboolean
+gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction);
 static gboolean gst_tinyyolov2_start (GstVideoInference * vi);
@@ -184,8 +188,6 @@ gst_tinyyolov2_class_init (GstTinyyolov2Class * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_tinyyolov2_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_tinyyolov2_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_tinyyolov2_postprocess);
-  vi_class->postprocess_meta =
-      GST_DEBUG_FUNCPTR (gst_tinyyolov2_postprocess_meta);
   vi_class->inference_meta_info = gst_detection_meta_get_info ();
 }
 
@@ -286,8 +288,25 @@ gst_tinyyolov2_preprocess (GstVideoInference * vi,
 
 static gboolean
 gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction)
+{
+  gboolean ret = TRUE;
+
+  ret &=
+      gst_tinyyolov2_postprocess_old (vi, prediction, predsize, meta_model[0],
+      info_model, valid_prediction);
+  ret &=
+      gst_tinyyolov2_postprocess_new (vi, prediction, predsize, meta_model[1],
+      info_model, valid_prediction);
+
+  return TRUE;
+}
+
+static gboolean
+gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    GstVideoInfo * info_model, gboolean * valid_prediction)
 {
   GstTinyyolov2 *tinyyolov2;
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
@@ -307,7 +326,7 @@ gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
 }
 
 static gboolean
-gst_tinyyolov2_postprocess_meta (GstVideoInference * vi,
+gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction)
 {

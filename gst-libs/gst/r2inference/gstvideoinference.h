@@ -39,10 +39,7 @@ struct _GstVideoInferenceClass
     gboolean (*preprocess) (GstVideoInference * self, GstVideoFrame * inframe,
       GstVideoFrame * outframe);
     gboolean (*postprocess) (GstVideoInference * self,
-      const gpointer prediction, gsize size, GstMeta * meta_model,
-      GstVideoInfo * info_model, gboolean * valid_prediction);
-    gboolean (*postprocess_meta) (GstVideoInference * self,
-      const gpointer prediction, gsize size, GstMeta * meta_model,
+      const gpointer prediction, gsize size, GstMeta * meta_model[2],
       GstVideoInfo * info_model, gboolean * valid_prediction);
 
   const GstMetaInfo *inference_meta_info;

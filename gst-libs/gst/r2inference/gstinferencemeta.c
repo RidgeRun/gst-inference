@@ -17,6 +17,8 @@
 static gboolean gst_inference_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static void gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer);
+static gboolean gst_inference_meta_transform (GstBuffer * transbuf,
+    GstMeta * meta, GstBuffer * buffer, GQuark type, gpointer data);
 static gboolean gst_classification_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static void gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer);
@@ -61,7 +63,7 @@ gst_inference_meta_get_info (void)
     const GstMetaInfo *meta = gst_meta_register (GST_INFERENCE_META_API_TYPE,
         "GstInferenceMeta", sizeof (GstInferenceMeta),
         gst_inference_meta_init, gst_inference_meta_free,
-        NULL);
+        gst_inference_meta_transform);
     g_once_init_leave (&inference_meta_info, meta);
   }
   return inference_meta_info;
@@ -184,6 +186,36 @@ gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
   if (class_meta->num_labels != 0) {
     g_free (class_meta->label_probs);
   }
+}
+
+static gboolean
+gst_inference_meta_transform (GstBuffer * dest, GstMeta * meta,
+    GstBuffer * buffer, GQuark type, gpointer data)
+{
+  GstInferenceMeta *dmeta, *smeta;
+
+  g_return_val_if_fail (dest, FALSE);
+  g_return_val_if_fail (meta, FALSE);
+  g_return_val_if_fail (buffer, FALSE);
+
+  GST_LOG ("Transforming inference metadata");
+
+  if (!GST_META_TRANSFORM_IS_COPY (type)) {
+    GST_WARNING ("inference meta only supports copying as per now");
+  }
+
+  smeta = (GstInferenceMeta *) meta;
+  dmeta =
+      (GstInferenceMeta *) gst_buffer_add_meta (dest, GST_INFERENCE_META_INFO,
+      NULL);
+  if (!dmeta) {
+    GST_ERROR ("Unable to add meta to buffer");
+    return FALSE;
+  }
+
+  dmeta->prediction = gst_inference_prediction_copy (smeta->prediction);
+
+  return TRUE;
 }
 
 static gboolean
