@@ -12,7 +12,8 @@ libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gstinferencepreprocess.c		\
 	gstinferencepostprocess.c		\
 	gstinferencedebug.c			\
-	gstinferenceprediction.c
+	gstinferenceprediction.c		\
+	gstinferenceclassification.c
 
 libgstinference_@GST_API_VERSION@_la_CXXFLAGS=	\
 	$(GST_CXXFLAGS)				\
@@ -48,4 +49,5 @@ gstinferenceinclude_HEADERS=		\
 	gstinferencepostprocess.h	\
 	gstinferencedebug.h		\
 	gstinferencemeta.h		\
-	gstinferenceprediction.h
+	gstinferenceprediction.h	\
+	gstinferenceclassification.h

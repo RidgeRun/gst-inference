@@ -12,25 +12,12 @@
 #ifndef __GST_INFERENCE_PREDICTION__
 #define __GST_INFERENCE_PREDICTION__
 
-#include <gst/gst.h>
+#include <gst/r2inference/gstinferenceclassification.h>
 
 G_BEGIN_DECLS
 
 typedef struct _BoundingBox BoundingBox;
 typedef struct _GstInferencePrediction GstInferencePrediction;
-
-/**
- * Classification to be assigned to an object
- */
-typedef struct _Classification Classification;
-struct _Classification
-{
-  gint class_id;
-  gdouble class_prob;
-  gchar *class_label;
-  gint num_classes;
-  gdouble *classes_probs;
-};
 
 /**
  * Size and coordinates of an image region
@@ -66,7 +53,8 @@ void gst_inference_prediction_unref (GstInferencePrediction * self);
 gchar * gst_inference_prediction_to_string (GstInferencePrediction * self);
 void gst_inference_prediction_append (GstInferencePrediction * self, GstInferencePrediction * child);
 GSList * gst_inference_prediction_get_children (GstInferencePrediction * self);
-void gst_inference_prediction_append_classification (GstInferencePrediction * self, Classification * c);
+void gst_inference_prediction_append_classification (GstInferencePrediction * self,
+    GstInferenceClassification * c);
 
 G_END_DECLS
 

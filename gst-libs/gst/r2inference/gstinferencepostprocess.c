@@ -252,64 +252,61 @@ GstInferencePrediction *
 gst_create_prediction_from_box (GstVideoInference * vi, BBox * box)
 {
   GstInferencePrediction *predict = NULL;
-  Classification *c = NULL;
+  GstInferenceClassification *c = NULL;
 
   g_return_val_if_fail (vi != NULL, NULL);
   g_return_val_if_fail (box != NULL, NULL);
 
   predict = gst_inference_prediction_new ();
   predict->bbox.x = box->x;
-  predict->bbox.y = box->x;
+  predict->bbox.y = box->y;
   predict->bbox.width = box->width;
   predict->bbox.height = box->height;
 
-  c = g_malloc0 (sizeof (Classification));
-  c->class_id = box->label;
-  c->class_prob = box->prob;
-  c->class_label = NULL;
-  c->num_classes = 1;
-  c->classes_probs = &c->class_prob;
-
+  c = gst_inference_classification_new_full (box->label, box->prob, NULL, 1,
+      &box->prob, NULL);
   gst_inference_prediction_append_classification (predict, c);
 
   return predict;
 }
 
-Classification *
+GstInferenceClassification *
 gst_create_class_from_prediction (GstVideoInference * vi,
     const gpointer prediction, gsize predsize)
 {
-  Classification *new_class = NULL;
   gdouble max = -1;
   gint index = 0;
+  gdouble *probs = NULL;
+  gint num_classes = 0;
+  const gchar *label = NULL;
+  gchar **labels = NULL;
 
   g_return_val_if_fail (vi != NULL, NULL);
 
-  /* Create new Classification */
-  new_class = g_malloc (sizeof (Classification));
-  /* Fill Classification with inference output */
-  new_class->num_classes = predsize / sizeof (gfloat);
-  new_class->classes_probs =
-      g_malloc (new_class->num_classes * sizeof (gdouble));
-  for (gint i = 0; i < new_class->num_classes; ++i) {
-    new_class->classes_probs[i] = (gdouble) ((gfloat *) prediction)[i];
+  num_classes = predsize / sizeof (gfloat);
+
+  /* FIXME: This is just dumb */
+  if (sizeof (gfloat) != sizeof (gdouble)) {
+    probs = g_malloc (num_classes * sizeof (gdouble));
+
+    for (gint i = 0; i < num_classes; ++i) {
+      probs[i] = (gdouble) ((gfloat *) prediction)[i];
+    }
+  } else {
+    probs = (gdouble *) prediction;
   }
 
   /* Obtain the highest probability and set it as class */
-  for (gint i = 0; i < new_class->num_classes; ++i) {
-    gfloat current = ((gfloat *) prediction)[i];
+  for (gint i = 0; i < num_classes; ++i) {
+    gdouble current = probs[i];
     if (current > max) {
       max = current;
       index = i;
     }
   }
 
-  new_class->class_id = index;
-  new_class->class_prob = max;
-  /* TODO: Fill class label based on labels file */
-  new_class->class_label = NULL;
-
-  return new_class;
+  return gst_inference_classification_new_full (index, max, label, num_classes,
+      probs, labels);
 }
 
 static void

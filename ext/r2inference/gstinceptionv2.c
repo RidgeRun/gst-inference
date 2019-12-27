@@ -240,7 +240,7 @@ gst_inceptionv2_postprocess_meta (GstVideoInference * vi,
     GstVideoInfo * info_model, gboolean * valid_prediction)
 {
   GstInferenceMeta *imeta = NULL;
-  Classification *class = NULL;
+  GstInferenceClassification *c = NULL;
   GstInferencePrediction *root = NULL;
 
   g_return_val_if_fail (vi != NULL, FALSE);
@@ -257,11 +257,9 @@ gst_inceptionv2_postprocess_meta (GstVideoInference * vi,
     return FALSE;
   }
 
-  class = gst_create_class_from_prediction (vi, prediction, predsize);
-  root->classifications =
-      g_list_append (root->classifications, (gpointer) class);
-
-  gst_inference_print_classes (vi, gst_inceptionv2_debug_category, imeta);
+  c = gst_create_class_from_prediction (vi, prediction, predsize);
+  gst_inference_prediction_append_classification (root, c);
+  gst_inference_print_predictions (vi, gst_inceptionv2_debug_category, imeta);
 
   *valid_prediction = TRUE;
   return TRUE;

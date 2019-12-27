@@ -110,31 +110,3 @@ gst_inference_print_predictions (GstVideoInference * vi,
   GST_CAT_LOG (category, "\n%s", spred);
   g_free (spred);
 }
-
-static void
-gst_inference_print_class (gpointer data, gpointer user_data)
-{
-  Classification *class = (Classification *) data;
-  GstDebugCategory *category = (GstDebugCategory *) user_data;
-
-  g_return_if_fail (category != NULL);
-  g_return_if_fail (class != NULL);
-
-  GST_CAT_LOG (category, "Class info: ID: %d - Probability: %.2f - Label: %s",
-      class->class_id, class->class_prob,
-      (class->class_label != NULL) ? class->class_label : "No Label set");
-}
-
-void
-gst_inference_print_classes (GstVideoInference * vi,
-    GstDebugCategory * category, GstInferenceMeta * inference_meta)
-{
-  GstInferencePrediction *root = NULL;
-
-  g_return_if_fail (vi != NULL);
-  g_return_if_fail (inference_meta != NULL);
-
-  root = inference_meta->prediction;
-  g_list_foreach (root->classifications, gst_inference_print_class,
-      (gpointer) category);
-}

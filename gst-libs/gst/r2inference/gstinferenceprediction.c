@@ -24,11 +24,11 @@ static gchar *prediction_children_to_string (GstInferencePrediction * self,
 static gchar *prediction_classes_to_string (GstInferencePrediction * self,
     gint level);
 
+static GstInferenceClassification
+    * classification_copy (GstInferenceClassification * from, gpointer data);
+
 static void bounding_box_reset (BoundingBox * bbox);
 static gchar *bounding_box_to_string (BoundingBox * bbox, gint level);
-
-static void classification_free (GList ** classification);
-static gchar *classification_to_string (Classification * c, gint level);
 
 static void node_get_children (GNode * node, gpointer data);
 static gpointer node_copy (gconstpointer node, gpointer data);
@@ -79,6 +79,12 @@ gst_inference_prediction_append (GstInferencePrediction * self,
   g_node_append (self->predictions, child->predictions);
 }
 
+static GstInferenceClassification *
+classification_copy (GstInferenceClassification * from, gpointer data)
+{
+  return gst_inference_classification_copy (from);
+}
+
 static GstInferencePrediction *
 prediction_copy (const GstInferencePrediction * self)
 {
@@ -91,6 +97,10 @@ prediction_copy (const GstInferencePrediction * self)
   other->id = self->id;
   other->enabled = self->enabled;
   other->bbox = self->bbox;
+
+  other->classifications =
+      g_list_copy_deep (self->classifications, (GCopyFunc) classification_copy,
+      NULL);
 
   return other;
 }
@@ -127,22 +137,6 @@ gst_inference_prediction_copy (const GstInferencePrediction * self)
   g_node_traverse (other, G_IN_ORDER, G_TRAVERSE_ALL, -1, node_assign, NULL);
 
   return (GstInferencePrediction *) other->data;
-}
-
-static gchar *
-classification_to_string (Classification * c, gint level)
-{
-  gint indent = level * 2;
-
-  g_return_val_if_fail (c, NULL);
-
-  return g_strdup_printf ("{\n"
-      "%*s  ID : %u\n"
-      "%*s  Label : %s\n"
-      "%*s  Probability : %f\n"
-      "%*s}",
-      indent, "", c->class_id,
-      indent, "", c->class_label, indent, "", c->class_prob, indent, "");
 }
 
 static gchar *
@@ -200,8 +194,8 @@ prediction_classes_to_string (GstInferencePrediction * self, gint level)
   string = g_string_new (NULL);
 
   for (iter = self->classifications; iter != NULL; iter = g_list_next (iter)) {
-    Classification *c = (Classification *) iter->data;
-    gchar *sclass = classification_to_string (c, level + 1);
+    GstInferenceClassification *c = (GstInferenceClassification *) iter->data;
+    gchar *sclass = gst_inference_classification_to_string (c, level + 1);
 
     g_string_append_printf (string, "%s, ", sclass);
     g_free (sclass);
@@ -312,13 +306,6 @@ prediction_reset (GstInferencePrediction * self)
 }
 
 static void
-classification_free (GList ** classifications)
-{
-  g_list_free_full (*classifications, g_free);
-  *classifications = NULL;
-}
-
-static void
 prediction_free (GstInferencePrediction * self)
 {
   GSList *children = gst_inference_prediction_get_children (self);
@@ -330,7 +317,9 @@ prediction_free (GstInferencePrediction * self)
     gst_inference_prediction_unref (child);
   }
 
-  classification_free (&self->classifications);
+  g_list_free_full (self->classifications,
+      (GDestroyNotify) gst_inference_classification_unref);
+  self->classifications = NULL;
 
   if (self->predictions) {
     g_node_destroy (self->predictions);
@@ -340,7 +329,7 @@ prediction_free (GstInferencePrediction * self)
 
 void
 gst_inference_prediction_append_classification (GstInferencePrediction * self,
-    Classification * c)
+    GstInferenceClassification * c)
 {
   g_return_if_fail (self);
   g_return_if_fail (c);
