@@ -37,12 +37,29 @@ static gpointer node_copy (gconstpointer node, gpointer data);
 static gpointer node_scale (gconstpointer node, gpointer data);
 static gboolean node_assign (GNode * node, gpointer data);
 
+static guint64 get_new_id (void);
+
 typedef struct _PredictionScaleData PredictionScaleData;
 struct _PredictionScaleData
 {
   GstVideoInfo *from;
   GstVideoInfo *to;
 };
+
+static guint64
+get_new_id (void)
+{
+  static guint64 _id = 0;
+  static GMutex _id_mutex;
+  static guint64 ret = 0;
+
+  g_mutex_lock (&_id_mutex);
+  ret = _id++;
+  g_mutex_unlock (&_id_mutex);
+
+  return ret;
+}
+
 
 GstInferencePrediction *
 gst_inference_prediction_new (void)
@@ -304,7 +321,7 @@ prediction_reset (GstInferencePrediction * self)
 {
   g_return_if_fail (self);
 
-  self->id = 0;
+  self->id = get_new_id ();
   self->enabled = FALSE;
 
   bounding_box_reset (&self->bbox);
