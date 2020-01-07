@@ -75,9 +75,10 @@ static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
 static gint gst_detection_crop_find_by_index (GstDetectionCrop *self,
     guint crop_index, GstDetectionMeta *meta);
 static gint gst_detection_crop_find_by_class (GstDetectionCrop *self,
-    gint crop_class, GstDetectionMeta *meta);
+    gint crop_class, gboolean biggest_object, GstDetectionMeta *meta);
 static gint gst_detection_crop_find_index (GstDetectionCrop *self,
-    guint crop_index, gint crop_class, GstDetectionMeta *meta);
+    guint crop_index, gint crop_class, gboolean biggest_object,
+    GstDetectionMeta *meta);
 
 #define PROP_CROP_INDEX_DEFAULT 0
 #define PROP_CROP_INDEX_MAX G_MAXUINT
@@ -87,11 +88,14 @@ static gint gst_detection_crop_find_index (GstDetectionCrop *self,
 #define PROP_CROP_CLASS_MAX G_MAXINT
 #define PROP_CROP_CLASS_MIN -1
 
+#define PROP_CROP_BIGGEST_DEFAULT FALSE
+
 enum {
   PROP_0,
   PROP_CROP_INDEX,
   PROP_CROP_CLASS,
   PROP_CROP_ASPECT_RATIO,
+  PROP_CROP_BIGGEST,
 };
 
 struct _GstDetectionCrop {
@@ -101,6 +105,7 @@ struct _GstDetectionCrop {
   gint crop_class;
   gint width_ratio;
   gint height_ratio;
+  gboolean biggest_object;
 };
 
 struct _GstDetectionCropClass {
@@ -154,8 +159,16 @@ gst_detection_crop_class_init (GstDetectionCropClass *klass) {
   g_object_class_install_property (object_class, PROP_CROP_ASPECT_RATIO,
                                    gst_param_spec_fraction ("aspect-ratio", "Aspect Ratio",
                                        "Aspect ratio to crop the detections, width and height separated by '/'. "
-                                       "If set to 0/1 it maintains the aspect ratio of each bounding box.", 0, 1, G_MAXINT, 1,
+                                       "If set to 0/1 it maintains the aspect ratio of each bounding box.", 0, 1,
+                                       G_MAXINT, 1,
                                        PROP_CROP_RATIO_DEFAULT_WIDTH, PROP_CROP_RATIO_DEFAULT_HEIGHT,
+                                       G_PARAM_READWRITE ));
+  g_object_class_install_property (object_class, PROP_CROP_BIGGEST,
+                                   g_param_spec_boolean ("biggest-object", "Biggest Object",
+                                       "Crop the biggest object detected of the class given in crop-class."
+                                       "The biggest object usually implies the nearest object to the camera."
+                                       "This only applies if crop-class is non-negative.",
+                                       PROP_CROP_BIGGEST_DEFAULT,
                                        G_PARAM_READWRITE ));
 }
 
@@ -169,6 +182,7 @@ gst_detection_crop_init (GstDetectionCrop *self) {
   self->crop_class = PROP_CROP_CLASS_DEFAULT;
   self->width_ratio = PROP_CROP_RATIO_DEFAULT_WIDTH;
   self->height_ratio = PROP_CROP_RATIO_DEFAULT_HEIGHT;
+  self->biggest_object = PROP_CROP_BIGGEST_DEFAULT;
   if (FALSE == self->element->Validate ()) {
     const std::string factory = self->element->GetFactory ();
     GST_ERROR_OBJECT (self, "Unable to find element %s", factory.c_str ());
@@ -236,6 +250,11 @@ gst_detection_crop_set_property (GObject *object, guint property_id,
       }
       GST_OBJECT_UNLOCK (self);
       break;
+    case PROP_CROP_BIGGEST:
+      GST_OBJECT_LOCK (self);
+      self->biggest_object = g_value_get_boolean (value);
+      GST_OBJECT_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -263,6 +282,11 @@ gst_detection_crop_get_property (GObject *object, guint property_id,
     case PROP_CROP_ASPECT_RATIO:
       GST_OBJECT_LOCK (self);
       gst_value_set_fraction (value, self->width_ratio, self->height_ratio);
+      GST_OBJECT_UNLOCK (self);
+      break;
+    case PROP_CROP_BIGGEST:
+      GST_OBJECT_LOCK (self);
+      g_value_set_boolean (value, self->biggest_object);
       GST_OBJECT_UNLOCK (self);
       break;
     default:
@@ -349,17 +373,26 @@ gst_detection_crop_find_by_index (GstDetectionCrop *self, guint crop_index,
 
 static gint
 gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
+                                  gboolean biggest_object,
                                   GstDetectionMeta *meta) {
   gint i;
   gint ret = -1;
+  gint biggest = -1;
+  gint box_size = -1;
 
   g_return_val_if_fail (self, -1);
   g_return_val_if_fail (meta, -1);
 
   for (i = 0; i < meta->num_boxes; ++i) {
     if (meta->boxes[i].label == crop_class) {
-      ret = i;
-      break;
+      box_size = meta->boxes[i].width * meta->boxes[i].height;
+      if (box_size > biggest) {
+        biggest = box_size;
+        ret = i;
+        if (false == biggest_object) {
+          break;
+        }
+      }
     }
   }
 
@@ -372,14 +405,15 @@ gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
 
 static gint
 gst_detection_crop_find_index (GstDetectionCrop *self, guint crop_index,
-                               gint crop_class, GstDetectionMeta *meta) {
+                               gint crop_class, gboolean biggest_object, GstDetectionMeta *meta) {
   g_return_val_if_fail (self, -1);
   g_return_val_if_fail (meta, -1);
 
   if (-1 == crop_class) {
     return gst_detection_crop_find_by_index (self, crop_index, meta);
   } else {
-    return gst_detection_crop_find_by_class (self, crop_class, meta);
+    return gst_detection_crop_find_by_class (self, crop_class, biggest_object,
+           meta);
   }
 }
 
@@ -393,6 +427,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   gint crop_width_ratio;
   gint crop_height_ratio;
   gint requested_index;
+  gboolean biggest_object;
   BBox box;
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
 
@@ -401,6 +436,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   crop_class = self->crop_class;
   crop_width_ratio = self->width_ratio;
   crop_height_ratio = self->height_ratio;
+  biggest_object = self->biggest_object;
   GST_OBJECT_UNLOCK (self);
 
   buffer = gst_pad_probe_info_get_buffer (info);
@@ -420,7 +456,8 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   }
 
   requested_index =
-    gst_detection_crop_find_index (self, crop_index, crop_class, meta);
+    gst_detection_crop_find_index (self, crop_index, crop_class, biggest_object,
+                                   meta);
   if (-1 == requested_index) {
     goto out;
   }
