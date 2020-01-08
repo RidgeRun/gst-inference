@@ -137,6 +137,9 @@ node_copy (gconstpointer node, gpointer data)
 {
   GstInferencePrediction *self = (GstInferencePrediction *) node;
 
+  g_return_val_if_fail (node, NULL);
+  g_return_val_if_fail (data, NULL);
+
   return prediction_copy (self);
 }
 
@@ -144,6 +147,9 @@ static gboolean
 node_assign (GNode * node, gpointer data)
 {
   GstInferencePrediction *pred = (GstInferencePrediction *) node->data;
+
+  g_return_val_if_fail (node, FALSE);
+  g_return_val_if_fail (data, FALSE);
 
   pred->predictions = node;
 

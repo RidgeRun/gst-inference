@@ -293,6 +293,12 @@ gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
 {
   gboolean ret = TRUE;
 
+  g_return_val_if_fail (vi, FALSE);
+  g_return_val_if_fail (prediction, FALSE);
+  g_return_val_if_fail (meta_model, FALSE);
+  g_return_val_if_fail (info_model, FALSE);
+  g_return_val_if_fail (valid_prediction, FALSE);
+
   ret &=
       gst_tinyyolov2_postprocess_old (vi, prediction, predsize, meta_model[0],
       info_model, valid_prediction);
@@ -310,6 +316,9 @@ gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
 {
   GstTinyyolov2 *tinyyolov2;
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
+
+  g_return_val_if_fail (detect_meta, FALSE);
+
   GST_LOG_OBJECT (vi, "Postprocess");
   detect_meta->num_boxes = 0;
   tinyyolov2 = GST_TINYYOLOV2 (vi);
