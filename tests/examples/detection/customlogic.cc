@@ -16,7 +16,8 @@
 
 void
 handle_prediction (unsigned char *image,
-    int width, int height, unsigned int size, BoundingBox * boxes, int num_boxes)
+    int width, int height, unsigned int size, PredictionBox * boxes,
+    int num_boxes)
 {
   /* FILLME:
    * Put here your custom logic, you may use C++ here.

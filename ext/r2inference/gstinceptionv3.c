@@ -56,7 +56,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_inceptionv3_debug_category);
 static gboolean gst_inceptionv3_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_inceptionv3_postprocess (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    const gpointer prediction, gsize predsize, GstMeta * meta_model[2],
     GstVideoInfo * info_model, gboolean * valid_prediction);
 static gboolean gst_inceptionv3_start (GstVideoInference * vi);
 static gboolean gst_inceptionv3_stop (GstVideoInference * vi);
@@ -144,11 +144,12 @@ gst_inceptionv3_preprocess (GstVideoInference * vi,
 
 static gboolean
 gst_inceptionv3_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction)
 {
-  GstClassificationMeta *class_meta = (GstClassificationMeta *) meta_model;
+  GstClassificationMeta *class_meta = (GstClassificationMeta *) meta_model[0];
   GstDebugLevel gst_debug_level = GST_LEVEL_LOG;
+
   GST_LOG_OBJECT (vi, "Postprocess");
 
   gst_fill_classification_meta (class_meta, prediction, predsize);

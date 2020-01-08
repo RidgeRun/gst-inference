@@ -11,7 +11,9 @@ libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gsttensorflow.cc			\
 	gstinferencepreprocess.c		\
 	gstinferencepostprocess.c		\
-	gstinferencedebug.c
+	gstinferencedebug.c			\
+	gstinferenceprediction.c		\
+	gstinferenceclassification.c
 
 libgstinference_@GST_API_VERSION@_la_CXXFLAGS=	\
 	$(GST_CXXFLAGS)				\
@@ -46,4 +48,6 @@ gstinferenceinclude_HEADERS=		\
 	gstinferencepreprocess.h	\
 	gstinferencepostprocess.h	\
 	gstinferencedebug.h		\
-	gstinferencemeta.h
+	gstinferencemeta.h		\
+	gstinferenceprediction.h	\
+	gstinferenceclassification.h

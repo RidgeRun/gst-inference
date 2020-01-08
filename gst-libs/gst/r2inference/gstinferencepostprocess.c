@@ -224,7 +224,6 @@ gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
 
 gboolean
 gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
-    GstDetectionMeta * detect_meta, GstVideoInfo * info_model,
     gboolean * valid_prediction, BBox ** resulting_boxes,
     gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh)
 {
@@ -236,8 +235,6 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
 
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (prediction != NULL, FALSE);
-  g_return_val_if_fail (detect_meta != NULL, FALSE);
-  g_return_val_if_fail (info_model != NULL, FALSE);
   g_return_val_if_fail (valid_prediction != NULL, FALSE);
   g_return_val_if_fail (resulting_boxes != NULL, FALSE);
   g_return_val_if_fail (elements != NULL, FALSE);
@@ -249,6 +246,67 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
   *resulting_boxes = g_malloc (*elements * sizeof (BBox));
   memcpy (*resulting_boxes, boxes, *elements * sizeof (BBox));
   return TRUE;
+}
+
+GstInferencePrediction *
+gst_create_prediction_from_box (GstVideoInference * vi, BBox * box)
+{
+  GstInferencePrediction *predict = NULL;
+  GstInferenceClassification *c = NULL;
+
+  g_return_val_if_fail (vi != NULL, NULL);
+  g_return_val_if_fail (box != NULL, NULL);
+
+  predict = gst_inference_prediction_new ();
+  predict->bbox.x = box->x;
+  predict->bbox.y = box->y;
+  predict->bbox.width = box->width;
+  predict->bbox.height = box->height;
+
+  c = gst_inference_classification_new_full (box->label, box->prob, NULL, 1,
+      &box->prob, NULL);
+  gst_inference_prediction_append_classification (predict, c);
+
+  return predict;
+}
+
+GstInferenceClassification *
+gst_create_class_from_prediction (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize)
+{
+  gdouble max = -1;
+  gint index = 0;
+  gdouble *probs = NULL;
+  gint num_classes = 0;
+  const gchar *label = NULL;
+  gchar **labels = NULL;
+
+  g_return_val_if_fail (vi != NULL, NULL);
+
+  num_classes = predsize / sizeof (gfloat);
+
+  /* FIXME: This is just dumb */
+  if (sizeof (gfloat) != sizeof (gdouble)) {
+    probs = g_malloc (num_classes * sizeof (gdouble));
+
+    for (gint i = 0; i < num_classes; ++i) {
+      probs[i] = (gdouble) ((gfloat *) prediction)[i];
+    }
+  } else {
+    probs = (gdouble *) prediction;
+  }
+
+  /* Obtain the highest probability and set it as class */
+  for (gint i = 0; i < num_classes; ++i) {
+    gdouble current = probs[i];
+    if (current > max) {
+      max = current;
+      index = i;
+    }
+  }
+
+  return gst_inference_classification_new_full (index, max, label, num_classes,
+      probs, labels);
 }
 
 static void
@@ -307,7 +365,6 @@ gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
 
 gboolean
 gst_create_boxes_float (GstVideoInference * vi, const gpointer prediction,
-    GstDetectionMeta * detect_meta, GstVideoInfo * info_model,
     gboolean * valid_prediction, BBox ** resulting_boxes,
     gint * elements, gdouble obj_thresh, gdouble prob_thresh,
     gdouble iou_thresh)
@@ -318,8 +375,6 @@ gst_create_boxes_float (GstVideoInference * vi, const gpointer prediction,
 
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (prediction != NULL, FALSE);
-  g_return_val_if_fail (detect_meta != NULL, FALSE);
-  g_return_val_if_fail (info_model != NULL, FALSE);
   g_return_val_if_fail (valid_prediction != NULL, FALSE);
   g_return_val_if_fail (resulting_boxes != NULL, FALSE);
   g_return_val_if_fail (elements != NULL, FALSE);

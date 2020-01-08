@@ -81,8 +81,16 @@ static gboolean gst_tinyyolov2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean
 gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction);
+static gboolean
+gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    GstVideoInfo * info_model, gboolean * valid_prediction);
+static gboolean
+gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    GstVideoInfo * info_model, gboolean * valid_prediction);
 static gboolean gst_tinyyolov2_start (GstVideoInference * vi);
 static gboolean gst_tinyyolov2_stop (GstVideoInference * vi);
 
@@ -280,22 +288,97 @@ gst_tinyyolov2_preprocess (GstVideoInference * vi,
 
 static gboolean
 gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction)
+{
+  gboolean ret = TRUE;
+
+  g_return_val_if_fail (vi, FALSE);
+  g_return_val_if_fail (prediction, FALSE);
+  g_return_val_if_fail (meta_model, FALSE);
+  g_return_val_if_fail (info_model, FALSE);
+  g_return_val_if_fail (valid_prediction, FALSE);
+
+  ret &=
+      gst_tinyyolov2_postprocess_old (vi, prediction, predsize, meta_model[0],
+      info_model, valid_prediction);
+  ret &=
+      gst_tinyyolov2_postprocess_new (vi, prediction, predsize, meta_model[1],
+      info_model, valid_prediction);
+
+  return TRUE;
+}
+
+static gboolean
+gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    GstVideoInfo * info_model, gboolean * valid_prediction)
 {
   GstTinyyolov2 *tinyyolov2;
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
+
+  g_return_val_if_fail (detect_meta, FALSE);
+
   GST_LOG_OBJECT (vi, "Postprocess");
   detect_meta->num_boxes = 0;
   tinyyolov2 = GST_TINYYOLOV2 (vi);
 
-  gst_create_boxes (vi, prediction, detect_meta, info_model, valid_prediction,
+  gst_create_boxes (vi, prediction, valid_prediction,
       &detect_meta->boxes, &detect_meta->num_boxes, tinyyolov2->obj_thresh,
       tinyyolov2->prob_thresh, tinyyolov2->iou_thresh);
 
   gst_inference_print_boxes (vi, gst_tinyyolov2_debug_category, detect_meta);
 
   *valid_prediction = (detect_meta->num_boxes > 0) ? TRUE : FALSE;
+
+  return TRUE;
+}
+
+static gboolean
+gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
+    GstVideoInfo * info_model, gboolean * valid_prediction)
+{
+  GstTinyyolov2 *tinyyolov2 = NULL;
+  GstInferenceMeta *imeta = NULL;
+  BBox *boxes = NULL;
+  gint num_boxes, i;
+
+  g_return_val_if_fail (vi != NULL, FALSE);
+  g_return_val_if_fail (meta_model != NULL, FALSE);
+  g_return_val_if_fail (info_model != NULL, FALSE);
+
+  imeta = (GstInferenceMeta *) meta_model;
+  tinyyolov2 = GST_TINYYOLOV2 (vi);
+
+  GST_LOG_OBJECT (tinyyolov2, "Postprocess Meta");
+
+  /* Create boxes from prediction data */
+  gst_create_boxes (vi, prediction, valid_prediction,
+      &boxes, &num_boxes, tinyyolov2->obj_thresh,
+      tinyyolov2->prob_thresh, tinyyolov2->iou_thresh);
+
+  GST_LOG_OBJECT (tinyyolov2, "Number of predictions: %d", num_boxes);
+
+  if (NULL == imeta->prediction) {
+    imeta->prediction = gst_inference_prediction_new ();
+    imeta->prediction->bbox.width = info_model->width;
+    imeta->prediction->bbox.height = info_model->height;
+  }
+
+  for (i = 0; i < num_boxes; i++) {
+    GstInferencePrediction *pred =
+        gst_create_prediction_from_box (vi, &boxes[i]);
+    gst_inference_prediction_append (imeta->prediction, pred);
+  }
+
+  /* Free boxes after creation */
+  g_free (boxes);
+
+  /* Log predictions */
+  gst_inference_print_predictions (vi, gst_tinyyolov2_debug_category, imeta);
+
+  *valid_prediction = (num_boxes > 0) ? TRUE : FALSE;
 
   return TRUE;
 }
