@@ -41,7 +41,7 @@ struct _BoundingBox
 
 /**
  * GstInferencePrediction:
- * @id: unique id for this specific prediction
+ * @prediction_id: unique id for this specific prediction
  * @enabled: flag indicating wether or not this prediction should be
  * used for further inference
  * @bbox: the BoundingBox for this specific prediction
@@ -60,7 +60,7 @@ struct _GstInferencePrediction
   GstMiniObject base;
 
   /*<public>*/
-  guint64 id;
+  guint64 prediction_id;
   gboolean enabled;
   BoundingBox bbox;
   GList * classifications;

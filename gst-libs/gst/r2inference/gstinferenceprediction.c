@@ -121,7 +121,7 @@ prediction_copy (const GstInferencePrediction * self)
 
   other = gst_inference_prediction_new ();
 
-  other->id = self->id;
+  other->prediction_id = self->prediction_id;
   other->enabled = self->enabled;
   other->bbox = self->bbox;
 
@@ -257,7 +257,7 @@ prediction_to_string (GstInferencePrediction * self, gint level)
       "%*s    %s\n"
       "%*s  ]\n"
       "%*s}",
-      indent, "", self->id,
+      indent, "", self->prediction_id,
       indent, "", self->enabled ? "True" : "False",
       indent, "", bbox,
       indent, "", indent, "", classes, indent, "",
@@ -321,7 +321,7 @@ prediction_reset (GstInferencePrediction * self)
 {
   g_return_if_fail (self);
 
-  self->id = get_new_id ();
+  self->prediction_id = get_new_id ();
   self->enabled = FALSE;
 
   bounding_box_reset (&self->bbox);
