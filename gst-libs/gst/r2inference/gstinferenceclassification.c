@@ -11,6 +11,13 @@
 
 #include "gstinferenceclassification.h"
 
+#define DEFAULT_CLASS_ID -1
+#define DEFAULT_CLASS_PROB 0.0f
+#define DEFAULT_CLASS_LABEL NULL
+#define DEFAULT_NUM_CLASSES 0
+#define DEFAULT_PROBABILITIES NULL
+#define DEFAULT_LABELS NULL
+
 static GType gst_inference_classification_get_type (void);
 GST_DEFINE_MINI_OBJECT_TYPE (GstInferenceClassification,
     gst_inference_classification);
@@ -25,24 +32,24 @@ classification_reset (GstInferenceClassification * self)
 {
   g_return_if_fail (self);
 
-  self->class_id = -1;
-  self->class_prob = 0.0f;
-  self->num_classes = 0;
+  self->class_id = DEFAULT_CLASS_ID;
+  self->class_prob = DEFAULT_CLASS_PROB;
+  self->num_classes = DEFAULT_NUM_CLASSES;
 
   if (self->class_label) {
     g_free (self->class_label);
   }
-  self->class_label = NULL;
+  self->class_label = DEFAULT_CLASS_LABEL;
 
   if (self->probabilities) {
     g_free (self->probabilities);
   }
-  self->probabilities = NULL;
+  self->probabilities = DEFAULT_PROBABILITIES;
 
   if (self->labels) {
     g_strfreev (self->labels);
   }
-  self->labels = NULL;
+  self->labels = DEFAULT_LABELS;
 }
 
 GstInferenceClassification *
