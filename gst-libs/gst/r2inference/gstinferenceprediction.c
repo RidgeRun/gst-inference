@@ -253,7 +253,7 @@ prediction_to_string (GstInferencePrediction * self, gint level)
   children = prediction_children_to_string (self, level + 1);
 
   prediction = g_strdup_printf ("{\n"
-      "%*s  id : %llu,\n"
+      "%*s  id : %" G_GUINT64_FORMAT ",\n"
       "%*s  enabled : %s,\n"
       "%*s  bbox : %s,\n"
       "%*s  classes : [\n"
