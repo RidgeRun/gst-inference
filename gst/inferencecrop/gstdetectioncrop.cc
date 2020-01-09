@@ -40,7 +40,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include <iostream>
+
 #include "gstdetectioncrop.h"
 
 #include "gst/r2inference/gstinferencemeta.h"
@@ -72,16 +72,10 @@ static void gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
     GstDetectionCrop *self);
 static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
     GstPadProbeInfo *info, GstDetectionCrop *self);
-
-
 static gint gst_detection_crop_find_predictions (GstDetectionCrop *self,
     gint *crop_class, GstInferenceMeta *meta, GList **list, GstInferencePrediction *pred);
-static gint gst_detection_crop_find_by_index (GstDetectionCrop *self,
-    guint crop_index, GstDetectionMeta *meta);
-static gint gst_detection_crop_find_by_class (GstDetectionCrop *self,
-    gint crop_class, GstDetectionMeta *meta);
 static gint gst_detection_crop_find_index (GstDetectionCrop *self,
-    guint crop_index, gint *crop_class, GstInferenceMeta *inference_meta, GstDetectionMeta *detection_meta, GList **list, GstInferencePrediction *pred);
+    guint crop_index, gint *crop_class, GstInferenceMeta *inference_meta, GList **list, GstInferencePrediction *pred);
 
 #define PROP_CROP_INDEX_DEFAULT 0
 #define PROP_CROP_INDEX_MAX G_MAXUINT
@@ -340,49 +334,10 @@ gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
   gst_caps_unref(caps);
 }
 
-static gint
-gst_detection_crop_find_by_index (GstDetectionCrop *self, guint crop_index,
-                                  GstDetectionMeta *meta) {
-  gint ret = crop_index;
-
-  g_return_val_if_fail (self, -1);
-  g_return_val_if_fail (meta, -1);
-
-  if ((gint)crop_index >= meta->num_boxes) {
-    GST_LOG_OBJECT (self, "Configured crop index is larger than "
-                    "the amount of objects in the prediction");
-
-    ret = -1;
-  }
-
-  return ret;
-}
-
-static gint
-gst_detection_crop_find_by_class (GstDetectionCrop *self, gint crop_class,
-                                  GstDetectionMeta *meta) {
-  gint i;
-  gint ret = -1;
-  g_return_val_if_fail (self, -1);
-  g_return_val_if_fail (meta, -1);
-
-  for (i = 0; i < meta->num_boxes; ++i) {
-    if (meta->boxes[i].label == crop_class) {
-      ret = i;
-      break;
-    }
-  }
-
-  if (-1 == ret) {
-    GST_LOG_OBJECT (self, "No valid class detected");
-  }
-
-  return ret;
-}
 
 static gint
 gst_detection_crop_find_predictions (GstDetectionCrop *self, gint *crop_class,
-                                  GstInferenceMeta *meta, GList **list,GstInferencePrediction *pred) {
+                                  GstInferenceMeta *meta, GList **list, GstInferencePrediction *pred) {
   guint i;
 
   g_return_val_if_fail (self, -1);
@@ -405,29 +360,20 @@ gst_detection_crop_find_predictions (GstDetectionCrop *self, gint *crop_class,
 
 static gint
 gst_detection_crop_find_index (GstDetectionCrop *self, guint crop_index,
-                               gint *crop_class, GstInferenceMeta *inference_meta, GstDetectionMeta *detection_meta, GList **list, GstInferencePrediction *pred) {
+                               gint *crop_class, GstInferenceMeta *inference_meta,  GList **list, GstInferencePrediction *pred) {
   g_return_val_if_fail (self, -1);
   g_return_val_if_fail (inference_meta, -1);
-  g_return_val_if_fail (detection_meta, -1);
   g_return_val_if_fail (list, -1);
 
-  if (-10 == *crop_class) {
-    *crop_class = -1;
-    return gst_detection_crop_find_by_class (self, *crop_class, detection_meta);
-  }if (-3 == *crop_class) {
-    return gst_detection_crop_find_by_index (self, crop_index, detection_meta);
-  } else {
-    *crop_class = 0;
-    return gst_detection_crop_find_predictions (self, crop_class, inference_meta, list, pred);
-  }
-}
+  *crop_class = 0;
+  return gst_detection_crop_find_predictions (self, crop_class, inference_meta, list, pred);
 
+}
 
 static GstPadProbeReturn
 gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
                                GstDetectionCrop *self) {
   GstBuffer *buffer;
-  GstDetectionMeta *detection_meta;
   GstInferenceMeta *inference_meta;
   guint crop_index;
   gint crop_class;
@@ -435,7 +381,6 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   gint crop_width_ratio;
   gint crop_height_ratio;
   gint requested_inference_index;
-  //gint requested_detection_index;
   BoundingBox box;
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
   GList *list = NULL;
@@ -454,11 +399,8 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   inference_meta =
     (GstInferenceMeta *) gst_buffer_get_meta (buffer,
         GST_INFERENCE_META_API_TYPE);
-  detection_meta =
-    (GstDetectionMeta *) gst_buffer_get_meta (buffer,
-        GST_DETECTION_META_API_TYPE);
 
-  if (NULL == inference_meta && NULL == detection_meta) {
+  if (NULL == inference_meta ) {
     GST_LOG_OBJECT (self, "No meta found, dropping buffer");
     goto out;
   }
@@ -467,30 +409,15 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     goto out;
   }else if(-2 == crop_class_inference){
     requested_inference_index =
-    gst_detection_crop_find_index (self, crop_index, &crop_class, inference_meta, detection_meta, &list, inference_meta->prediction);
+    gst_detection_crop_find_index (self, crop_index, &crop_class, inference_meta, &list, inference_meta->prediction);
     if (0 == requested_inference_index) {
       goto out;
     }
   }
 
-  /*if (detection_meta->num_boxes <= 0 ) {
-    GST_LOG_OBJECT (self, "Detection meta has no valid objects");
-    goto out;
-  }else{
-    requested_detection_index =
-    gst_detection_crop_find_index (self, crop_index, &crop_class, inference_meta, detection_meta, &list, inference_meta->prediction);
-    if (-1 == requested_detection_index) {
-      goto out;
-    }
-  }*/
-
-//Select the new inference meta
-
-
   for (iter = list; iter != NULL; iter = g_list_next(iter)) {
       GstInferencePrediction *pred = (GstInferencePrediction *)iter->data;
       if( 0 != pred->prediction_id){
-        std::cout << pred->prediction_id << std::endl;
         GstBuffer *croped_buffer;
         box = pred->bbox;
         GST_LOG_OBJECT (self, "BBox: %dx%dx%dx%d", box.x, box.y, box.width,
@@ -508,16 +435,6 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
 
     ret = GST_PAD_PROBE_DROP;
     goto out;
-  //}//Use old detection meta
-  /*else{
-    box = detection_meta->boxes[requested_detection_index];
-    GST_LOG_OBJECT (self, "BBox: %dx%dx%dx%d", box.x, box.y, box.width,
-                    box.height);
-    self->element->SetBoundingBox ((gint) box.x, (gint) box.y, (gint) box.width,
-                                    (gint) box.height, (gint) crop_width_ratio, (gint) crop_height_ratio);
-    ret = GST_PAD_PROBE_OK;
-  }*/
-
 
 out:
   return ret;
