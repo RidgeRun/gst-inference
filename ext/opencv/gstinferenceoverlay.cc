@@ -105,33 +105,36 @@ gst_inference_overlay_init (GstInferenceOverlay *inference_overlay) {
 
 static
 void
-gst_get_meta (Prediction *pred, cv::Mat cv_mat, gdouble font_scale,
+gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
               gint thickness,
               gchar **labels_list, gint num_labels) {
-  gint i;
+  guint i;
   cv::Size size;
   cv::String label;
+  GList *iter = NULL;
   cv::String prob;
-  BBox box;
-  for (i = 0; i < pred->num_predictions ; ++i) {
-    Prediction   *predict = &pred->predictions[i];
+  BoundingBox box;
+
+  for (i = 0; i < g_node_n_children(pred->predictions) ; ++i) {
+    GstInferencePrediction   *predict = (GstInferencePrediction*)g_node_nth_child (pred->predictions,i)->data;
     gst_get_meta (predict, cv_mat, font_scale, thickness,
                   labels_list,  num_labels);
   }
-  if (NULL != pred->box) {
-    box = *pred->box;
-    if (num_labels > box.label) {
-      label = cv::format ("%s  Prob: %f", labels_list[box.label], box.prob);
-    } else {
-      label = cv::format ("Label #%d  Prob: %f", box.label, box.prob);
+  box = pred->bbox;
+
+  for (iter = pred->classifications; iter != NULL; iter = g_list_next(iter)) {
+    GstInferenceClassification *classification = (GstInferenceClassification *)iter->data;
+    if (num_labels > classification->class_id) {
+      label = cv::format ("%s  Prob: %f", labels_list[classification->class_id], classification->class_prob);
+    }else{
+      label = cv::format ("Label #%d  Prob: %f", classification->class_id, classification->class_prob);
     }
     cv::putText (cv_mat, label, cv::Point (box.x, box.y - 5),
-                 cv::FONT_HERSHEY_PLAIN, font_scale, colors[box.label % N_C], thickness);
-    cv::rectangle (cv_mat, cv::Point (box.x, box.y),
-                   cv::Point (box.x + box.width, box.y + box.height),
-                   colors[box.label % N_C], thickness);
-
+                cv::FONT_HERSHEY_PLAIN, font_scale, colors[classification->class_id % N_C], thickness);
   }
+  cv::rectangle (cv_mat, cv::Point (box.x, box.y),
+                cv::Point (box.x + box.width, box.y + box.height),
+                colors[14 % N_C], thickness);
 }
 
 static
