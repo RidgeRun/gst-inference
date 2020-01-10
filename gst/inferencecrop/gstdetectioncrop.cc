@@ -350,7 +350,7 @@ gst_detection_crop_find_predictions (GstDetectionCrop *self, gint *crop_class,
     GstInferencePrediction *predict = (GstInferencePrediction*)g_node_nth_child (pred->predictions,i)->data;
     gst_detection_crop_find_predictions (self,crop_class,meta,list,predict );
   }
-  if(FALSE == G_NODE_IS_ROOT(pred->predictions)){
+  if(FALSE == G_NODE_IS_ROOT(pred->predictions) && TRUE == pred->enabled ){
     *list = g_list_append (*list,pred);
     *crop_class=*crop_class+1;
   }
