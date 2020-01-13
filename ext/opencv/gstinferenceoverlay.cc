@@ -158,9 +158,10 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
   GList *iter = NULL;
   cv::String prob;
   BoundingBox box;
-
-
-
+  int classes = 0;
+  double alpha = 0.5;
+  cv::Mat alpha_overlay;
+  
   for (i = 0; i < g_node_n_children(pred->predictions) ; ++i) {
     GstInferencePrediction   *predict = (GstInferencePrediction*)g_node_nth_child (pred->predictions,i)->data;
     gst_get_meta (predict, cv_mat, font_scale, thickness,
@@ -170,14 +171,21 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
 
   for (iter = pred->classifications; iter != NULL; iter = g_list_next(iter)) {
     GstInferenceClassification *classification = (GstInferenceClassification *)iter->data;
+    classes++;
     if (num_labels > classification->class_id) {
       label = cv::format ("%s  Prob: %f", labels_list[classification->class_id], classification->class_prob);
     }else{
       label = cv::format ("Label #%d  Prob: %f", classification->class_id, classification->class_prob);
     }
-    cv::putText (cv_mat, label, cv::Point (box.x, box.y - i * 5),
-                cv::FONT_HERSHEY_PLAIN, font_scale, colors[classification->class_id % N_C], thickness);
+    cv::putText (cv_mat, label, cv::Point (box.x + box.width , box.y + classes * 30),
+                cv::FONT_HERSHEY_PLAIN, font_scale,cv::Scalar::all(0), thickness);
   }
+
+  cv_mat.copyTo(alpha_overlay);
+  cv::Size text = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale, thickness, 0);
+  cv::rectangle(alpha_overlay, cv::Rect(box.x + box.width, box.y, text.width, 50*classes), cv::Scalar(255, 255, 255), -1);
+  cv::addWeighted(alpha_overlay, alpha, cv_mat, 1 - alpha, 0, cv_mat);
+
 
   if(FALSE == G_NODE_IS_ROOT(pred->predictions)){
     draw_line (cv_mat, cv::Point (box.x, box.y),
@@ -193,7 +201,7 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
                 cv::Point (box.x + box.width, box.y + box.height),
                 colors[50 % N_C], thickness,"dotte",20);
   }
-    
+
 }
 
 static
