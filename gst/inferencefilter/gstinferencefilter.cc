@@ -61,9 +61,6 @@ static void gst_inferencefilter_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
 static void gst_inferencefilter_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
-static gboolean gst_inferencefilter_start (GstBaseTransform * trans);
-static gboolean gst_inferencefilter_stop (GstBaseTransform * trans);
-static void gst_inferencefilter_finalize (GObject * object);
 static void gst_inferencefilter_filter_enable(GstInferencefilter * inferencefilter, GstInferencePrediction *rot, gint class_id, gboolean reset);
 static GstFlowReturn gst_inferencefilter_transform_ip (GstBaseTransform * trans,
     GstBuffer * buf);
@@ -128,10 +125,6 @@ gst_inferencefilter_class_init (GstInferencefilterClass * klass)
   gobject_class->set_property = gst_inferencefilter_set_property;
   gobject_class->get_property = gst_inferencefilter_get_property;
 
-  base_transform_class->start = GST_DEBUG_FUNCPTR (gst_inferencefilter_start);
-  base_transform_class->stop = GST_DEBUG_FUNCPTR (gst_inferencefilter_stop);
-  gobject_class->finalize = gst_inferencefilter_finalize;
-
   g_object_class_install_property (gobject_class, PROP_FILTER_CLASS_LABEL,
                                    g_param_spec_int ("filter-class", "filter-class", "Filter class", PROP_FILTER_CLASS_LABEL_MIN, G_MAXINT,
                                                      PROP_FILTER_CLASS_LABEL_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
@@ -141,8 +134,6 @@ gst_inferencefilter_class_init (GstInferencefilterClass * klass)
                                                                                           "Enables all inference meta to be processed",
                                                                                           PROP_RESET_ENABLE_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
 
-  base_transform_class->transform_meta =
-      GST_DEBUG_FUNCPTR (gst_inferencefilter_transform_meta);
   base_transform_class->transform_ip =
       GST_DEBUG_FUNCPTR (gst_inferencefilter_transform_ip);
 
@@ -203,37 +194,6 @@ gst_inferencefilter_get_property (GObject * object, guint property_id,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
-}
-
-/* states */
-static gboolean
-gst_inferencefilter_start (GstBaseTransform * trans)
-{
-  GstInferencefilter *inferencefilter = GST_INFERENCEFILTER (trans);
-
-  GST_DEBUG_OBJECT (inferencefilter, "start");
-
-  return TRUE;
-}
-
-static gboolean
-gst_inferencefilter_stop (GstBaseTransform * trans)
-{
-  GstInferencefilter *inferencefilter = GST_INFERENCEFILTER (trans);
-
-  GST_DEBUG_OBJECT (inferencefilter, "stop");
-
-  return TRUE;
-}
-
-void
-gst_inferencefilter_finalize (GObject * object)
-{
-  GstInferencefilter *inferencefilter = GST_INFERENCEFILTER (object);
-
-  GST_DEBUG_OBJECT (inferencefilter, "finalize");
-
-  G_OBJECT_CLASS (gst_inferencefilter_parent_class)->finalize (object);
 }
 
 static void
