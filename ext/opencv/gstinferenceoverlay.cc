@@ -56,8 +56,8 @@ static
 GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
-                                    gchar **labels_list, gint num_labels);
-void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int thickness, std::string style, int gap);
+                                    gchar **labels_list, gint num_labels, gint style);
+void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int thickness, int style, int gap);
 
 enum {
   PROP_0
@@ -103,7 +103,7 @@ gst_inference_overlay_class_init (GstInferenceOverlayClass *klass) {
 static void
 gst_inference_overlay_init (GstInferenceOverlay *inference_overlay) {
 }
-void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int thickness, std::string style, int gap){
+void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int thickness, int style, int gap){
   float dx = pt1.x - pt2.x;
   float dy = pt1.y - pt2.y;
 
@@ -121,7 +121,7 @@ void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int
 
   int pts_size = pts.size();
 
-  if (style == "dotted")
+  if (style == 1)
   {
     for (int i = 0; i < pts_size; i++)
     {
@@ -151,7 +151,7 @@ static
 void
 gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
               gint thickness,
-              gchar **labels_list, gint num_labels) {
+              gchar **labels_list, gint num_labels, gint style) {
   guint i;
   cv::Size size;
   cv::String label;
@@ -165,7 +165,7 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
   for (i = 0; i < g_node_n_children(pred->predictions) ; ++i) {
     GstInferencePrediction   *predict = (GstInferencePrediction*)g_node_nth_child (pred->predictions,i)->data;
     gst_get_meta (predict, cv_mat, font_scale, thickness,
-                  labels_list,  num_labels);
+                  labels_list,  num_labels, style);
   }
   box = pred->bbox;
 
@@ -190,16 +190,16 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
   if(FALSE == G_NODE_IS_ROOT(pred->predictions)){
     draw_line (cv_mat, cv::Point (box.x, box.y),
                 cv::Point (box.x + box.width, box.y),
-                colors[50 % N_C], thickness,"dotte",20);
+                colors[50 % N_C], thickness,style,20);
     draw_line (cv_mat, cv::Point (box.x, box.y),
                 cv::Point (box.x , box.y + box.height),
-                colors[50 % N_C], thickness,"dotte",20);
+                colors[50 % N_C], thickness,style,20);
     draw_line (cv_mat, cv::Point (box.x+ box.width, box.y),
                 cv::Point (box.x + box.width, box.y + box.height),
-                colors[50 % N_C], thickness,"dotte",20);
+                colors[50 % N_C], thickness,style,20);
     draw_line (cv_mat, cv::Point (box.x, box.y+ box.height),
                 cv::Point (box.x + box.width, box.y + box.height),
-                colors[50 % N_C], thickness,"dotte",20);
+                colors[50 % N_C], thickness,style,20);
   }
 
 }
@@ -208,7 +208,7 @@ static
 GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
-                                    gchar **labels_list, gint num_labels) {
+                                    gchar **labels_list, gint num_labels, gint style) {
   GstInferenceMeta *
   detect_meta;
   gint  width, height, channels;
@@ -231,7 +231,7 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
   cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
                     (char *) frame->data[0]);
   gst_get_meta (detect_meta->prediction, cv_mat, font_scale, thickness,
-                labels_list,  num_labels);
+                labels_list,  num_labels, style);
 
   return GST_FLOW_OK;
 }

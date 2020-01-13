@@ -41,13 +41,34 @@ GST_DEBUG_CATEGORY_STATIC (gst_inference_base_overlay_debug_category);
 #define DEFAULT_LABELS NULL
 #define DEFAULT_NUM_LABELS 0
 
+#define MIN_STYLE CLASSIC
+#define DEFAULT_STYLE CLASSIC
+#define MAX_STYLE DASHED
+
 enum
 {
   PROP_0,
   PROP_FONT_SCALE,
   PROP_THICKNESS,
-  PROP_LABELS
+  PROP_LABELS,
+  PROP_STYLE
 };
+
+GType
+line_style_bounding_box_get_type (void)
+{
+  static GType type = G_TYPE_INVALID;
+  if (G_UNLIKELY (type == G_TYPE_INVALID)) {
+    static const GEnumValue values[] = {
+      {CLASSIC, "CLASSIC", "classic",},
+      {DOTTED, "DOTTED", "dotted",},
+      {DASHED, "DASHED", "dashed",},
+      {4, NULL, NULL,},
+    };
+    type = g_enum_register_static ("LineStyleBoundingBox", values);
+  }
+  return type;
+}
 
 typedef struct _GstInferenceBaseOverlayPrivate GstInferenceBaseOverlayPrivate;
 struct _GstInferenceBaseOverlayPrivate
@@ -57,6 +78,7 @@ struct _GstInferenceBaseOverlayPrivate
   gchar *labels;
   gchar **labels_list;
   gint num_labels;
+  gint style;
 };
 /* prototypes */
 static void gst_inference_base_overlay_set_property (GObject * object,
@@ -116,6 +138,10 @@ gst_inference_base_overlay_class_init (GstInferenceBaseOverlayClass * klass)
       g_param_spec_string ("labels", "labels",
           "Semicolon separated string containing inference labels",
           DEFAULT_LABELS, G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_STYLE,
+      g_param_spec_enum ("style", "style",
+          "Line style to draw the bounding box", LINE_STYLE_BOUNDING_BOX,
+          DEFAULT_STYLE, G_PARAM_READWRITE));
 
   base_transform_class->start =
       GST_DEBUG_FUNCPTR (gst_inference_base_overlay_start);
@@ -136,6 +162,7 @@ gst_inference_base_overlay_init (GstInferenceBaseOverlay * inference_overlay)
   priv->labels = DEFAULT_LABELS;
   priv->labels_list = DEFAULT_LABELS;
   priv->num_labels = DEFAULT_NUM_LABELS;
+  priv->style = DEFAULT_STYLE;
 }
 
 void
@@ -173,6 +200,11 @@ gst_inference_base_overlay_set_property (GObject * object, guint property_id,
       GST_DEBUG_OBJECT (inference_overlay, "Changed inference labels %s",
           priv->labels);
       break;
+    case PROP_STYLE:
+      priv->style = g_value_get_enum (value);
+      GST_DEBUG_OBJECT (inference_overlay, "Changed box style to %d",
+          priv->style);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -199,6 +231,9 @@ gst_inference_base_overlay_get_property (GObject * object, guint property_id,
       break;
     case PROP_LABELS:
       g_value_set_string (value, priv->labels);
+      break;
+    case PROP_STYLE:
+      g_value_set_enum (value, priv->style);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -286,7 +321,7 @@ gst_inference_base_overlay_transform_frame_ip (GstVideoFilter * trans,
       ret =
           io_class->process_meta (inference_overlay, frame, meta,
           priv->font_scale, priv->thickness, priv->labels_list,
-          priv->num_labels);
+          priv->num_labels, priv->style);
     }
   }
 

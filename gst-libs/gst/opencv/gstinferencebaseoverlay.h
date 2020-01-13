@@ -37,10 +37,28 @@ struct _GstInferenceBaseOverlayClass
 
   GstFlowReturn (* process_meta) (GstInferenceBaseOverlay * inference_base_overlay,
       GstVideoFrame * frame, GstMeta* meta, gdouble font_scale, gint thickness,
-      gchar **labels_list, gint num_labels);
+      gchar **labels_list, gint num_labels, gint style);
 
   GType meta_type;
 };
+
+#define LINE_STYLE_BOUNDING_BOX (line_style_bounding_box_get_type ())
+
+/**
+ * LineStyleBoundingBox:
+ * @CLASSIC    :
+ * @DOTTED : 
+ * @DASHED  :
+ *
+ **/
+typedef enum
+{
+  CLASSIC,
+  DOTTED,
+  DASHED,
+} LineStyleBoundingBox;
+
+GType line_style_bounding_box_get_type (void) G_GNUC_CONST;
 
 G_END_DECLS
 

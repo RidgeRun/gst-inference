@@ -42,7 +42,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 static GstFlowReturn
 gst_classification_overlay_process_meta (GstInferenceBaseOverlay *
     inference_overlay, GstVideoFrame * frame, GstMeta * meta,
-    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels);
+    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels, gint style);
 
 enum
 {
@@ -96,7 +96,7 @@ gst_classification_overlay_init (GstClassificationOverlay *
 static GstFlowReturn
 gst_classification_overlay_process_meta (GstInferenceBaseOverlay *
     inference_overlay, GstVideoFrame * frame, GstMeta * meta,
-    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels)
+    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels, gint style)
 {
   GstClassificationMeta *class_meta;
   gint index, i, width, height, channels;

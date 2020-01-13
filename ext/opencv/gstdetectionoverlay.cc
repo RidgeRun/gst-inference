@@ -53,7 +53,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_detection_overlay_debug_category);
 static GstFlowReturn
 gst_detection_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels);
+    gchar ** labels_list, gint num_labels, gint style);
 
 enum
 {
@@ -105,7 +105,7 @@ gst_detection_overlay_init (GstDetectionOverlay * detection_overlay)
 static GstFlowReturn
 gst_detection_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels)
+    gchar ** labels_list, gint num_labels, gint style)
 {
   GstDetectionMeta *detect_meta;
   gint i, width, height, channels;
