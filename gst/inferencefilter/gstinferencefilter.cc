@@ -271,6 +271,8 @@ static GstFlowReturn
 gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 {
   GstInferencefilter *inferencefilter = GST_INFERENCEFILTER (trans);
+  gboolean reset = FALSE;
+  gint filter = -1;
   GstInferenceMeta *meta;
   GST_DEBUG_OBJECT (inferencefilter, "transform_ip");
 
@@ -284,12 +286,21 @@ gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 
   g_return_val_if_fail(meta->prediction, GST_FLOW_ERROR);
 
-  if (inferencefilter->filter_class < 0 && !inferencefilter->reset_enable) {
+  GST_OBJECT_LOCK (inferencefilter);
+  reset = inferencefilter->reset_enable;
+  filter = inferencefilter->filter_class;
+  GST_OBJECT_UNLOCK (inferencefilter);
+
+  if (filter < 0 && !reset) {
     GST_ERROR_OBJECT (inferencefilter, "Invalid filter-class value");
     return GST_FLOW_ERROR;
   } else {
-    gst_inferencefilter_filter_enable (inferencefilter, meta->prediction, inferencefilter->filter_class, inferencefilter->reset_enable);
-    return GST_FLOW_OK;
+    if(meta->prediction == NULL) {
+      GST_LOG_OBJECT(inferencefilter, "Inferece meta has no predictions");
+      return GST_FLOW_ERROR;
+    }
+    gst_inferencefilter_filter_enable (inferencefilter, meta->prediction, filter, reset);
+  return GST_FLOW_OK;
   }
 }
 
