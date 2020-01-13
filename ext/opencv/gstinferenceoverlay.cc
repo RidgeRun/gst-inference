@@ -57,6 +57,7 @@ GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
                                     gchar **labels_list, gint num_labels);
+void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int thickness, std::string style, int gap);
 
 enum {
   PROP_0
@@ -102,7 +103,50 @@ gst_inference_overlay_class_init (GstInferenceOverlayClass *klass) {
 static void
 gst_inference_overlay_init (GstInferenceOverlay *inference_overlay) {
 }
+void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int thickness, std::string style, int gap){
+  float dx = pt1.x - pt2.x;
+  float dy = pt1.y - pt2.y;
 
+  float dist = sqrt(dx*dx + dy*dy);
+
+  std::vector<cv::Point> pts;
+  for (int i = 0; i < dist; i += gap)
+  {
+    float r = (float)i / dist;
+    int x = int((pt1.x * (1.0 - r) + pt2.x * r) + .5);
+    int y = int((pt1.y * (1.0 - r) + pt2.y * r) + .5);
+    cv::Point p = cv::Point(x, y);
+    pts.push_back(p);
+  }
+
+  int pts_size = pts.size();
+
+  if (style == "dotted")
+  {
+    for (int i = 0; i < pts_size; i++)
+    {
+      cv::circle(img, pts[i], thickness, color, -1);
+    }
+  }
+  else
+  {
+    cv::Point s = pts[0];
+    cv::Point e = pts[0];
+
+    //int count = 0;
+
+    for (int i = 0; i < pts_size; i++)
+    {
+      s = e;
+      e = pts[i];
+
+      if (i % 2 == 1)
+      {
+        cv::line(img, s, e, color, thickness);
+      }
+    }
+  }
+}
 static
 void
 gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
@@ -114,6 +158,8 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
   GList *iter = NULL;
   cv::String prob;
   BoundingBox box;
+
+
 
   for (i = 0; i < g_node_n_children(pred->predictions) ; ++i) {
     GstInferencePrediction   *predict = (GstInferencePrediction*)g_node_nth_child (pred->predictions,i)->data;
@@ -132,9 +178,22 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
     cv::putText (cv_mat, label, cv::Point (box.x, box.y - i * 5),
                 cv::FONT_HERSHEY_PLAIN, font_scale, colors[classification->class_id % N_C], thickness);
   }
-  cv::rectangle (cv_mat, cv::Point (box.x, box.y),
+
+  if(FALSE == G_NODE_IS_ROOT(pred->predictions)){
+    draw_line (cv_mat, cv::Point (box.x, box.y),
+                cv::Point (box.x + box.width, box.y),
+                colors[50 % N_C], thickness,"dotte",20);
+    draw_line (cv_mat, cv::Point (box.x, box.y),
+                cv::Point (box.x , box.y + box.height),
+                colors[50 % N_C], thickness,"dotte",20);
+    draw_line (cv_mat, cv::Point (box.x+ box.width, box.y),
                 cv::Point (box.x + box.width, box.y + box.height),
-                colors[14 % N_C], thickness);
+                colors[50 % N_C], thickness,"dotte",20);
+    draw_line (cv_mat, cv::Point (box.x, box.y+ box.height),
+                cv::Point (box.x + box.width, box.y + box.height),
+                colors[50 % N_C], thickness,"dotte",20);
+  }
+    
 }
 
 static
