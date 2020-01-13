@@ -129,7 +129,7 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
     }else{
       label = cv::format ("Label #%d  Prob: %f", classification->class_id, classification->class_prob);
     }
-    cv::putText (cv_mat, label, cv::Point (box.x, box.y - 5),
+    cv::putText (cv_mat, label, cv::Point (box.x, box.y - i * 5),
                 cv::FONT_HERSHEY_PLAIN, font_scale, colors[classification->class_id % N_C], thickness);
   }
   cv::rectangle (cv_mat, cv::Point (box.x, box.y),
