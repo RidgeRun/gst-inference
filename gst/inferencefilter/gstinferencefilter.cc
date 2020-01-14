@@ -202,14 +202,9 @@ gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
 {
   guint i;
   GList *iter = NULL;
-  if (root == NULL) {
-    GST_ERROR_OBJECT (inferencefilter, "Invalid inference prediction.");
-  }
 
-  if (root->classifications == NULL) {
-    GST_LOG_OBJECT (inferencefilter,
-        "No inference classification on prediction.");
-  }
+  g_return_if_fail(inferencefilter);
+  g_return_if_fail(root);
 
   for (iter = root->classifications; iter != NULL; iter = g_list_next (iter)) {
     GstInferenceClassification *classification =
