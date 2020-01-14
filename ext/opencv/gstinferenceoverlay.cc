@@ -166,8 +166,8 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
         iter->data;
 
     classes++;
-    if (num_labels > classification->class_id) {
-      label = cv::format ("%s  Prob: %f", labels_list[classification->class_id],
+    if (classification->num_classes > classification->class_id) {
+      label = cv::format ("%s  Prob: %f", classification->labels[classification->class_id],
                           classification->class_prob);
     } else {
       label = cv::format ("Label #%d  Prob: %f", classification->class_id,
