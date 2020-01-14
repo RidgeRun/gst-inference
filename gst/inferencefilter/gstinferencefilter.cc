@@ -61,7 +61,8 @@ static void gst_inferencefilter_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
 static void gst_inferencefilter_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
-static void gst_inferencefilter_filter_enable(GstInferencefilter * inferencefilter, GstInferencePrediction *rot, gint class_id, gboolean reset);
+static void gst_inferencefilter_filter_enable (GstInferencefilter *
+    inferencefilter, GstInferencePrediction * rot, gint class_id, gboolean reset);
 static GstFlowReturn gst_inferencefilter_transform_ip (GstBaseTransform * trans,
     GstBuffer * buf);
 
@@ -86,15 +87,13 @@ static GstStaticPadTemplate gst_inferencefilter_src_template =
 GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS_ANY
-    );
+    GST_STATIC_CAPS_ANY);
 
 static GstStaticPadTemplate gst_inferencefilter_sink_template =
 GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS_ANY
-    );
+    GST_STATIC_CAPS_ANY);
 
 
 /* class initialization */
@@ -119,20 +118,21 @@ gst_inferencefilter_class_init (GstInferencefilterClass * klass)
       &gst_inferencefilter_sink_template);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-      "Inference Filter", "Generic", "Enables/disables specific classes contained on the inference metadata to be processed",
+      "Inference Filter", "Generic",
+      "Enables/disables specific classes contained on the inference metadata to be processed",
       "<carolina.trejos@ridgerun.com>");
 
   gobject_class->set_property = gst_inferencefilter_set_property;
   gobject_class->get_property = gst_inferencefilter_get_property;
 
   g_object_class_install_property (gobject_class, PROP_FILTER_CLASS_LABEL,
-                                   g_param_spec_int ("filter-class", "filter-class", "Filter class", PROP_FILTER_CLASS_LABEL_MIN, G_MAXINT,
-                                                     PROP_FILTER_CLASS_LABEL_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
-  g_object_class_install_property (gobject_class,
-                                   PROP_RESET_ENABLE, g_param_spec_boolean ("reset-enable",
-                                                                                          "Reset enable",
-                                                                                          "Enables all inference meta to be processed",
-                                                                                          PROP_RESET_ENABLE_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
+      g_param_spec_int ("filter-class", "filter-class", "Filter class",
+          PROP_FILTER_CLASS_LABEL_MIN, G_MAXINT,
+          PROP_FILTER_CLASS_LABEL_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
+  g_object_class_install_property (gobject_class, PROP_RESET_ENABLE,
+      g_param_spec_boolean ("reset-enable", "Reset enable",
+          "Enables all inference meta to be processed",
+          PROP_RESET_ENABLE_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
 
   base_transform_class->transform_ip =
       GST_DEBUG_FUNCPTR (gst_inferencefilter_transform_ip);
@@ -158,12 +158,12 @@ gst_inferencefilter_set_property (GObject * object, guint property_id,
     case PROP_FILTER_CLASS_LABEL:
       GST_OBJECT_LOCK (inferencefilter);
       inferencefilter->filter_class = g_value_get_int (value);
-      GST_OBJECT_UNLOCK(inferencefilter);
+      GST_OBJECT_UNLOCK (inferencefilter);
       break;
     case PROP_RESET_ENABLE:
       GST_OBJECT_LOCK (inferencefilter);
       inferencefilter->reset_enable = g_value_get_boolean (value);
-      GST_OBJECT_UNLOCK(inferencefilter);
+      GST_OBJECT_UNLOCK (inferencefilter);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -197,7 +197,8 @@ gst_inferencefilter_get_property (GObject * object, guint property_id,
 }
 
 static void
-gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter, GstInferencePrediction *root, gint class_id, gboolean reset)
+gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
+    GstInferencePrediction * root, gint class_id, gboolean reset)
 {
   guint i;
   GList *iter = NULL;
@@ -206,23 +207,29 @@ gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter, GstInfe
   }
 
   if (root->classifications == NULL) {
-    GST_LOG_OBJECT (inferencefilter, "No inference classification on prediction.");
+    GST_LOG_OBJECT (inferencefilter,
+        "No inference classification on prediction.");
   }
 
-  for (iter = root->classifications; iter != NULL; iter = g_list_next(iter)) {
-    GstInferenceClassification *classification = (GstInferenceClassification *)iter->data;
+  for (iter = root->classifications; iter != NULL; iter = g_list_next (iter)) {
+    GstInferenceClassification *classification =
+        (GstInferenceClassification *) iter->data;
     if (classification->class_id == class_id || reset) {
-      GST_DEBUG_OBJECT(inferencefilter, "Enabling classification id %d", classification->class_id);
+      GST_DEBUG_OBJECT (inferencefilter, "Enabling classification id %d",
+          classification->class_id);
       root->enabled = TRUE;
       break;
     } else {
-      GST_DEBUG_OBJECT(inferencefilter, "Disabling classification id %d", classification->class_id);
+      GST_DEBUG_OBJECT (inferencefilter, "Disabling classification id %d",
+          classification->class_id);
       root->enabled = FALSE;
     }
   }
 
-  for (i = 0; i < g_node_n_children(root->predictions) ; ++i) {
-    GstInferencePrediction   *predict = (GstInferencePrediction*)g_node_nth_child (root->predictions,i)->data;
+  for (i = 0; i < g_node_n_children (root->predictions); ++i) {
+    GstInferencePrediction *predict =
+        (GstInferencePrediction *) g_node_nth_child (root->predictions,
+        i)->data;
     gst_inferencefilter_filter_enable (inferencefilter, predict, class_id, reset);
   }
 }
@@ -237,10 +244,11 @@ gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
   GST_DEBUG_OBJECT (inferencefilter, "transform_ip");
 
   meta = (GstInferenceMeta *) gst_buffer_get_meta (buf,
-        GST_INFERENCE_META_API_TYPE);
+      GST_INFERENCE_META_API_TYPE);
 
   if (NULL == meta) {
-    GST_LOG_OBJECT (inferencefilter, "No inference meta found. Buffer passthrough.");
+    GST_LOG_OBJECT (inferencefilter,
+        "No inference meta found. Buffer passthrough.");
     return GST_FLOW_OK;
   }
 
@@ -255,12 +263,13 @@ gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     GST_ERROR_OBJECT (inferencefilter, "Invalid filter-class value");
     return GST_FLOW_ERROR;
   } else {
-    if(meta->prediction == NULL) {
-      GST_LOG_OBJECT(inferencefilter, "Inferece meta has no predictions");
+    if (meta->prediction == NULL) {
+      GST_LOG_OBJECT (inferencefilter, "Inferece meta has no predictions");
       return GST_FLOW_ERROR;
     }
-    gst_inferencefilter_filter_enable (inferencefilter, meta->prediction, filter, reset);
-  return GST_FLOW_OK;
+    gst_inferencefilter_filter_enable (inferencefilter, meta->prediction,
+        filter, reset);
+    return GST_FLOW_OK;
   }
 }
 
