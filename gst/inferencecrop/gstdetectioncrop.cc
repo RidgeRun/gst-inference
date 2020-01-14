@@ -41,11 +41,13 @@
 #include "config.h"
 #endif
 
+
 #include "gstdetectioncrop.h"
 
 #include "gst/r2inference/gstinferencemeta.h"
 #include "videocrop.h"
 
+#include <math.h>
 /* generic templates */
 static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
@@ -70,11 +72,18 @@ static GstStateChangeReturn gst_detection_crop_change_state (GstElement *
 static gboolean gst_detection_crop_start (GstDetectionCrop *self);
 static void gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
     GstDetectionCrop *self);
+void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
+    gint width, gint height, gint width_ratio, gint height_ratio, gint *top,
+    gint *bottom, gint *right, gint *left);
 static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
     GstPadProbeInfo *info, GstDetectionCrop *self);
 static gint gst_detection_crop_find_predictions (GstDetectionCrop *self,
     gint *num_detections, GstInferenceMeta *meta, GList **list,
     GstInferencePrediction *pred);
+
+
+#define PROP_CROP_RATIO_DEFAULT_WIDTH 1
+#define PROP_CROP_RATIO_DEFAULT_HEIGHT 1
 
 enum {
   PROP_0,
@@ -87,6 +96,8 @@ struct _GstDetectionCrop {
   CropElement *element;
   gint width_ratio;
   gint height_ratio;
+  gint width;
+  gint height;
 };
 
 struct _GstDetectionCropClass {
@@ -280,11 +291,61 @@ gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
   gst_structure_get_int (st, "height", &height);
 
   GST_INFO_OBJECT (self, "Set new caps to %" GST_PTR_FORMAT, caps);
-
-  self->element->SetImageSize (width, height);
+  self->width = width;
+  self->height = height;
   gst_caps_unref(caps);
 }
 
+void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
+    gint width, gint height, gint width_ratio, gint height_ratio, gint *top,
+    gint *bottom, gint *right, gint *left) {
+
+  *top = y;
+  *bottom = self->height - y - height;
+  *left = x;
+  *right = self->width - x - width;
+
+  if (width_ratio > 0 && height_ratio > 0) {
+    gint top_bottom_modify = round(((height_ratio * width) / width_ratio - height) /
+                                   2);
+    gint left_right_modify = round(((width_ratio * height) / height_ratio - width) /
+                                   2);
+    if (width_ratio <= height_ratio) {
+      if (width > height) {
+        *top = *top - top_bottom_modify;
+        *bottom = *bottom - top_bottom_modify;
+      } else {
+        *left = *left - left_right_modify;
+        *right = *right - left_right_modify;
+      }
+    } else {
+      if (width < height) {
+        *left = *left - left_right_modify;
+        *right = *right - left_right_modify;
+      } else {
+        *top = *top - top_bottom_modify;
+        *bottom = *bottom - top_bottom_modify;
+      }
+    }
+  }
+
+  if (*top < 0) {
+    *top = 0;
+  }
+
+  if (*bottom < 0) {
+    *bottom = 0;
+  }
+
+  if (*left < 0) {
+    *left = 0;
+  }
+
+  if (*right < 0) {
+    *right = 0;
+  }
+
+}
 
 static gint
 gst_detection_crop_find_predictions (GstDetectionCrop *self,
@@ -304,7 +365,7 @@ gst_detection_crop_find_predictions (GstDetectionCrop *self,
     gst_detection_crop_find_predictions (self, num_detections, meta, list,
                                          predict );
   }
-  if (FALSE == G_NODE_IS_ROOT(pred->predictions) && FALSE == pred->enabled ) {
+  if (FALSE == G_NODE_IS_ROOT(pred->predictions) && TRUE == pred->enabled ) {
     *list = g_list_append (*list, pred);
     *num_detections = *num_detections + 1;
   }
@@ -325,7 +386,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
   GList *list = NULL;
   GList *iter = NULL;
-  
+
   GST_OBJECT_LOCK (self);
   crop_width_ratio = self->width_ratio;
   crop_height_ratio = self->height_ratio;
@@ -355,18 +416,27 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     if ( 0 != pred->prediction_id) {
       GstBuffer *croped_buffer;
       GstInferenceMeta *dmeta;
+      gint top, bottom, right, left = 0;
       box = pred->bbox;
       GST_LOG_OBJECT (self, "BBox: %dx%dx%dx%d", box.x, box.y, box.width,
                       box.height);
-      self->element->SetBoundingBox ((gint) box.x, (gint) box.y, (gint) box.width,
-                                     (gint) box.height, (gint) crop_width_ratio, (gint) crop_height_ratio);
+
+      gst_detection_crop_new_buffer_size (self, box.x, box.y, box.width, box.height,
+                                          crop_width_ratio, crop_height_ratio,
+                                          &top, &bottom, &right, &left);
+      self->element->SetCroppingSize ((gint) top, (gint) bottom, (gint) right,
+                                      (gint) left);
 
       croped_buffer = gst_buffer_copy_deep (buffer);
-      dmeta = (GstInferenceMeta *) gst_buffer_add_meta (croped_buffer, GST_INFERENCE_META_INFO,
-      NULL);
-      gst_inference_prediction_unref (dmeta->prediction);
+      dmeta = (GstInferenceMeta *) gst_buffer_add_meta (croped_buffer,
+              GST_INFERENCE_META_INFO,
+              NULL);
 
-      GST_LOG ("Copy detection metadata");
+      pred->bbox.x = 0;
+      pred->bbox.y = 0;
+      pred->bbox.width = self->width - right - left;
+      pred->bbox.height = self->height - top - bottom;
+
       dmeta->prediction = gst_inference_prediction_copy (pred);
 
       if (GST_FLOW_OK != gst_pad_chain(self->pad, croped_buffer)) {

@@ -34,14 +34,10 @@ class VideoCrop: public CropElement {
 
  protected:
   void UpdateElement (GstElement *element,
-                      gint image_width,
-                      gint image_height,
-                      gint x,
-                      gint y,
-                      gint width,
-                      gint height,
-                      gint width_ratio,
-                      gint height_ratio) override;
+                      gint top,
+                      gint bottom,
+                      gint right,
+                      gint left) override;
  private:
   GstPad *GetPad (const std::string &name);
   const std::string factory = "videocrop";
