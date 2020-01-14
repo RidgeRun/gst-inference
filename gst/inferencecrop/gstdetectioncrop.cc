@@ -304,7 +304,7 @@ gst_detection_crop_find_predictions (GstDetectionCrop *self,
     gst_detection_crop_find_predictions (self, num_detections, meta, list,
                                          predict );
   }
-  if (FALSE == G_NODE_IS_ROOT(pred->predictions) && TRUE == pred->enabled ) {
+  if (FALSE == G_NODE_IS_ROOT(pred->predictions) && FALSE == pred->enabled ) {
     *list = g_list_append (*list, pred);
     *num_detections = *num_detections + 1;
   }
@@ -325,7 +325,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
   GList *list = NULL;
   GList *iter = NULL;
-
+  
   GST_OBJECT_LOCK (self);
   crop_width_ratio = self->width_ratio;
   crop_height_ratio = self->height_ratio;
@@ -354,12 +354,20 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     GstInferencePrediction *pred = (GstInferencePrediction *)iter->data;
     if ( 0 != pred->prediction_id) {
       GstBuffer *croped_buffer;
+      GstInferenceMeta *dmeta;
       box = pred->bbox;
       GST_LOG_OBJECT (self, "BBox: %dx%dx%dx%d", box.x, box.y, box.width,
                       box.height);
       self->element->SetBoundingBox ((gint) box.x, (gint) box.y, (gint) box.width,
                                      (gint) box.height, (gint) crop_width_ratio, (gint) crop_height_ratio);
-      croped_buffer = gst_buffer_copy (buffer);
+
+      croped_buffer = gst_buffer_copy_deep (buffer);
+      dmeta = (GstInferenceMeta *) gst_buffer_add_meta (croped_buffer, GST_INFERENCE_META_INFO,
+      NULL);
+      gst_inference_prediction_unref (dmeta->prediction);
+
+      GST_LOG ("Copy detection metadata");
+      dmeta->prediction = gst_inference_prediction_copy (pred);
 
       if (GST_FLOW_OK != gst_pad_chain(self->pad, croped_buffer)) {
         GST_ELEMENT_ERROR(self, CORE, FAILED,
