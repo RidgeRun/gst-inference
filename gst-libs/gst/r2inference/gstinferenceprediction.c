@@ -35,6 +35,7 @@ static gchar *prediction_classes_to_string (GstInferencePrediction * self,
     gint level);
 static GstInferencePrediction *prediction_scale (const GstInferencePrediction *
     self, GstVideoInfo * to, GstVideoInfo * from);
+static GSList *prediction_get_children_unlocked (GstInferencePrediction * self);
 
 static GstInferenceClassification
     * classification_copy (GstInferenceClassification * from, gpointer data);
@@ -81,10 +82,28 @@ gst_inference_prediction_new (void)
       (GstMiniObjectCopyFunction) gst_inference_prediction_copy, NULL,
       (GstMiniObjectFreeFunction) prediction_free);
 
+  g_mutex_init (&self->mutex);
+
   self->predictions = NULL;
   self->classifications = NULL;
 
   prediction_reset (self);
+
+  return self;
+}
+
+GstInferencePrediction *
+gst_inference_prediction_new_full (BoundingBox * bbox)
+{
+  GstInferencePrediction *self = NULL;
+
+  g_return_val_if_fail (bbox, NULL);
+
+  self = gst_inference_prediction_new ();
+
+  GST_INFERENCE_PREDICTION_LOCK (self);
+  self->bbox = *bbox;
+  GST_INFERENCE_PREDICTION_UNLOCK (self);
 
   return self;
 }
@@ -113,7 +132,11 @@ gst_inference_prediction_append (GstInferencePrediction * self,
   g_return_if_fail (self);
   g_return_if_fail (child);
 
+  GST_INFERENCE_PREDICTION_LOCK (self);
+  GST_INFERENCE_PREDICTION_LOCK (child);
   g_node_append (self->predictions, child->predictions);
+  GST_INFERENCE_PREDICTION_UNLOCK (child);
+  GST_INFERENCE_PREDICTION_UNLOCK (self);
 }
 
 static GstInferenceClassification *
@@ -171,11 +194,15 @@ gst_inference_prediction_copy (const GstInferencePrediction * self)
 
   g_return_val_if_fail (self, NULL);
 
+  GST_INFERENCE_PREDICTION_LOCK ((GstInferencePrediction *) self);
+
   /* Copy the binary tree */
   other = g_node_copy_deep (self->predictions, node_copy, NULL);
 
   /* Now finish assigning the nodes to the predictions */
   g_node_traverse (other, G_IN_ORDER, G_TRAVERSE_ALL, -1, node_assign, NULL);
+
+  GST_INFERENCE_PREDICTION_UNLOCK ((GstInferencePrediction *) self);
 
   return (GstInferencePrediction *) other->data;
 }
@@ -210,7 +237,7 @@ prediction_children_to_string (GstInferencePrediction * self, gint level)
   /* Build the child predictions using a GString */
   string = g_string_new (NULL);
 
-  subpreds = gst_inference_prediction_get_children (self);
+  subpreds = prediction_get_children_unlocked (self);
 
   for (iter = subpreds; iter != NULL; iter = g_slist_next (iter)) {
     GstInferencePrediction *pred = (GstInferencePrediction *) iter->data;
@@ -287,7 +314,15 @@ prediction_to_string (GstInferencePrediction * self, gint level)
 gchar *
 gst_inference_prediction_to_string (GstInferencePrediction * self)
 {
-  return prediction_to_string (self, 0);
+  gchar *serial = NULL;
+
+  g_return_val_if_fail (self, NULL);
+
+  GST_INFERENCE_PREDICTION_LOCK (self);
+  serial = prediction_to_string (self, 0);
+  GST_INFERENCE_PREDICTION_UNLOCK (self);
+
+  return serial;
 }
 
 static void
@@ -304,8 +339,8 @@ node_get_children (GNode * node, gpointer data)
   *children = g_slist_append (*children, prediction);
 }
 
-GSList *
-gst_inference_prediction_get_children (GstInferencePrediction * self)
+static GSList *
+prediction_get_children_unlocked (GstInferencePrediction * self)
 {
   GSList *children = NULL;
 
@@ -315,6 +350,18 @@ gst_inference_prediction_get_children (GstInferencePrediction * self)
     g_node_children_foreach (self->predictions, G_TRAVERSE_ALL,
         node_get_children, &children);
   }
+
+  return children;
+}
+
+GSList *
+gst_inference_prediction_get_children (GstInferencePrediction * self)
+{
+  GSList *children = NULL;
+
+  GST_INFERENCE_PREDICTION_LOCK (self);
+  children = prediction_get_children_unlocked (self);
+  GST_INFERENCE_PREDICTION_UNLOCK (self);
 
   return children;
 }
@@ -349,7 +396,7 @@ prediction_reset (GstInferencePrediction * self)
 static void
 prediction_free (GstInferencePrediction * self)
 {
-  GSList *children = gst_inference_prediction_get_children (self);
+  GSList *children = prediction_get_children_unlocked (self);
   GSList *iter = NULL;
 
   for (iter = children; iter != NULL; iter = g_slist_next (iter)) {
@@ -375,7 +422,9 @@ gst_inference_prediction_append_classification (GstInferencePrediction * self,
   g_return_if_fail (self);
   g_return_if_fail (c);
 
+  GST_INFERENCE_PREDICTION_LOCK (self);
   self->classifications = g_list_append (self->classifications, c);
+  GST_INFERENCE_PREDICTION_UNLOCK (self);
 }
 
 static GstInferencePrediction *
@@ -437,10 +486,14 @@ gst_inference_prediction_scale (GstInferencePrediction * self,
   g_return_val_if_fail (to, NULL);
   g_return_val_if_fail (from, NULL);
 
+  GST_INFERENCE_PREDICTION_LOCK (self);
+
   other = g_node_copy_deep (self->predictions, node_scale, &data);
 
   /* Now finish assigning the nodes to the predictions */
   g_node_traverse (other, G_IN_ORDER, G_TRAVERSE_ALL, -1, node_assign, NULL);
+
+  GST_INFERENCE_PREDICTION_UNLOCK (self);
 
   return (GstInferencePrediction *) other->data;
 }
