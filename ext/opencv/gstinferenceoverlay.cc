@@ -57,12 +57,8 @@ GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
                                     gchar **labels_list, gint num_labels, gint style);
-void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
+void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
                int thickness, int style, int gap);
-
-enum {
-  PROP_0
-};
 
 struct _GstInferenceOverlay {
   GstInferenceBaseOverlay
@@ -89,13 +85,7 @@ gst_inference_overlay_class_init (GstInferenceOverlayClass *klass) {
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
                                          "inferenceoverlay", "Filter",
                                          "Overlays Inferece metadata on input buffer",
-                                         "Carlos Rodriguez <carlos.rodriguez@ridgerun.com> \n\t\t\t"
-                                         "   Jose Jimenez <jose.jimenez@ridgerun.com> \n\t\t\t"
-                                         "   Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
-                                         "   Carlos Aguero <carlos.aguero@ridgerun.com> \n\t\t\t"
-                                         "   Miguel Taylor <miguel.taylor@ridgerun.com> \n\t\t\t"
-                                         "   Greivin Fallas <greivin.fallas@ridgerun.com> \n\t\t\t"
-                                         "   Lenin Torres <lenin.torres@ridgerun.com>");
+                                         "Lenin Torres <lenin.torres@ridgerun.com>");
 
   io_class->process_meta =
     GST_DEBUG_FUNCPTR (gst_inference_overlay_process_meta);
@@ -106,8 +96,11 @@ static void
 gst_inference_overlay_init (GstInferenceOverlay *inference_overlay) {
 }
 
-void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
+void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
                int thickness, int style, int gap) {
+
+  g_return_if_fail (img != NULL);
+
   float dx = pt1.x - pt2.x;
   float dy = pt1.y - pt2.y;
 
@@ -126,7 +119,7 @@ void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
 
   if (1 == style) {
     for (int i = 0; i < pts_size; i++) {
-      cv::circle(img, pts[i], thickness, color, -1);
+      cv::circle(*img, pts[i], thickness, color, -1);
     }
   } else {
     cv::Point s = pts[0];
@@ -137,7 +130,7 @@ void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
       e = pts[i];
 
       if (1 == i % 2) {
-        cv::line(img, s, e, color, thickness);
+        cv::line(*img, s, e, color, thickness);
       }
     }
   }
@@ -156,6 +149,9 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
   int classes = 0;
   double alpha = 0.5;
   cv::Mat alpha_overlay;
+
+  g_return_if_fail (pred != NULL);
+  g_return_if_fail (labels_list != NULL);
 
   for (i = 0; i < g_node_n_children(pred->predictions) ; ++i) {
     GstInferencePrediction   *predict = (GstInferencePrediction *)g_node_nth_child (
@@ -194,16 +190,16 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
                      cv::Point (box.x + box.width, box.y + box.height),
                      colors[50 % N_C], thickness);
     }else {
-      draw_line (cv_mat, cv::Point (box.x, box.y),
+      draw_line (&cv_mat, cv::Point (box.x, box.y),
                  cv::Point (box.x + box.width, box.y),
                  colors[50 % N_C], thickness, style, 20);
-      draw_line (cv_mat, cv::Point (box.x, box.y),
+      draw_line (&cv_mat, cv::Point (box.x, box.y),
                  cv::Point (box.x, box.y + box.height),
                  colors[50 % N_C], thickness, style, 20);
-      draw_line (cv_mat, cv::Point (box.x + box.width, box.y),
+      draw_line (&cv_mat, cv::Point (box.x + box.width, box.y),
                  cv::Point (box.x + box.width, box.y + box.height),
                  colors[50 % N_C], thickness, style, 20);
-      draw_line (cv_mat, cv::Point (box.x, box.y + box.height),
+      draw_line (&cv_mat, cv::Point (box.x, box.y + box.height),
                  cv::Point (box.x + box.width, box.y + box.height),
                  colors[50 % N_C], thickness, style, 20);
     }
@@ -220,6 +216,11 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
   detect_meta;
   gint  width, height, channels;
   cv::Mat cv_mat;
+
+  g_return_val_if_fail (inference_overlay != NULL ,GST_FLOW_ERROR);
+  g_return_val_if_fail (frame != NULL ,GST_FLOW_ERROR);
+  g_return_val_if_fail (meta != NULL  ,GST_FLOW_ERROR);
+  g_return_val_if_fail (labels_list != NULL  ,GST_FLOW_ERROR);
 
   switch (GST_VIDEO_FRAME_FORMAT (frame)) {
     case GST_VIDEO_FORMAT_RGB:
