@@ -57,7 +57,8 @@ GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
                                     gchar **labels_list, gint num_labels, gint style);
-void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int thickness, int style, int gap);
+void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
+               int thickness, int style, int gap);
 
 enum {
   PROP_0
@@ -93,7 +94,8 @@ gst_inference_overlay_class_init (GstInferenceOverlayClass *klass) {
                                          "   Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
                                          "   Carlos Aguero <carlos.aguero@ridgerun.com> \n\t\t\t"
                                          "   Miguel Taylor <miguel.taylor@ridgerun.com> \n\t\t\t"
-                                         "   Greivin Fallas <greivin.fallas@ridgerun.com>");
+                                         "   Greivin Fallas <greivin.fallas@ridgerun.com> \n\t\t\t"
+                                         "   Lenin Torres <lenin.torres@ridgerun.com>");
 
   io_class->process_meta =
     GST_DEBUG_FUNCPTR (gst_inference_overlay_process_meta);
@@ -103,15 +105,16 @@ gst_inference_overlay_class_init (GstInferenceOverlayClass *klass) {
 static void
 gst_inference_overlay_init (GstInferenceOverlay *inference_overlay) {
 }
-void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int thickness, int style, int gap){
+
+void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
+               int thickness, int style, int gap) {
   float dx = pt1.x - pt2.x;
   float dy = pt1.y - pt2.y;
 
-  float dist = sqrt(dx*dx + dy*dy);
+  float dist = sqrt(dx * dx + dy * dy);
 
   std::vector<cv::Point> pts;
-  for (int i = 0; i < dist; i += gap)
-  {
+  for (int i = 0; i < dist; i += gap) {
     float r = (float)i / dist;
     int x = int((pt1.x * (1.0 - r) + pt2.x * r) + .5);
     int y = int((pt1.y * (1.0 - r) + pt2.y * r) + .5);
@@ -121,34 +124,26 @@ void draw_line(cv::Mat& img, cv::Point pt1, cv::Point pt2, cv::Scalar color, int
 
   int pts_size = pts.size();
 
-  if (style == 1)
-  {
-    for (int i = 0; i < pts_size; i++)
-    {
+  if (1 == style) {
+    for (int i = 0; i < pts_size; i++) {
       cv::circle(img, pts[i], thickness, color, -1);
     }
-  }
-  else
-  {
+  } else {
     cv::Point s = pts[0];
     cv::Point e = pts[0];
 
-    //int count = 0;
-
-    for (int i = 0; i < pts_size; i++)
-    {
+    for (int i = 0; i < pts_size; i++) {
       s = e;
       e = pts[i];
 
-      if (i % 2 == 1)
-      {
+      if (1 == i % 2) {
         cv::line(img, s, e, color, thickness);
       }
     }
   }
 }
-static
-void
+
+static void
 gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
               gint thickness,
               gchar **labels_list, gint num_labels, gint style) {
@@ -161,45 +156,57 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
   int classes = 0;
   double alpha = 0.5;
   cv::Mat alpha_overlay;
-  
+
   for (i = 0; i < g_node_n_children(pred->predictions) ; ++i) {
-    GstInferencePrediction   *predict = (GstInferencePrediction*)g_node_nth_child (pred->predictions,i)->data;
+    GstInferencePrediction   *predict = (GstInferencePrediction *)g_node_nth_child (
+                                          pred->predictions, i)->data;
     gst_get_meta (predict, cv_mat, font_scale, thickness,
                   labels_list,  num_labels, style);
   }
   box = pred->bbox;
 
   for (iter = pred->classifications; iter != NULL; iter = g_list_next(iter)) {
-    GstInferenceClassification *classification = (GstInferenceClassification *)iter->data;
+    GstInferenceClassification *classification = (GstInferenceClassification *)
+        iter->data;
+
     classes++;
     if (num_labels > classification->class_id) {
-      label = cv::format ("%s  Prob: %f", labels_list[classification->class_id], classification->class_prob);
-    }else{
-      label = cv::format ("Label #%d  Prob: %f", classification->class_id, classification->class_prob);
+      label = cv::format ("%s  Prob: %f", labels_list[classification->class_id],
+                          classification->class_prob);
+    } else {
+      label = cv::format ("Label #%d  Prob: %f", classification->class_id,
+                          classification->class_prob);
     }
-    cv::putText (cv_mat, label, cv::Point (box.x + box.width , box.y + classes * 30),
-                cv::FONT_HERSHEY_PLAIN, font_scale,cv::Scalar::all(0), thickness);
+    cv::putText (cv_mat, label, cv::Point (box.x + box.width, box.y + classes * 30),
+                 cv::FONT_HERSHEY_PLAIN, font_scale, cv::Scalar::all(0), thickness);
   }
 
   cv_mat.copyTo(alpha_overlay);
-  cv::Size text = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale, thickness, 0);
-  cv::rectangle(alpha_overlay, cv::Rect(box.x + box.width, box.y, text.width, 50*classes), cv::Scalar(255, 255, 255), -1);
+  cv::Size text = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
+                                   thickness, 0);
+  cv::rectangle(alpha_overlay, cv::Rect(box.x + box.width, box.y, text.width,
+                                        50 * classes), cv::Scalar(255, 255, 255), -1);
   cv::addWeighted(alpha_overlay, alpha, cv_mat, 1 - alpha, 0, cv_mat);
 
-
-  if(FALSE == G_NODE_IS_ROOT(pred->predictions)){
-    draw_line (cv_mat, cv::Point (box.x, box.y),
-                cv::Point (box.x + box.width, box.y),
-                colors[50 % N_C], thickness,style,20);
-    draw_line (cv_mat, cv::Point (box.x, box.y),
-                cv::Point (box.x , box.y + box.height),
-                colors[50 % N_C], thickness,style,20);
-    draw_line (cv_mat, cv::Point (box.x+ box.width, box.y),
-                cv::Point (box.x + box.width, box.y + box.height),
-                colors[50 % N_C], thickness,style,20);
-    draw_line (cv_mat, cv::Point (box.x, box.y+ box.height),
-                cv::Point (box.x + box.width, box.y + box.height),
-                colors[50 % N_C], thickness,style,20);
+  if (FALSE == G_NODE_IS_ROOT(pred->predictions)) {
+    if (0 == style) {
+      cv::rectangle (cv_mat, cv::Point (box.x, box.y),
+                     cv::Point (box.x + box.width, box.y + box.height),
+                     colors[50 % N_C], thickness);
+    }else {
+      draw_line (cv_mat, cv::Point (box.x, box.y),
+                 cv::Point (box.x + box.width, box.y),
+                 colors[50 % N_C], thickness, style, 20);
+      draw_line (cv_mat, cv::Point (box.x, box.y),
+                 cv::Point (box.x, box.y + box.height),
+                 colors[50 % N_C], thickness, style, 20);
+      draw_line (cv_mat, cv::Point (box.x + box.width, box.y),
+                 cv::Point (box.x + box.width, box.y + box.height),
+                 colors[50 % N_C], thickness, style, 20);
+      draw_line (cv_mat, cv::Point (box.x, box.y + box.height),
+                 cv::Point (box.x + box.width, box.y + box.height),
+                 colors[50 % N_C], thickness, style, 20);
+    }
   }
 
 }
