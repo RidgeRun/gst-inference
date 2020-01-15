@@ -892,6 +892,7 @@ gst_video_inference_postprocess (GstVideoInference * self,
   GstVideoInfo *info_model = NULL;
   GstVideoInfo *info_bypass = NULL;
   gboolean pred_valid = FALSE;
+  GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
 
   g_return_val_if_fail (self, FALSE);
   g_return_val_if_fail (klass, FALSE);
@@ -920,7 +921,7 @@ gst_video_inference_postprocess (GstVideoInference * self,
 
   GST_LOG_OBJECT (self, "Calling frame postprocess");
   if (!klass->postprocess (self, prediction_data, prediction_size, meta_model,
-          info_model, &pred_valid)) {
+          info_model, &pred_valid, priv->labels_list, priv->num_labels)) {
     GST_ELEMENT_ERROR (self, STREAM, FAILED,
         ("Subclass failed at postprocess"), (NULL));
     return FALSE;

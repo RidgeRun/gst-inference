@@ -82,7 +82,7 @@ static gboolean gst_tinyyolov2_preprocess (GstVideoInference * vi,
 static gboolean
 gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
-    gboolean * valid_prediction);
+    gboolean * valid_prediction, gchar ** labels_list, gint num_labels);
 static gboolean
 gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
@@ -90,7 +90,8 @@ gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
 static gboolean
 gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
-    GstVideoInfo * info_model, gboolean * valid_prediction);
+    GstVideoInfo * info_model, gboolean * valid_prediction,
+    gchar ** labels_list, gint num_labels);
 static gboolean gst_tinyyolov2_start (GstVideoInference * vi);
 static gboolean gst_tinyyolov2_stop (GstVideoInference * vi);
 
@@ -289,7 +290,7 @@ gst_tinyyolov2_preprocess (GstVideoInference * vi,
 static gboolean
 gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
-    gboolean * valid_prediction)
+    gboolean * valid_prediction, gchar ** labels_list, gint num_labels)
 {
   gboolean ret = TRUE;
 
@@ -298,13 +299,16 @@ gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
   g_return_val_if_fail (meta_model, FALSE);
   g_return_val_if_fail (info_model, FALSE);
   g_return_val_if_fail (valid_prediction, FALSE);
+  g_return_val_if_fail (labels_list, FALSE);
+
+  g_print ("\n\n\n%s", labels_list[0]);
 
   ret &=
       gst_tinyyolov2_postprocess_old (vi, prediction, predsize, meta_model[0],
       info_model, valid_prediction);
   ret &=
       gst_tinyyolov2_postprocess_new (vi, prediction, predsize, meta_model[1],
-      info_model, valid_prediction);
+      info_model, valid_prediction, labels_list, num_labels);
 
   return TRUE;
 }
@@ -337,7 +341,8 @@ gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
 static gboolean
 gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
-    GstVideoInfo * info_model, gboolean * valid_prediction)
+    GstVideoInfo * info_model, gboolean * valid_prediction,
+    gchar ** labels_list, gint num_labels)
 {
   GstTinyyolov2 *tinyyolov2 = NULL;
   GstInferenceMeta *imeta = NULL;
@@ -368,7 +373,7 @@ gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
 
   for (i = 0; i < num_boxes; i++) {
     GstInferencePrediction *pred =
-        gst_create_prediction_from_box (vi, &boxes[i]);
+        gst_create_prediction_from_box (vi, &boxes[i], labels_list, num_labels);
     gst_inference_prediction_append (imeta->prediction, pred);
   }
 

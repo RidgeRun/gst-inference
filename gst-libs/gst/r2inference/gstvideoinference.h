@@ -40,7 +40,7 @@ struct _GstVideoInferenceClass
       GstVideoFrame * outframe);
     gboolean (*postprocess) (GstVideoInference * self,
       const gpointer prediction, gsize size, GstMeta * meta_model[2],
-      GstVideoInfo * info_model, gboolean * valid_prediction);
+      GstVideoInfo * info_model, gboolean * valid_prediction, gchar **labels_list, gint num_labels);
 
   const GstMetaInfo *inference_meta_info;
 

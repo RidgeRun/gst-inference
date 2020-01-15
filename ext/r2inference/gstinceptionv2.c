@@ -66,7 +66,8 @@ static gboolean gst_inceptionv2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_inceptionv2_postprocess (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model[2],
-    GstVideoInfo * info_model, gboolean * valid_prediction);
+    GstVideoInfo * info_model, gboolean * valid_prediction,
+    gchar ** labels_list, gint num_labels);
 static gboolean gst_inceptionv2_postprocess_old (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction);
@@ -269,7 +270,7 @@ gst_inceptionv2_postprocess_new (GstVideoInference * vi,
 static gboolean
 gst_inceptionv2_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
-    gboolean * valid_prediction)
+    gboolean * valid_prediction, gchar ** labels_list, gint num_labels)
 {
   gboolean ret = TRUE;
 
