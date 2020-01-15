@@ -45,7 +45,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define GST_CAT_DEFAULT gst_video_inference_debug_category
 
 #define DEFAULT_MODEL_LOCATION   NULL
-
+#define DEFAULT_LABELS NULL
+#define DEFAULT_NUM_LABELS 0
 enum
 {
   NEW_PREDICTION_SIGNAL,
@@ -58,6 +59,7 @@ enum
   PROP_0,
   PROP_BACKEND,
   PROP_MODEL_LOCATION,
+  PROP_LABELS,
 };
 
 GQuark _size_quark;
@@ -89,6 +91,10 @@ struct _GstVideoInferencePrivate
   GstBackend *backend;
 
   gchar *model_location;
+
+  gchar *labels;
+  gchar **labels_list;
+  gint num_labels;
 };
 
 /* GObject methods */
@@ -223,6 +229,10 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
       g_param_spec_string ("model-location", "Model Location",
           "Path to the model to use", DEFAULT_MODEL_LOCATION,
           G_PARAM_READWRITE));
+  g_object_class_install_property (oclass, PROP_LABELS,
+      g_param_spec_string ("labels", "labels",
+          "Semicolon separated string containing inference labels",
+          DEFAULT_LABELS, G_PARAM_READWRITE));
 
   gst_video_inference_signals[NEW_PREDICTION_SIGNAL] =
       g_signal_new ("new-prediction", G_TYPE_FROM_CLASS (klass),
@@ -250,6 +260,10 @@ static void
 gst_video_inference_init (GstVideoInference * self)
 {
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  priv->labels = DEFAULT_LABELS;
+  priv->labels_list = DEFAULT_LABELS;
+  priv->num_labels = DEFAULT_NUM_LABELS;
 
   priv->sink_bypass_data = NULL;
   priv->sink_model_data = NULL;
@@ -301,6 +315,18 @@ gst_video_inference_set_property (GObject * object,
       }
       GST_OBJECT_UNLOCK (self);
       break;
+    case PROP_LABELS:
+      if (priv->labels != NULL) {
+        g_free (priv->labels);
+      }
+      if (priv->labels_list != NULL) {
+        g_strfreev (priv->labels_list);
+      }
+      priv->labels = g_value_dup_string (value);
+      priv->labels_list = g_strsplit (g_value_get_string (value), ";", 0);
+      priv->num_labels = g_strv_length (priv->labels_list);
+      GST_DEBUG_OBJECT (self, "Changed inference labels %s", priv->labels);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -322,6 +348,9 @@ gst_video_inference_get_property (GObject * object,
       break;
     case PROP_MODEL_LOCATION:
       g_value_set_string (value, priv->model_location);
+      break;
+    case PROP_LABELS:
+      g_value_set_string (value, priv->labels);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
