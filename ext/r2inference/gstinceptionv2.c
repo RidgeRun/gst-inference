@@ -74,7 +74,7 @@ static gboolean gst_inceptionv2_postprocess_old (GstVideoInference * vi,
 static gboolean gst_inceptionv2_postprocess_new (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction,
-    gchar ** labels_list);
+    gchar ** labels_list, gint num_labels);
 static gboolean gst_inceptionv2_start (GstVideoInference * vi);
 static gboolean gst_inceptionv2_stop (GstVideoInference * vi);
 
@@ -241,7 +241,7 @@ static gboolean
 gst_inceptionv2_postprocess_new (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction,
-    gchar ** labels_list)
+    gchar ** labels_list, gint num_labels)
 {
   GstInferenceMeta *imeta = NULL;
   GstInferenceClassification *c = NULL;
@@ -261,7 +261,8 @@ gst_inceptionv2_postprocess_new (GstVideoInference * vi,
     return FALSE;
   }
 
-  c = gst_create_class_from_prediction (vi, prediction, predsize, labels_list);
+  c = gst_create_class_from_prediction (vi, prediction, predsize, labels_list,
+      num_labels);
   gst_inference_prediction_append_classification (root, c);
   gst_inference_print_predictions (vi, gst_inceptionv2_debug_category, imeta);
 
@@ -281,7 +282,7 @@ gst_inceptionv2_postprocess (GstVideoInference * vi, const gpointer prediction,
       info_model, valid_prediction);
   ret &=
       gst_inceptionv2_postprocess_new (vi, prediction, predsize, meta_model[1],
-      info_model, valid_prediction, labels_list);
+      info_model, valid_prediction, labels_list, num_labels);
 
   return ret;
 }

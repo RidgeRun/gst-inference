@@ -277,14 +277,14 @@ gst_create_prediction_from_box (GstVideoInference * vi, BBox * box,
 
 GstInferenceClassification *
 gst_create_class_from_prediction (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, gchar ** labels_list)
+    const gpointer prediction, gsize predsize, gchar ** labels_list,
+    gint num_labels)
 {
   gdouble max = -1;
   gint index = 0;
   gdouble *probs = NULL;
   gint num_classes = 0;
   const gchar *label = NULL;
-  gchar **labels = NULL;
 
   g_return_val_if_fail (vi != NULL, NULL);
 
@@ -310,8 +310,11 @@ gst_create_class_from_prediction (GstVideoInference * vi,
     }
   }
 
+  if (num_labels > index) {
+    label = labels_list[index];
+  }
   return gst_inference_classification_new_full (index, max, label, num_classes,
-      probs, labels);
+      probs, labels_list);
 }
 
 static void
