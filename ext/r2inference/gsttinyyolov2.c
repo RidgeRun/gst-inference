@@ -301,8 +301,6 @@ gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
   g_return_val_if_fail (valid_prediction, FALSE);
   g_return_val_if_fail (labels_list, FALSE);
 
-  g_print ("\n\n\n%s", labels_list[0]);
-
   ret &=
       gst_tinyyolov2_postprocess_old (vi, prediction, predsize, meta_model[0],
       info_model, valid_prediction);

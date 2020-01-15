@@ -85,7 +85,7 @@ GstInferencePrediction *gst_create_prediction_from_box (GstVideoInference * vi, 
  * \param predsize Size of the prediction
  */
 GstInferenceClassification *gst_create_class_from_prediction (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize);
+    const gpointer prediction, gsize predsize, gchar **labels_list);
 
 G_END_DECLS
 #endif

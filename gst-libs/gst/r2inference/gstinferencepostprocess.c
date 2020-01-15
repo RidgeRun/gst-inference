@@ -275,7 +275,7 @@ gst_create_prediction_from_box (GstVideoInference * vi, BBox * box,
 
 GstInferenceClassification *
 gst_create_class_from_prediction (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize)
+    const gpointer prediction, gsize predsize, gchar ** labels_list)
 {
   gdouble max = -1;
   gint index = 0;
