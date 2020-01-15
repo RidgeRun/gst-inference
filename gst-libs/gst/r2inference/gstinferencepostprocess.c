@@ -255,10 +255,9 @@ gst_create_prediction_from_box (GstVideoInference * vi, BBox * box,
 {
   GstInferencePrediction *predict = NULL;
   GstInferenceClassification *c = NULL;
-
+  gchar *label = NULL;
   g_return_val_if_fail (vi != NULL, NULL);
   g_return_val_if_fail (box != NULL, NULL);
-  g_return_val_if_fail (labels_list != NULL, NULL);
 
   predict = gst_inference_prediction_new ();
   predict->bbox.x = box->x;
@@ -266,7 +265,10 @@ gst_create_prediction_from_box (GstVideoInference * vi, BBox * box,
   predict->bbox.width = box->width;
   predict->bbox.height = box->height;
 
-  c = gst_inference_classification_new_full (box->label, box->prob, NULL,
+  if (num_labels > box->label) {
+    label = labels_list[box->label];
+  }
+  c = gst_inference_classification_new_full (box->label, box->prob, label,
       num_labels, &box->prob, labels_list);
   gst_inference_prediction_append_classification (predict, c);
 

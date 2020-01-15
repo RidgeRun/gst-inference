@@ -177,16 +177,21 @@ gst_inference_classification_to_string (GstInferenceClassification * self,
     gint level)
 {
   gint indent = level * 2;
+  gchar *labels = g_strjoinv (";", self->labels);
 
   g_return_val_if_fail (self, NULL);
 
   return g_strdup_printf ("{\n"
-      "%*s  Class : %d/%d\n"
+      "%*s  Class : %d\n"
       "%*s  Label : %s\n"
       "%*s  Probability : %f\n"
+      "%*s  Num_classes : %d\n"
+      "%*s  Labels : %s\n"
       "%*s}",
-      indent, "", self->class_id, self->num_classes,
-      indent, "", self->class_label, indent, "", self->class_prob, indent, "");
+      indent, "", self->class_id,
+      indent, "", self->class_label,
+      indent, "", self->class_prob,
+      indent, "", self->num_classes, indent, "", labels, indent, "");
 }
 
 static void
@@ -194,3 +199,5 @@ classification_free (GstInferenceClassification * self)
 {
   classification_reset (self);
 }
+
+//g_strjoin(";",self->labels)
