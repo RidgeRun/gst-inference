@@ -176,10 +176,13 @@ gchar *
 gst_inference_classification_to_string (GstInferenceClassification * self,
     gint level)
 {
-  gint indent = level * 2;
-  gchar *labels = g_strjoinv (";", self->labels);
+  gchar *labels = NULL;
+  gint indent = 0;
 
   g_return_val_if_fail (self, NULL);
+
+  labels = g_strjoinv (";", self->labels);
+  indent = level * 2;
 
   return g_strdup_printf ("{\n"
       "%*s  Class : %d\n"
@@ -199,5 +202,3 @@ classification_free (GstInferenceClassification * self)
 {
   classification_reset (self);
 }
-
-//g_strjoin(";",self->labels)
