@@ -1227,6 +1227,10 @@ gst_video_inference_finalize (GObject * object)
   g_free (priv->model_location);
   priv->model_location = NULL;
 
+  priv->labels = NULL;
+  priv->labels_list = NULL;
+
+
   g_clear_object (&priv->backend);
 
   G_OBJECT_CLASS (gst_video_inference_parent_class)->finalize (object);
