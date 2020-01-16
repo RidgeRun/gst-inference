@@ -77,7 +77,7 @@ void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
     gint *bottom, gint *right, gint *left);
 static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
     GstPadProbeInfo *info, GstDetectionCrop *self);
-static gint gst_detection_crop_find_predictions (GstDetectionCrop *self,
+static void gst_detection_crop_find_predictions (GstDetectionCrop *self,
     gint *num_detections, GstInferenceMeta *meta, GList **list,
     GstInferencePrediction *pred);
 
@@ -189,6 +189,8 @@ gst_detection_crop_init (GstDetectionCrop *self) {
 static void
 gst_detection_crop_finalize (GObject *object) {
   GstDetectionCrop *self = GST_DETECTION_CROP (object);
+
+  g_return_if_fail(self);
 
   delete (self->element);
   gst_object_unref (self->pad);
@@ -347,17 +349,17 @@ void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
 
 }
 
-static gint
+static void
 gst_detection_crop_find_predictions (GstDetectionCrop *self,
                                      gint *num_detections,
                                      GstInferenceMeta *meta, GList **list, GstInferencePrediction *pred) {
   guint i;
 
-  g_return_val_if_fail (self, -1);
-  g_return_val_if_fail (num_detections, -1);
-  g_return_val_if_fail (meta, -1);
-  g_return_val_if_fail (list, -1);
-  g_return_val_if_fail (pred, -1);
+  g_return_if_fail (self);
+  g_return_if_fail (num_detections);
+  g_return_if_fail (meta);
+  g_return_if_fail (list);
+  g_return_if_fail (pred);
 
   for (i = 0; i < g_node_n_children(pred->predictions) ; i++) {
     GstInferencePrediction *predict = (GstInferencePrediction *)g_node_nth_child (
@@ -365,12 +367,11 @@ gst_detection_crop_find_predictions (GstDetectionCrop *self,
     gst_detection_crop_find_predictions (self, num_detections, meta, list,
                                          predict );
   }
-  if (FALSE == G_NODE_IS_ROOT(pred->predictions) && TRUE == pred->enabled ) {
+  if (FALSE == G_NODE_IS_ROOT(pred->predictions) && FALSE == pred->enabled ) {
     *list = g_list_append (*list, pred);
     *num_detections = *num_detections + 1;
   }
 
-  return *num_detections;
 }
 
 static GstPadProbeReturn
@@ -381,7 +382,6 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   gint num_detections;
   gint crop_width_ratio;
   gint crop_height_ratio;
-  gint enabled_detections;
   BoundingBox box;
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
   GList *list = NULL;
@@ -404,12 +404,8 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   }
 
   num_detections = 0;
-  enabled_detections = gst_detection_crop_find_predictions (self, &num_detections,
+  gst_detection_crop_find_predictions (self, &num_detections,
                        inference_meta, &list, inference_meta->prediction);
-
-  if (0 == enabled_detections) {
-    goto out;
-  }
 
   for (iter = list; iter != NULL; iter = g_list_next(iter)) {
     GstInferencePrediction *pred = (GstInferencePrediction *)iter->data;
@@ -447,7 +443,6 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   }
 
   ret = GST_PAD_PROBE_DROP;
-  goto out;
 
 out:
   return ret;
