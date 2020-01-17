@@ -1226,10 +1226,8 @@ gst_video_inference_finalize (GObject * object)
   priv->sink_model_data = NULL;
   g_free (priv->model_location);
   priv->model_location = NULL;
-
   priv->labels = NULL;
   priv->labels_list = NULL;
-
 
   g_clear_object (&priv->backend);
 

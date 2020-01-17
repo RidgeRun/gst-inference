@@ -183,11 +183,12 @@ gst_inference_classification_to_string (GstInferenceClassification * self,
       "%*s  Class : %d\n"
       "%*s  Label : %s\n"
       "%*s  Probability : %f\n"
-      "%*s  Num_classes : %d\n"
+      "%*s  Classes : %d\n"
       "%*s}",
       indent, "", self->class_id,
       indent, "", self->class_label,
-      indent, "", self->class_prob, indent, "", self->num_classes, indent, "");
+      indent, "", self->probabilities[0], indent, "", self->num_classes, indent,
+      "");
 }
 
 static void
