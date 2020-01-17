@@ -1,21 +1,13 @@
 plugin_LTLIBRARIES = libgstinferencefilter.la
 
 libgstinferencefilter_la_SOURCES =	\
-	gstinferencefilter.cc
+	gstinferencefilter.c
 
 libgstinferencefilter_la_CFLAGS =	\
 	$(GST_CFLAGS)			\
 	$(GST_BASE_CFLAGS)		\
 	$(GST_PLUGINS_BASE_CFLAGS)	\
 	-I$(top_srcdir)/gst-libs        \
-	$(R2INFERENCE_CFLAGS)
-
-libgstinferencefilter_la_CXXFLAGS =	\
-	$(GST_CFLAGS)			\
-	$(GST_BASE_CFLAGS)		\
-	$(GST_PLUGINS_BASE_CFLAGS)	\
-	-I$(top_srcdir)/gst-libs	\
-	-std=c++11                      \
 	$(R2INFERENCE_CFLAGS)
 
 libgstinferencefilter_la_LIBADD =	\

@@ -62,7 +62,8 @@ static void gst_inferencefilter_set_property (GObject * object,
 static void gst_inferencefilter_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
 static void gst_inferencefilter_filter_enable (GstInferencefilter *
-    inferencefilter, GstInferencePrediction * rot, gint class_id, gboolean reset);
+    inferencefilter, GstInferencePrediction * rot, gint class_id,
+    gboolean reset);
 static GstFlowReturn gst_inferencefilter_transform_ip (GstBaseTransform * trans,
     GstBuffer * buf);
 
@@ -203,8 +204,8 @@ gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
   GList *iter = NULL;
   GSList *iter_child = NULL;
 
-  g_return_if_fail(inferencefilter);
-  g_return_if_fail(root);
+  g_return_if_fail (inferencefilter);
+  g_return_if_fail (root);
 
   for (iter = root->classifications; iter != NULL; iter = g_list_next (iter)) {
     GstInferenceClassification *classification =
@@ -221,10 +222,12 @@ gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
     }
   }
 
-  for (iter_child = gst_inference_prediction_get_children (root); iter_child != NULL; iter_child = g_slist_next (iter_child)) {
+  for (iter_child = gst_inference_prediction_get_children (root);
+      iter_child != NULL; iter_child = g_slist_next (iter_child)) {
     GstInferencePrediction *predict =
         (GstInferencePrediction *) iter_child->data;
-    gst_inferencefilter_filter_enable (inferencefilter, predict, class_id, reset);
+    gst_inferencefilter_filter_enable (inferencefilter, predict, class_id,
+        reset);
   }
 }
 
@@ -246,7 +249,7 @@ gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     return GST_FLOW_OK;
   }
 
-  g_return_val_if_fail(meta->prediction, GST_FLOW_ERROR);
+  g_return_val_if_fail (meta->prediction, GST_FLOW_ERROR);
 
   GST_OBJECT_LOCK (inferencefilter);
   reset = inferencefilter->reset_enable;
