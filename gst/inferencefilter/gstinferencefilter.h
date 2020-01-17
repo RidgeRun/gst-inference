@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2019 RidgeRun
+ * Copyright (C) 2020 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -18,7 +18,6 @@
  * Boston, MA 02111-1307, USA.
  *
  */
-
 
 #ifndef _GST_INFERENCEFILTER_H_
 #define _GST_INFERENCEFILTER_H_
