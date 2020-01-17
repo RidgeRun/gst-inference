@@ -236,8 +236,6 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
   gint grid_w = 13;
   gint boxes_size = 5;
   BBox boxes[TOTAL_BOXES_5];
-  *elements = 0;
-  *probabilities = g_malloc (TOTAL_CLASSES * sizeof (gdouble));
 
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (prediction != NULL, FALSE);
@@ -245,6 +243,9 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
   g_return_val_if_fail (resulting_boxes != NULL, FALSE);
   g_return_val_if_fail (elements != NULL, FALSE);
   g_return_val_if_fail (probabilities != NULL, FALSE);
+
+  *elements = 0;
+  *probabilities = g_malloc (TOTAL_CLASSES * sizeof (gdouble));
 
   gst_get_boxes_from_prediction (obj_thresh, prob_thresh, prediction, boxes,
       elements, grid_h, grid_w, boxes_size, *probabilities);
