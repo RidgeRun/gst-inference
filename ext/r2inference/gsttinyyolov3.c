@@ -74,7 +74,7 @@ static gboolean gst_tinyyolov3_preprocess (GstVideoInference * vi,
 static gboolean
 gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
-    gboolean * valid_prediction);
+    gboolean * valid_prediction, gchar ** labels_list, gint num_labels);
 static gboolean gst_tinyyolov3_start (GstVideoInference * vi);
 static gboolean gst_tinyyolov3_stop (GstVideoInference * vi);
 
@@ -247,7 +247,7 @@ gst_tinyyolov3_preprocess (GstVideoInference * vi,
 static gboolean
 gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
-    gboolean * valid_prediction)
+    gboolean * valid_prediction, gchar ** labels_list, gint num_labels)
 {
   GstTinyyolov3 *tinyyolov3 = GST_TINYYOLOV3 (vi);
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model[0];

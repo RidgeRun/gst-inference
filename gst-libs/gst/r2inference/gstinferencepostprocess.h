@@ -50,7 +50,7 @@ G_BEGIN_DECLS
  */
 gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
     gboolean * valid_prediction, BBox ** resulting_boxes,
-    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh);
+    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh, gdouble ** probabilities);
 
 /**
  * \brief Fill all the detection meta with the boxes
@@ -74,8 +74,11 @@ gboolean gst_create_boxes_float (GstVideoInference * vi,
  *
  * \param vi Father object of every architecture
  * \param box Box used to fill Prediction
+ * \param labels_list List with all possible lables
+ * \param num_labels The number of posibble labels
  */
-GstInferencePrediction *gst_create_prediction_from_box (GstVideoInference * vi, BBox * box);
+GstInferencePrediction *gst_create_prediction_from_box (GstVideoInference * vi,
+    BBox * box, gchar **labels_list, gint num_labels, const gdouble * probabilities);
 
 /**
  * \brief Create Classification from prediction data
@@ -83,9 +86,11 @@ GstInferencePrediction *gst_create_prediction_from_box (GstVideoInference * vi, 
  * \param vi Father object of every architecture
  * \param prediction Value of the prediction
  * \param predsize Size of the prediction
+ * \param labels_list List with all possible lables
+ * \param num_labels The number of posibble labels
  */
 GstInferenceClassification *gst_create_class_from_prediction (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize);
+    const gpointer prediction, gsize predsize, gchar **labels_list, gint num_labels);
 
 G_END_DECLS
 #endif

@@ -26,6 +26,8 @@
 #define TOTAL_BOXES_5 845
 #define TOTAL_BOXES_15 2535
 
+#define TOTAL_CLASSES 20
+
 /* Functions declaration*/
 
 static gdouble gst_intersection_over_union (BBox box_1, BBox box_2);
@@ -37,7 +39,7 @@ static void gst_box_to_pixels (BBox * normalized_box, gint row, gint col,
 static gdouble gst_sigmoid (gdouble x);
 static void gst_get_boxes_from_prediction (gfloat obj_thresh,
     gfloat prob_thresh, gpointer prediction, BBox * boxes, gint * elements,
-    gint grid_h, gint grid_w, gint boxes_size);
+    gint grid_h, gint grid_w, gint boxes_size, gdouble * probabilities);
 static void gst_get_boxes_from_prediction_float (gfloat obj_thresh,
     gfloat prob_thresh, gpointer prediction, BBox * boxes, gint * elements,
     gint total_boxes);
@@ -169,7 +171,7 @@ gst_box_to_pixels (BBox * normalized_box, gint row, gint col, gint box)
 static void
 gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
     gpointer prediction, BBox * boxes, gint * elements, gint grid_h,
-    gint grid_w, gint boxes_size)
+    gint grid_w, gint boxes_size, gdouble * probabilities)
 {
   gint i, j, c, b;
   gint index;
@@ -178,7 +180,7 @@ gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
   gint max_class_prob_index;
   gint counter = 0;
   gint box_dim = 5;
-  gint classes = 20;
+  gint classes = TOTAL_CLASSES;
 
   g_return_if_fail (boxes != NULL);
   g_return_if_fail (elements != NULL);
@@ -197,6 +199,7 @@ gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
           max_class_prob_index = 0;
           for (c = 0; c < classes; c++) {
             cur_class_prob = ((gfloat *) prediction)[index + box_dim + c];
+            probabilities[c] = cur_class_prob;
             if (cur_class_prob > max_class_prob) {
               max_class_prob = cur_class_prob;
               max_class_prob_index = c;
@@ -226,37 +229,44 @@ gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
 gboolean
 gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
     gboolean * valid_prediction, BBox ** resulting_boxes,
-    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh)
+    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh,
+    gdouble ** probabilities)
 {
   gint grid_h = 13;
   gint grid_w = 13;
   gint boxes_size = 5;
   BBox boxes[TOTAL_BOXES_5];
-  *elements = 0;
 
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (prediction != NULL, FALSE);
   g_return_val_if_fail (valid_prediction != NULL, FALSE);
   g_return_val_if_fail (resulting_boxes != NULL, FALSE);
   g_return_val_if_fail (elements != NULL, FALSE);
+  g_return_val_if_fail (probabilities != NULL, FALSE);
+
+  *elements = 0;
+  *probabilities = g_malloc (TOTAL_CLASSES * sizeof (gdouble));
 
   gst_get_boxes_from_prediction (obj_thresh, prob_thresh, prediction, boxes,
-      elements, grid_h, grid_w, boxes_size);
+      elements, grid_h, grid_w, boxes_size, *probabilities);
   gst_remove_duplicated_boxes (iou_thresh, boxes, elements);
 
   *resulting_boxes = g_malloc (*elements * sizeof (BBox));
   memcpy (*resulting_boxes, boxes, *elements * sizeof (BBox));
+
   return TRUE;
 }
 
 GstInferencePrediction *
-gst_create_prediction_from_box (GstVideoInference * vi, BBox * box)
+gst_create_prediction_from_box (GstVideoInference * vi, BBox * box,
+    gchar ** labels_list, gint num_labels, const gdouble * probabilities)
 {
   GstInferencePrediction *predict = NULL;
   GstInferenceClassification *c = NULL;
-
+  gchar *label = NULL;
   g_return_val_if_fail (vi != NULL, NULL);
   g_return_val_if_fail (box != NULL, NULL);
+  g_return_val_if_fail (probabilities != NULL, NULL);
 
   predict = gst_inference_prediction_new ();
   predict->bbox.x = box->x;
@@ -264,8 +274,11 @@ gst_create_prediction_from_box (GstVideoInference * vi, BBox * box)
   predict->bbox.width = box->width;
   predict->bbox.height = box->height;
 
-  c = gst_inference_classification_new_full (box->label, box->prob, NULL, 1,
-      &box->prob, NULL);
+  if (num_labels > box->label) {
+    label = labels_list[box->label];
+  }
+  c = gst_inference_classification_new_full (box->label, box->prob, label,
+      num_labels, probabilities, labels_list);
   gst_inference_prediction_append_classification (predict, c);
 
   return predict;
@@ -273,14 +286,14 @@ gst_create_prediction_from_box (GstVideoInference * vi, BBox * box)
 
 GstInferenceClassification *
 gst_create_class_from_prediction (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize)
+    const gpointer prediction, gsize predsize, gchar ** labels_list,
+    gint num_labels)
 {
   gdouble max = -1;
   gint index = 0;
   gdouble *probs = NULL;
   gint num_classes = 0;
   const gchar *label = NULL;
-  gchar **labels = NULL;
 
   g_return_val_if_fail (vi != NULL, NULL);
 
@@ -306,8 +319,11 @@ gst_create_class_from_prediction (GstVideoInference * vi,
     }
   }
 
+  if (num_labels > index) {
+    label = labels_list[index];
+  }
   return gst_inference_classification_new_full (index, max, label, num_classes,
-      probs, labels);
+      probs, labels_list);
 }
 
 static void
