@@ -24,9 +24,25 @@
 static GType gst_inference_prediction_get_type (void);
 GST_DEFINE_MINI_OBJECT_TYPE (GstInferencePrediction, gst_inference_prediction);
 
+typedef struct _PredictionScaleData PredictionScaleData;
+struct _PredictionScaleData
+{
+  GstVideoInfo *from;
+  GstVideoInfo *to;
+};
+
+typedef struct _PredictionFindData PredictionFindData;
+struct _PredictionFindData
+{
+  GstInferencePrediction *prediction;
+  guint64 prediction_id;
+};
+
 static GstInferencePrediction *prediction_copy (const GstInferencePrediction *
     self);
 static void prediction_free (GstInferencePrediction * obj);
+static gboolean prediction_find (GstInferencePrediction * obj,
+    PredictionFindData * found);
 static void prediction_reset (GstInferencePrediction * self);
 static gchar *prediction_to_string (GstInferencePrediction * self, gint level);
 static gchar *prediction_children_to_string (GstInferencePrediction * self,
@@ -47,15 +63,9 @@ static void node_get_children (GNode * node, gpointer data);
 static gpointer node_copy (gconstpointer node, gpointer data);
 static gpointer node_scale (gconstpointer node, gpointer data);
 static gboolean node_assign (GNode * node, gpointer data);
+static gboolean node_find (GNode * node, gpointer data);
 
 static guint64 get_new_id (void);
-
-typedef struct _PredictionScaleData PredictionScaleData;
-struct _PredictionScaleData
-{
-  GstVideoInfo *from;
-  GstVideoInfo *to;
-};
 
 static guint64
 get_new_id (void)
@@ -496,4 +506,48 @@ gst_inference_prediction_scale (GstInferencePrediction * self,
   GST_INFERENCE_PREDICTION_UNLOCK (self);
 
   return (GstInferencePrediction *) other->data;
+}
+
+static gboolean
+prediction_find (GstInferencePrediction * obj, PredictionFindData * found)
+{
+  gboolean ret = FALSE;
+
+  g_return_val_if_fail (obj, TRUE);
+  g_return_val_if_fail (found, TRUE);
+
+  if (obj->prediction_id == found->prediction_id) {
+    found->prediction = gst_inference_prediction_ref (obj);
+    ret = TRUE;
+  }
+
+  return ret;
+}
+
+static gboolean
+node_find (GNode * node, gpointer data)
+{
+  PredictionFindData *found = (PredictionFindData *) data;
+  GstInferencePrediction *current = (GstInferencePrediction *) node->data;
+
+  g_return_val_if_fail (found, TRUE);
+
+  return prediction_find (current, found);
+}
+
+GstInferencePrediction *
+gst_inference_prediction_find (GstInferencePrediction * self, guint64 id)
+{
+  PredictionFindData found = { 0 };
+
+  g_return_val_if_fail (self, NULL);
+
+  GST_INFERENCE_PREDICTION_LOCK (self);
+
+  g_node_traverse (self->predictions, G_IN_ORDER, G_TRAVERSE_ALL, -1, node_find,
+      &found);
+
+  GST_INFERENCE_PREDICTION_UNLOCK (self);
+
+  return found.prediction;
 }

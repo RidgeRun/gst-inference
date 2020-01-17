@@ -213,6 +213,20 @@ GstInferencePrediction * gst_inference_prediction_scale (GstInferencePrediction 
     GstVideoInfo * to, GstVideoInfo * from);
 
 /**
+ * gst_inference_prediction_find:
+ * @self: the root prediction
+ * @id: the prediction_id of the prediction to return
+ *
+ * Traverses the prediction tree looking for a child with the given
+ * id.
+ *
+ * Returns: a reference to the prediction with id or NULL if not
+ * found. Unref after usage.
+ */
+GstInferencePrediction * gst_inference_prediction_find (GstInferencePrediction * self,
+    guint64 id);
+
+/**
  * GST_INFERENCE_PREDICTION_LOCK:
  * @p: The GstInferencePrediction to lock
  *
