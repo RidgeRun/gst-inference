@@ -48,6 +48,10 @@ colors[] = {
 
 #define N_C (sizeof (colors)/sizeof (cv::Scalar))
 
+#define CHOSEN_COLOR 14
+#define OVERLAY_HEIGHT 50
+#define OVERLAY_WIDTH 30
+
 GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_inference_overlay_debug_category
 
@@ -57,7 +61,7 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
                                     gchar **labels_list, gint num_labels, LineStyleBoundingBox style);
 void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
-               int thickness, int style, int gap);
+               int thickness, LineStyleBoundingBox style, int gap);
 
 struct _GstInferenceOverlay {
   GstInferenceBaseOverlay
@@ -96,7 +100,7 @@ gst_inference_overlay_init (GstInferenceOverlay *inference_overlay) {
 }
 
 void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
-               int thickness, int style, int gap) {
+               int thickness, LineStyleBoundingBox style, int gap) {
 
   g_return_if_fail (img != NULL);
 
@@ -116,7 +120,7 @@ void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
 
   int pts_size = pts.size();
 
-  if (1 == style) {
+  if (DOTTED == style) {
     for (int i = 0; i < pts_size; i++) {
       cv::circle(*img, pts[i], thickness, color, -1);
     }
@@ -138,15 +142,15 @@ void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
 static void
 gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
               gint thickness,
-              gchar **labels_list, gint num_labels, gint style) {
+              gchar **labels_list, gint num_labels, LineStyleBoundingBox style) {
   guint i;
   cv::Size size;
   cv::String label;
   GList *iter = NULL;
   cv::String prob;
   BoundingBox box;
-  int classes = 0;
-  double alpha = 0.5;
+  gint classes = 0;
+  gdouble alpha = 0.5;
   cv::Mat alpha_overlay;
 
   g_return_if_fail (pred != NULL);
@@ -165,14 +169,14 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
         iter->data;
 
     classes++;
-    if (classification->num_classes > classification->class_id) {
+    if (classification->num_classes > classification->class_id && classification->labels != NULL) {
       label = cv::format ("%s  Prob: %f", classification->labels[classification->class_id],
                           classification->class_prob);
     } else {
       label = cv::format ("Label #%d  Prob: %f", classification->class_id,
                           classification->class_prob);
     }
-    cv::putText (cv_mat, label, cv::Point (box.x + box.width, box.y + classes * 30),
+    cv::putText (cv_mat, label, cv::Point (box.x + box.width, box.y + classes * OVERLAY_WIDTH),
                  cv::FONT_HERSHEY_PLAIN, font_scale, cv::Scalar::all(0), thickness);
   }
 
@@ -180,27 +184,27 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
   cv::Size text = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
                                    thickness, 0);
   cv::rectangle(alpha_overlay, cv::Rect(box.x + box.width, box.y, text.width,
-                                        50 * classes), cv::Scalar(255, 255, 255), -1);
+                                        OVERLAY_HEIGHT * classes), cv::Scalar(255, 255, 255), -1);
   cv::addWeighted(alpha_overlay, alpha, cv_mat, 1 - alpha, 0, cv_mat);
 
   if (FALSE == G_NODE_IS_ROOT(pred->predictions)) {
     if (0 == style) {
       cv::rectangle (cv_mat, cv::Point (box.x, box.y),
                      cv::Point (box.x + box.width, box.y + box.height),
-                     colors[50 % N_C], thickness);
+                     colors[CHOSEN_COLOR % N_C], thickness);
     }else {
       draw_line (&cv_mat, cv::Point (box.x, box.y),
                  cv::Point (box.x + box.width, box.y),
-                 colors[50 % N_C], thickness, style, 20);
+                 colors[CHOSEN_COLOR % N_C], thickness, style, 20);
       draw_line (&cv_mat, cv::Point (box.x, box.y),
                  cv::Point (box.x, box.y + box.height),
-                 colors[50 % N_C], thickness, style, 20);
+                 colors[CHOSEN_COLOR % N_C], thickness, style, 20);
       draw_line (&cv_mat, cv::Point (box.x + box.width, box.y),
                  cv::Point (box.x + box.width, box.y + box.height),
-                 colors[50 % N_C], thickness, style, 20);
+                 colors[CHOSEN_COLOR % N_C], thickness, style, 20);
       draw_line (&cv_mat, cv::Point (box.x, box.y + box.height),
                  cv::Point (box.x + box.width, box.y + box.height),
-                 colors[50 % N_C], thickness, style, 20);
+                 colors[CHOSEN_COLOR % N_C], thickness, style, 20);
     }
   }
 
