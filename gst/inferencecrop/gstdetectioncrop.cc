@@ -72,7 +72,7 @@ static GstStateChangeReturn gst_detection_crop_change_state (GstElement *
 static gboolean gst_detection_crop_start (GstDetectionCrop *self);
 static void gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
     GstDetectionCrop *self);
-void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
+static void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
     gint width, gint height, gint width_ratio, gint height_ratio, gint *top,
     gint *bottom, gint *right, gint *left);
 static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
@@ -298,7 +298,8 @@ gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
   gst_caps_unref(caps);
 }
 
-void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
+static void
+gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
     gint width, gint height, gint width_ratio, gint height_ratio, gint *top,
     gint *bottom, gint *right, gint *left) {
 
@@ -353,7 +354,8 @@ static void
 gst_detection_crop_find_predictions (GstDetectionCrop *self,
                                      gint *num_detections,
                                      GstInferenceMeta *meta, GList **list, GstInferencePrediction *pred) {
-  guint i;
+  GSList *children_list = NULL;
+  GSList *iter = NULL;
 
   g_return_if_fail (self);
   g_return_if_fail (num_detections);
@@ -361,9 +363,11 @@ gst_detection_crop_find_predictions (GstDetectionCrop *self,
   g_return_if_fail (list);
   g_return_if_fail (pred);
 
-  for (i = 0; i < g_node_n_children(pred->predictions) ; i++) {
-    GstInferencePrediction *predict = (GstInferencePrediction *)g_node_nth_child (
-                                        pred->predictions, i)->data;
+  children_list = gst_inference_prediction_get_children(pred);
+
+  for (iter = children_list; iter != NULL; iter = g_slist_next(iter)) {
+    GstInferencePrediction *predict = (GstInferencePrediction *)iter->data;
+
     gst_detection_crop_find_predictions (self, num_detections, meta, list,
                                          predict );
   }
