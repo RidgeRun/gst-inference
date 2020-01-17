@@ -187,8 +187,7 @@ gst_inference_classification_to_string (GstInferenceClassification * self,
       "%*s}",
       indent, "", self->class_id,
       indent, "", self->class_label,
-      indent, "", self->probabilities[0], indent, "", self->num_classes, indent,
-      "");
+      indent, "", self->class_prob, indent, "", self->num_classes, indent, "");
 }
 
 static void

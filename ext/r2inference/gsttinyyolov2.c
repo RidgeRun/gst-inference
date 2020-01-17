@@ -316,6 +316,8 @@ gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
     GstVideoInfo * info_model, gboolean * valid_prediction)
 {
   GstTinyyolov2 *tinyyolov2;
+  gdouble *probabilities = NULL;
+
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
 
   g_return_val_if_fail (detect_meta, FALSE);
@@ -326,7 +328,7 @@ gst_tinyyolov2_postprocess_old (GstVideoInference * vi,
 
   gst_create_boxes (vi, prediction, valid_prediction,
       &detect_meta->boxes, &detect_meta->num_boxes, tinyyolov2->obj_thresh,
-      tinyyolov2->prob_thresh, tinyyolov2->iou_thresh);
+      tinyyolov2->prob_thresh, tinyyolov2->iou_thresh, &probabilities);
 
   gst_inference_print_boxes (vi, gst_tinyyolov2_debug_category, detect_meta);
 
@@ -345,6 +347,7 @@ gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
   GstInferenceMeta *imeta = NULL;
   BBox *boxes = NULL;
   gint num_boxes, i;
+  gdouble *probabilities = NULL;
 
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (meta_model != NULL, FALSE);
@@ -358,7 +361,7 @@ gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
   /* Create boxes from prediction data */
   gst_create_boxes (vi, prediction, valid_prediction,
       &boxes, &num_boxes, tinyyolov2->obj_thresh,
-      tinyyolov2->prob_thresh, tinyyolov2->iou_thresh);
+      tinyyolov2->prob_thresh, tinyyolov2->iou_thresh, &probabilities);
 
   GST_LOG_OBJECT (tinyyolov2, "Number of predictions: %d", num_boxes);
 
@@ -370,7 +373,8 @@ gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
 
   for (i = 0; i < num_boxes; i++) {
     GstInferencePrediction *pred =
-        gst_create_prediction_from_box (vi, &boxes[i], labels_list, num_labels);
+        gst_create_prediction_from_box (vi, &boxes[i], labels_list, num_labels,
+        probabilities);
     gst_inference_prediction_append (imeta->prediction, pred);
   }
 
