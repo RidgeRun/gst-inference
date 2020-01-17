@@ -413,7 +413,6 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
 
   for (iter = list; iter != NULL; iter = g_list_next(iter)) {
     GstInferencePrediction *pred = (GstInferencePrediction *)iter->data;
-    if ( 0 != pred->prediction_id) {
       GstBuffer *croped_buffer;
       GstInferenceMeta *dmeta;
       gint top, bottom, right, left = 0;
@@ -427,23 +426,22 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
       self->element->SetCroppingSize ((gint) top, (gint) bottom, (gint) right,
                                       (gint) left);
 
-      croped_buffer = gst_buffer_copy_deep (buffer);
+      croped_buffer = gst_buffer_copy (buffer);
       dmeta = (GstInferenceMeta *) gst_buffer_add_meta (croped_buffer,
               GST_INFERENCE_META_INFO,
               NULL);
 
-      pred->bbox.x = 0;
-      pred->bbox.y = 0;
-      pred->bbox.width = self->width - right - left;
-      pred->bbox.height = self->height - top - bottom;
-
       dmeta->prediction = gst_inference_prediction_copy (pred);
+
+      dmeta->prediction->bbox.x = 0;
+      dmeta->prediction->bbox.y = 0;
+      dmeta->prediction->bbox.width = self->width - right - left;
+      dmeta->prediction->bbox.height = self->height - top - bottom;
 
       if (GST_FLOW_OK != gst_pad_chain(self->pad, croped_buffer)) {
         GST_ELEMENT_ERROR(self, CORE, FAILED,
                           ("Failed to push a new buffer into crop element"), (NULL));
       }
-    }
   }
 
   ret = GST_PAD_PROBE_DROP;
