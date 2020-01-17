@@ -26,16 +26,13 @@
 #include <mutex>
 #include <string>
 
-#define PROP_CROP_RATIO_DEFAULT_WIDTH 1
-#define PROP_CROP_RATIO_DEFAULT_HEIGHT 1
+
 class CropElement {
  public:
   CropElement ();
   bool Validate ();
   GstElement *GetElement ();
-  void SetImageSize (gint width, gint height);
-  void SetBoundingBox (gint x, gint y, gint width, gint height, gint width_ratio,
-                       gint height_ratio);
+  void SetCroppingSize (gint top, gint bottom, gint right, gint left);
   virtual ~ CropElement ();
   virtual const std::string& GetFactory () const = 0;
   virtual GstPad *GetSinkPad () = 0;
@@ -44,26 +41,18 @@ class CropElement {
 
  protected:
   virtual void UpdateElement (GstElement *element,
-                              gint image_width,
-                              gint image_height,
-                              gint x,
-                              gint y,
-                              gint width,
-                              gint height,
-                              gint width_ratio,
-                              gint height_ratio) = 0;
+                              gint top,
+                              gint bottom,
+                              gint right,
+                              gint left) = 0;
 
  private:
   GstElement *element;
-  gint image_width;
-  gint image_height;
-  gint x;
-  gint y;
-  gint width;
-  gint height;
+  gint top;
+  gint bottom;
+  gint right;
+  gint left;
   std::mutex mutex;
-  gint width_ratio;
-  gint height_ratio;
 };
 
 #endif //__CROP_ELEMENT_H__

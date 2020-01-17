@@ -23,14 +23,10 @@
 
 CropElement::CropElement () {
   this->element = nullptr;
-  this->image_width = 0;
-  this->image_height = 0;
-  this->x = 0;
-  this->y = 0;
-  this->width = 0;
-  this->height = 0;
-  this->width_ratio = PROP_CROP_RATIO_DEFAULT_WIDTH;
-  this->height_ratio = PROP_CROP_RATIO_DEFAULT_HEIGHT;
+  this->top = 0;
+  this->bottom = 0;
+  this->right = 0;
+  this->left = 0;
 }
 
 bool
@@ -68,40 +64,22 @@ CropElement::GetElement () {
 
 void
 CropElement::Reset () {
-  this->SetBoundingBox(0, 0, this->image_width, this->image_height,
-                       this->width_ratio, this->height_ratio);
+  this->SetCroppingSize(0, 0, 0, 0);
 }
 
 void
-CropElement::SetImageSize (gint width, gint height) {
+CropElement::SetCroppingSize (gint top, gint bottom, gint right, gint left) {
   this->mutex.lock ();
-  this->image_width = width;
-  this->image_height = height;
-  this->mutex.unlock ();
-
-  this->Reset ();
-}
-
-void
-CropElement::SetBoundingBox (gint x, gint y, gint width, gint height,
-                             gint width_ratio, gint height_ratio) {
-  this->mutex.lock ();
-  this->x = x;
-  this->y = y;
-  this->width = width;
-  this->height = height;
-  this->width_ratio = width_ratio;
-  this->height_ratio = height_ratio;
+  this->top = top;
+  this->bottom = bottom;
+  this->right = right;
+  this->left = left;
 
   this->UpdateElement (this->element,
-                       this->image_width,
-                       this->image_height,
-                       this->x,
-                       this->y,
-                       this->width,
-                       this->height,
-                       this->width_ratio,
-                       this->height_ratio);
+                       this->top,
+                       this->bottom,
+                       this->right,
+                       this->left);
   this->mutex.unlock ();
 }
 
