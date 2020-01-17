@@ -1,13 +1,22 @@
-/* GstClassification
- * Copyright (C) 2019 RidgeRun <support@ridgerun.com>
- * All Rights Reserved.
+/*
+ * GStreamer
+ * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
  *
- *The contents of this software are proprietary and confidential to RidgeRun,
- *LLC.  No part of this program may be photocopied, reproduced or translated
- *into another programming language without prior written consent of
- *RidgeRun, LLC.  The user is free to modify the source code after obtaining
- *a software license from RidgeRun.  All source code changes must be provided
- *back to RidgeRun without any encumbrance.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Library General Public License for more details.
+ *
+ * You should have received a copy of the GNU Library General Public
+ * License along with this library; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ *
  */
 
 #ifndef __CLASSIFICATION_CUSTOM_LOGIC__
