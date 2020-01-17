@@ -140,7 +140,7 @@ void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
 }
 
 static void
-gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
+gst_get_meta (GstInferencePrediction *pred, cv::Mat *cv_mat, gdouble font_scale,
               gint thickness,
               gchar **labels_list, gint num_labels, LineStyleBoundingBox style) {
   cv::Size size;
@@ -156,6 +156,7 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
 
   g_return_if_fail (pred != NULL);
   g_return_if_fail (labels_list != NULL);
+  g_return_if_fail (cv_mat != NULL);
 
   list = gst_inference_prediction_get_children(pred);
 
@@ -179,33 +180,33 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
       label = cv::format ("Label #%d  Prob: %f", classification->class_id,
                           classification->class_prob);
     }
-    cv::putText (cv_mat, label, cv::Point (box.x + box.width, box.y + classes * OVERLAY_WIDTH),
+    cv::putText (*cv_mat, label, cv::Point (box.x + box.width, box.y + classes * OVERLAY_WIDTH),
                  cv::FONT_HERSHEY_PLAIN, font_scale, cv::Scalar::all(0), thickness);
   }
 
-  cv_mat.copyTo(alpha_overlay);
+  cv_mat->copyTo(alpha_overlay);
   cv::Size text = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
                                    thickness, 0);
   cv::rectangle(alpha_overlay, cv::Rect(box.x + box.width, box.y, text.width,
                                         OVERLAY_HEIGHT * classes), cv::Scalar(255, 255, 255), -1);
-  cv::addWeighted(alpha_overlay, alpha, cv_mat, 1 - alpha, 0, cv_mat);
+  cv::addWeighted(alpha_overlay, alpha, *cv_mat, 1 - alpha, 0, *cv_mat);
 
   if (FALSE == G_NODE_IS_ROOT(pred->predictions)) {
     if (0 == style) {
-      cv::rectangle (cv_mat, cv::Point (box.x, box.y),
+      cv::rectangle (*cv_mat, cv::Point (box.x, box.y),
                      cv::Point (box.x + box.width, box.y + box.height),
                      colors[CHOSEN_COLOR % N_C], thickness);
     }else {
-      draw_line (&cv_mat, cv::Point (box.x, box.y),
+      draw_line (cv_mat, cv::Point (box.x, box.y),
                  cv::Point (box.x + box.width, box.y),
                  colors[CHOSEN_COLOR % N_C], thickness, style, 20);
-      draw_line (&cv_mat, cv::Point (box.x, box.y),
+      draw_line (cv_mat, cv::Point (box.x, box.y),
                  cv::Point (box.x, box.y + box.height),
                  colors[CHOSEN_COLOR % N_C], thickness, style, 20);
-      draw_line (&cv_mat, cv::Point (box.x + box.width, box.y),
+      draw_line (cv_mat, cv::Point (box.x + box.width, box.y),
                  cv::Point (box.x + box.width, box.y + box.height),
                  colors[CHOSEN_COLOR % N_C], thickness, style, 20);
-      draw_line (&cv_mat, cv::Point (box.x, box.y + box.height),
+      draw_line (cv_mat, cv::Point (box.x, box.y + box.height),
                  cv::Point (box.x + box.width, box.y + box.height),
                  colors[CHOSEN_COLOR % N_C], thickness, style, 20);
     }
@@ -244,7 +245,7 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
 
   cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
                     (char *) frame->data[0]);
-  gst_get_meta (detect_meta->prediction, cv_mat, font_scale, thickness,
+  gst_get_meta (detect_meta->prediction, &cv_mat, font_scale, thickness,
                 labels_list,  num_labels, style);
 
   return GST_FLOW_OK;
