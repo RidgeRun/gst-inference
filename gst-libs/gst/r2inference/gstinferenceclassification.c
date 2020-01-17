@@ -11,6 +11,8 @@
 
 #include "gstinferenceclassification.h"
 
+#include <string.h>
+
 #define DEFAULT_CLASS_ID -1
 #define DEFAULT_CLASS_PROB 0.0f
 #define DEFAULT_CLASS_LABEL NULL
