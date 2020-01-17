@@ -72,7 +72,8 @@ static GstStateChangeReturn gst_detection_crop_change_state (GstElement *
 static gboolean gst_detection_crop_start (GstDetectionCrop *self);
 static void gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
     GstDetectionCrop *self);
-static void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
+static void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x,
+    gint y,
     gint width, gint height, gint width_ratio, gint height_ratio, gint *top,
     gint *bottom, gint *right, gint *left);
 static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
@@ -300,8 +301,8 @@ gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
 
 static void
 gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
-    gint width, gint height, gint width_ratio, gint height_ratio, gint *top,
-    gint *bottom, gint *right, gint *left) {
+                                    gint width, gint height, gint width_ratio, gint height_ratio, gint *top,
+                                    gint *bottom, gint *right, gint *left) {
 
   *top = y;
   *bottom = self->height - y - height;
@@ -371,7 +372,7 @@ gst_detection_crop_find_predictions (GstDetectionCrop *self,
     gst_detection_crop_find_predictions (self, num_detections, meta, list,
                                          predict );
   }
-  if (FALSE == G_NODE_IS_ROOT(pred->predictions) && FALSE == pred->enabled ) {
+  if (FALSE == G_NODE_IS_ROOT(pred->predictions) && TRUE == pred->enabled ) {
     *list = g_list_append (*list, pred);
     *num_detections = *num_detections + 1;
   }
@@ -409,39 +410,39 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
 
   num_detections = 0;
   gst_detection_crop_find_predictions (self, &num_detections,
-                       inference_meta, &list, inference_meta->prediction);
+                                       inference_meta, &list, inference_meta->prediction);
 
   for (iter = list; iter != NULL; iter = g_list_next(iter)) {
     GstInferencePrediction *pred = (GstInferencePrediction *)iter->data;
-      GstBuffer *croped_buffer;
-      GstInferenceMeta *dmeta;
-      gint top, bottom, right, left = 0;
-      box = pred->bbox;
-      GST_LOG_OBJECT (self, "BBox: %dx%dx%dx%d", box.x, box.y, box.width,
-                      box.height);
+    GstBuffer *croped_buffer;
+    GstInferenceMeta *dmeta;
+    gint top, bottom, right, left = 0;
+    box = pred->bbox;
+    GST_LOG_OBJECT (self, "BBox: %dx%dx%dx%d", box.x, box.y, box.width,
+                    box.height);
 
-      gst_detection_crop_new_buffer_size (self, box.x, box.y, box.width, box.height,
-                                          crop_width_ratio, crop_height_ratio,
-                                          &top, &bottom, &right, &left);
-      self->element->SetCroppingSize ((gint) top, (gint) bottom, (gint) right,
-                                      (gint) left);
+    gst_detection_crop_new_buffer_size (self, box.x, box.y, box.width, box.height,
+                                        crop_width_ratio, crop_height_ratio,
+                                        &top, &bottom, &right, &left);
+    self->element->SetCroppingSize ((gint) top, (gint) bottom, (gint) right,
+                                    (gint) left);
 
-      croped_buffer = gst_buffer_copy (buffer);
-      dmeta = (GstInferenceMeta *) gst_buffer_add_meta (croped_buffer,
-              GST_INFERENCE_META_INFO,
-              NULL);
+    croped_buffer = gst_buffer_copy (buffer);
+    dmeta = (GstInferenceMeta *) gst_buffer_add_meta (croped_buffer,
+            GST_INFERENCE_META_INFO,
+            NULL);
 
-      dmeta->prediction = gst_inference_prediction_copy (pred);
+    dmeta->prediction = gst_inference_prediction_copy (pred);
 
-      dmeta->prediction->bbox.x = 0;
-      dmeta->prediction->bbox.y = 0;
-      dmeta->prediction->bbox.width = self->width - right - left;
-      dmeta->prediction->bbox.height = self->height - top - bottom;
+    dmeta->prediction->bbox.x = 0;
+    dmeta->prediction->bbox.y = 0;
+    dmeta->prediction->bbox.width = self->width - right - left;
+    dmeta->prediction->bbox.height = self->height - top - bottom;
 
-      if (GST_FLOW_OK != gst_pad_chain(self->pad, croped_buffer)) {
-        GST_ELEMENT_ERROR(self, CORE, FAILED,
-                          ("Failed to push a new buffer into crop element"), (NULL));
-      }
+    if (GST_FLOW_OK != gst_pad_chain(self->pad, croped_buffer)) {
+      GST_ELEMENT_ERROR(self, CORE, FAILED,
+                        ("Failed to push a new buffer into crop element"), (NULL));
+    }
   }
 
   ret = GST_PAD_PROBE_DROP;
