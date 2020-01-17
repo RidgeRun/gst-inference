@@ -259,13 +259,8 @@ gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     return GST_FLOW_OK;
   }
 
-  if (meta->prediction == NULL) {
-    GST_LOG_OBJECT (inferencefilter, "Inferece meta has no predictions");
-    return GST_FLOW_ERROR;
-  } else {
-    gst_inferencefilter_filter_enable (inferencefilter, meta->prediction,
-        filter, reset);
-  }
+  gst_inferencefilter_filter_enable (inferencefilter, meta->prediction,
+      filter, reset);
   return GST_FLOW_OK;
 }
 
