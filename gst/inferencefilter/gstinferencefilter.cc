@@ -200,8 +200,8 @@ static void
 gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
     GstInferencePrediction * root, gint class_id, gboolean reset)
 {
-  guint i;
   GList *iter = NULL;
+  GSList *iter_child = NULL;
 
   g_return_if_fail(inferencefilter);
   g_return_if_fail(root);
@@ -221,10 +221,9 @@ gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
     }
   }
 
-  for (i = 0; i < g_node_n_children (root->predictions); ++i) {
+  for (iter_child = gst_inference_prediction_get_children (root); iter_child != NULL; iter_child = g_slist_next (iter_child)) {
     GstInferencePrediction *predict =
-        (GstInferencePrediction *) g_node_nth_child (root->predictions,
-        i)->data;
+        (GstInferencePrediction *) iter_child->data;
     gst_inferencefilter_filter_enable (inferencefilter, predict, class_id, reset);
   }
 }
