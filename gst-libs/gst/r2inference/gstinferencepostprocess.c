@@ -236,23 +236,23 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
   gint grid_w = 13;
   gint boxes_size = 5;
   BBox boxes[TOTAL_BOXES_5];
-  gdouble classes_prob[TOTAL_CLASSES];
   *elements = 0;
+  *probabilities = g_malloc (TOTAL_CLASSES * sizeof (gdouble));
 
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (prediction != NULL, FALSE);
   g_return_val_if_fail (valid_prediction != NULL, FALSE);
   g_return_val_if_fail (resulting_boxes != NULL, FALSE);
   g_return_val_if_fail (elements != NULL, FALSE);
+  g_return_val_if_fail (probabilities != NULL, FALSE);
 
   gst_get_boxes_from_prediction (obj_thresh, prob_thresh, prediction, boxes,
-      elements, grid_h, grid_w, boxes_size, classes_prob);
+      elements, grid_h, grid_w, boxes_size, *probabilities);
   gst_remove_duplicated_boxes (iou_thresh, boxes, elements);
 
   *resulting_boxes = g_malloc (*elements * sizeof (BBox));
-  *probabilities = g_malloc (TOTAL_CLASSES * sizeof (gdouble));
   memcpy (*resulting_boxes, boxes, *elements * sizeof (BBox));
-  memcpy (*probabilities, classes_prob, TOTAL_CLASSES * sizeof (gdouble));
+
   return TRUE;
 }
 
@@ -265,6 +265,7 @@ gst_create_prediction_from_box (GstVideoInference * vi, BBox * box,
   gchar *label = NULL;
   g_return_val_if_fail (vi != NULL, NULL);
   g_return_val_if_fail (box != NULL, NULL);
+  g_return_val_if_fail (probabilities != NULL, NULL);
 
   predict = gst_inference_prediction_new ();
   predict->bbox.x = box->x;
