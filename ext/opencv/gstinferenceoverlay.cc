@@ -143,10 +143,11 @@ static void
 gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
               gint thickness,
               gchar **labels_list, gint num_labels, LineStyleBoundingBox style) {
-  guint i;
   cv::Size size;
   cv::String label;
   GList *iter = NULL;
+  GSList *list = NULL;
+  GSList *tree_iter = NULL;
   cv::String prob;
   BoundingBox box;
   gint classes = 0;
@@ -156,9 +157,11 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat cv_mat, gdouble font_scale,
   g_return_if_fail (pred != NULL);
   g_return_if_fail (labels_list != NULL);
 
-  for (i = 0; i < g_node_n_children(pred->predictions) ; ++i) {
-    GstInferencePrediction   *predict = (GstInferencePrediction *)g_node_nth_child (
-                                          pred->predictions, i)->data;
+  list = gst_inference_prediction_get_children(pred);
+
+  for (tree_iter = list; tree_iter != NULL; tree_iter = g_slist_next(tree_iter)) {
+    GstInferencePrediction *predict = (GstInferencePrediction *)tree_iter->data;
+
     gst_get_meta (predict, cv_mat, font_scale, thickness,
                   labels_list,  num_labels, style);
   }
