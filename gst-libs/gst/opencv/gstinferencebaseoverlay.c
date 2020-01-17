@@ -78,7 +78,7 @@ struct _GstInferenceBaseOverlayPrivate
   gchar *labels;
   gchar **labels_list;
   gint num_labels;
-  gint style;
+  LineStyleBoundingBox style;
 };
 /* prototypes */
 static void gst_inference_base_overlay_set_property (GObject * object,

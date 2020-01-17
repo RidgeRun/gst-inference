@@ -52,11 +52,10 @@ GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_inference_overlay_debug_category
 
 /* prototypes */
-static
-GstFlowReturn
+static GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
-                                    gchar **labels_list, gint num_labels, gint style);
+                                    gchar **labels_list, gint num_labels, LineStyleBoundingBox style);
 void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
                int thickness, int style, int gap);
 
@@ -211,7 +210,7 @@ static
 GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
-                                    gchar **labels_list, gint num_labels, gint style) {
+                                    gchar **labels_list, gint num_labels, LineStyleBoundingBox style) {
   GstInferenceMeta *
   detect_meta;
   gint  width, height, channels;
