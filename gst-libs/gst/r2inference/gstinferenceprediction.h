@@ -198,7 +198,7 @@ void gst_inference_prediction_append_classification (GstInferencePrediction * se
 
 /**
  * gst_inference_prediction_scale:
- * @self: the original prediction
+ * @self: the prediction to scale
  * @to: the resulting image size
  * @from: the original image size
  *
@@ -225,6 +225,15 @@ GstInferencePrediction * gst_inference_prediction_scale (GstInferencePrediction 
  */
 GstInferencePrediction * gst_inference_prediction_find (GstInferencePrediction * self,
     guint64 id);
+
+/**
+ * gst_inference_prediction_merge:
+ * @src: the source prediction
+ * @dst: the destination prediction
+ *
+ * Copies the extra information from src to dst.
+ */
+void gst_inference_prediction_merge (GstInferencePrediction * src, GstInferencePrediction * dst);
 
 /**
  * GST_INFERENCE_PREDICTION_LOCK:

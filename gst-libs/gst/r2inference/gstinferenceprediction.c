@@ -52,9 +52,13 @@ static gchar *prediction_classes_to_string (GstInferencePrediction * self,
 static GstInferencePrediction *prediction_scale (const GstInferencePrediction *
     self, GstVideoInfo * to, GstVideoInfo * from);
 static GSList *prediction_get_children_unlocked (GstInferencePrediction * self);
+static void prediction_merge (GstInferencePrediction * src,
+    GstInferencePrediction * dst);
 
 static GstInferenceClassification
     * classification_copy (GstInferenceClassification * from, gpointer data);
+static void classification_merge (GList * src, GList ** dst);
+static gint classification_compare (gconstpointer a, gconstpointer b);
 
 static void bounding_box_reset (BoundingBox * bbox);
 static gchar *bounding_box_to_string (BoundingBox * bbox, gint level);
@@ -80,7 +84,6 @@ get_new_id (void)
 
   return ret;
 }
-
 
 GstInferencePrediction *
 gst_inference_prediction_new (void)
@@ -538,7 +541,7 @@ node_find (GNode * node, gpointer data)
 GstInferencePrediction *
 gst_inference_prediction_find (GstInferencePrediction * self, guint64 id)
 {
-  PredictionFindData found = { 0 };
+  PredictionFindData found = { 0, id };
 
   g_return_val_if_fail (self, NULL);
 
@@ -550,4 +553,100 @@ gst_inference_prediction_find (GstInferencePrediction * self, guint64 id)
   GST_INFERENCE_PREDICTION_UNLOCK (self);
 
   return found.prediction;
+}
+
+static gint
+classification_compare (gconstpointer a, gconstpointer b)
+{
+  GstInferenceClassification *ca = (GstInferenceClassification *) a;
+  GstInferenceClassification *cb = (GstInferenceClassification *) b;
+
+  return ca->classification_id == cb->classification_id ? 0 : 1;
+}
+
+static void
+classification_merge (GList * src, GList ** dst)
+{
+  GList *iter = NULL;
+
+  g_return_if_fail (dst);
+
+  /* For each classification in the src, see if it exists in the dst */
+  for (iter = src; iter; iter = g_list_next (iter)) {
+    GList *exists =
+        g_list_find_custom (*dst, iter->data, classification_compare);
+
+    /* Copy and append it to the dst if it doesn't exist */
+    if (!exists) {
+      GstInferenceClassification *child =
+          gst_inference_classification_copy (iter->data);
+      *dst = g_list_append (*dst, child);
+    }
+  }
+}
+
+static void
+prediction_merge (GstInferencePrediction * src, GstInferencePrediction * dst)
+{
+  GSList *src_children = prediction_get_children_unlocked (src);
+  GSList *iter = NULL;
+  GSList *new_children = NULL;
+
+  g_return_if_fail (src);
+  g_return_if_fail (dst);
+  g_return_if_fail (src->prediction_id == dst->prediction_id);
+
+  /* Two things might've happened:
+   * 1) A new class was added
+   * 2) A new subprediction was added
+   */
+
+  /* Handle 1) here */
+  classification_merge (src->classifications, &dst->classifications);
+
+  /* Handle 2) here */
+  for (iter = src_children; iter; iter = g_slist_next (iter)) {
+    GstInferencePrediction *current = (GstInferencePrediction *) iter->data;
+
+    /* TODO: Optimize this by only searching the immediate children */
+    GstInferencePrediction *found =
+        gst_inference_prediction_find (dst, current->prediction_id);
+
+    /* No matching prediction, save it to append it later */
+    if (!found) {
+      new_children = g_slist_append (new_children, current);
+      continue;
+    }
+
+    /* Recurse into the children */
+    prediction_merge (current, found);
+
+    gst_inference_prediction_unref (found);
+  }
+
+  /* Finally append all the new children to dst. Do it after all
+     children have been processed */
+  for (iter = new_children; iter; iter = g_slist_next (iter)) {
+    GstInferencePrediction *prediction =
+        gst_inference_prediction_copy ((GstInferencePrediction *) iter->data);
+    gst_inference_prediction_append (dst, prediction);
+  }
+}
+
+void
+gst_inference_prediction_merge (GstInferencePrediction * src,
+    GstInferencePrediction * dst)
+{
+  g_return_if_fail (src);
+  g_return_if_fail (dst);
+
+  GST_INFERENCE_PREDICTION_LOCK (src);
+  if (src != dst)
+    GST_INFERENCE_PREDICTION_LOCK (dst);
+
+  prediction_merge (src, dst);
+
+  if (src != dst)
+    GST_INFERENCE_PREDICTION_UNLOCK (dst);
+  GST_INFERENCE_PREDICTION_UNLOCK (src);
 }
