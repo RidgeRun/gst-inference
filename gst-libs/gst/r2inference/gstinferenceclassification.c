@@ -39,11 +39,28 @@ static void classification_reset (GstInferenceClassification * self);
 
 static gdouble *probabilities_copy (const gdouble * from, gint num_classes);
 
+static guint64 get_new_id (void);
+
+static guint64
+get_new_id (void)
+{
+  static guint64 _id = G_GUINT64_CONSTANT (0);
+  static GMutex _id_mutex;
+  static guint64 ret = 0;
+
+  g_mutex_lock (&_id_mutex);
+  ret = _id++;
+  g_mutex_unlock (&_id_mutex);
+
+  return ret;
+}
+
 static void
 classification_reset (GstInferenceClassification * self)
 {
   g_return_if_fail (self);
 
+  self->classification_id = get_new_id ();
   self->class_id = DEFAULT_CLASS_ID;
   self->class_prob = DEFAULT_CLASS_PROB;
   self->num_classes = DEFAULT_NUM_CLASSES;
@@ -160,6 +177,7 @@ gst_inference_classification_copy (const GstInferenceClassification * self)
 
   GST_INFERENCE_CLASSIFICATION_LOCK ((GstInferenceClassification *) self);
 
+  other->classification_id = self->classification_id;
   other->class_id = self->class_id;
   other->class_prob = self->class_prob;
   other->num_classes = self->num_classes;
@@ -194,11 +212,13 @@ gst_inference_classification_to_string (GstInferenceClassification * self,
   GST_INFERENCE_CLASSIFICATION_LOCK (self);
 
   serial = g_strdup_printf ("{\n"
+      "%*s  Id : %" G_GUINT64_FORMAT "\n"
       "%*s  Class : %d\n"
       "%*s  Label : %s\n"
       "%*s  Probability : %f\n"
       "%*s  Classes : %d\n"
       "%*s}",
+      indent, "", self->classification_id,
       indent, "", self->class_id,
       indent, "", self->class_label,
       indent, "", self->class_prob, indent, "", self->num_classes, indent, "");

@@ -70,7 +70,7 @@ static guint64 get_new_id (void);
 static guint64
 get_new_id (void)
 {
-  static guint64 _id = 0;
+  static guint64 _id = G_GUINT64_CONSTANT (0);
   static GMutex _id_mutex;
   static guint64 ret = 0;
 
