@@ -52,9 +52,9 @@ static void gst_embedding_overlay_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
 static void gst_embedding_overlay_finalize (GObject * object);
 static GstFlowReturn
-gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
+gst_embedding_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels);
+    gchar ** labels_list, gint num_labels, LineStyleBoundingBox style);
 static gboolean 
 gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay * embedding_overlay,
     const GValue * value);
@@ -68,7 +68,7 @@ enum
 
 struct _GstEmbeddingOverlay
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
   gchar *embeddings;
   gchar **embeddings_list;
   gint num_embeddings;
@@ -78,13 +78,13 @@ struct _GstEmbeddingOverlay
 
 struct _GstClassificationOverlayClass
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
 };
 
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE (GstEmbeddingOverlay, gst_embedding_overlay,
-    GST_TYPE_INFERENCE_OVERLAY,
+    GST_TYPE_INFERENCE_BASE_OVERLAY,
     GST_DEBUG_CATEGORY_INIT (gst_embedding_overlay_debug_category,
         "embeddingoverlay", 0, "debug category for embedding_overlay element"));
 
@@ -92,7 +92,7 @@ static void
 gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
-  GstInferenceOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
 
   gobject_class->set_property = gst_embedding_overlay_set_property;
   gobject_class->get_property = gst_embedding_overlay_get_property;
@@ -209,9 +209,9 @@ gst_embedding_overlay_finalize (GObject * object)
 }
 
 static GstFlowReturn
-gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
+gst_embedding_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels)
+    gchar ** labels_list, gint num_labels, LineStyleBoundingBox style)
 {
   GstEmbeddingOverlay *embedding_overlay = GST_EMBEDDING_OVERLAY (inference_overlay);
   GstClassificationMeta *class_meta;

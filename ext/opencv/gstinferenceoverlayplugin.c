@@ -26,6 +26,7 @@
 #include "gstclassificationoverlay.h"
 #include "gstdetectionoverlay.h"
 #include "gstembeddingoverlay.h"
+#include "gstinferenceoverlay.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
@@ -52,7 +53,12 @@ plugin_init (GstPlugin * plugin)
   if (!ret) {
     goto out;
   }
-
+  ret =
+      gst_element_register (plugin, "inferenceoverlay", GST_RANK_NONE,
+      GST_TYPE_INFERENCE_OVERLAY);
+  if (!ret) {
+    goto out;
+  }
 
 out:
   return ret;
@@ -60,6 +66,6 @@ out:
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
-    inferenceoverlay,
+    inferenceoverlayplugin,
     "Create overlays on incomming image frames with proper inference metadata",
     plugin_init, VERSION, "LGPL", PACKAGE_NAME, GST_PACKAGE_ORIGIN)

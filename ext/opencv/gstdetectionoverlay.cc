@@ -51,9 +51,9 @@ GST_DEBUG_CATEGORY_STATIC (gst_detection_overlay_debug_category);
 
 /* prototypes */
 static GstFlowReturn
-gst_detection_overlay_process_meta (GstInferenceOverlay * inference_overlay,
+gst_detection_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels);
+    gchar ** labels_list, gint num_labels, LineStyleBoundingBox style);
 
 enum
 {
@@ -62,25 +62,25 @@ enum
 
 struct _GstDetectionOverlay
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
 };
 
 struct _GstDetectionOverlayClass
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
 };
 
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE (GstDetectionOverlay, gst_detection_overlay,
-    GST_TYPE_INFERENCE_OVERLAY,
+    GST_TYPE_INFERENCE_BASE_OVERLAY,
     GST_DEBUG_CATEGORY_INIT (gst_detection_overlay_debug_category,
         "detectionoverlay", 0, "debug category for detection_overlay element"));
 
 static void
 gst_detection_overlay_class_init (GstDetectionOverlayClass * klass)
 {
-  GstInferenceOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "detectionoverlay", "Filter",
@@ -103,9 +103,9 @@ gst_detection_overlay_init (GstDetectionOverlay * detection_overlay)
 }
 
 static GstFlowReturn
-gst_detection_overlay_process_meta (GstInferenceOverlay * inference_overlay,
+gst_detection_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels)
+    gchar ** labels_list, gint num_labels, LineStyleBoundingBox style)
 {
   GstDetectionMeta *detect_meta;
   gint i, width, height, channels;

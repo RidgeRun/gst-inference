@@ -19,25 +19,41 @@
  *
  */
 
-#ifndef __GST_INFERENCE_OVERLAY_H__
-#define __GST_INFERENCE_OVERLAY_H__
+#ifndef __GST_INFERENCE_BASE_OVERLAY_H__
+#define __GST_INFERENCE_BASE_OVERLAY_H__
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_INFERENCE_OVERLAY gst_inference_overlay_get_type ()
-G_DECLARE_DERIVABLE_TYPE (GstInferenceOverlay, gst_inference_overlay, GST,
-    INFERENCE_OVERLAY, GstVideoFilter);
+#define LINE_STYLE_BOUNDING_BOX (line_style_bounding_box_get_type ())
+/**
+ * LineStyleBoundingBox:
+ * @CLASSIC : Draw lines without any style
+ * @DOTTED  : Draw lines with dots
+ * @DASHED  : Draw lines with dashed lines
+ *
+ **/
+typedef enum
+{
+  CLASSIC,
+  DOTTED,
+  DASHED,
+} LineStyleBoundingBox;
 
-struct _GstInferenceOverlayClass
+GType line_style_bounding_box_get_type (void) G_GNUC_CONST;
+#define GST_TYPE_INFERENCE_BASE_OVERLAY gst_inference_base_overlay_get_type ()
+G_DECLARE_DERIVABLE_TYPE (GstInferenceBaseOverlay, gst_inference_base_overlay, GST,
+    INFERENCE_BASE_OVERLAY, GstVideoFilter);
+
+struct _GstInferenceBaseOverlayClass
 {
   GstVideoFilterClass parent_class;
 
-  GstFlowReturn (* process_meta) (GstInferenceOverlay * inference_overlay,
+  GstFlowReturn (* process_meta) (GstInferenceBaseOverlay * inference_base_overlay,
       GstVideoFrame * frame, GstMeta* meta, gdouble font_scale, gint thickness,
-      gchar **labels_list, gint num_labels);
+      gchar **labels_list, gint num_labels, LineStyleBoundingBox style);
 
   GType meta_type;
 };
