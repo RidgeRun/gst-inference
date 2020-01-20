@@ -52,6 +52,7 @@ colors[] = {
 #define CHOSEN_COLOR 14
 #define OVERLAY_HEIGHT 50
 #define OVERLAY_WIDTH 30
+#define LINES_GAP 20
 
 GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_inference_overlay_debug_category
@@ -227,16 +228,16 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
     }else {
       draw_line (cv_mat, cv::Point (box.x, box.y),
                  cv::Point (box.x + box.width, box.y),
-                 colors[CHOSEN_COLOR % N_C], thickness, style, 20);
+                 colors[CHOSEN_COLOR % N_C], thickness, style, LINES_GAP);
       draw_line (cv_mat, cv::Point (box.x, box.y),
                  cv::Point (box.x, box.y + box.height),
-                 colors[CHOSEN_COLOR % N_C], thickness, style, 20);
+                 colors[CHOSEN_COLOR % N_C], thickness, style, LINES_GAP);
       draw_line (cv_mat, cv::Point (box.x + box.width, box.y),
                  cv::Point (box.x + box.width, box.y + box.height),
-                 colors[CHOSEN_COLOR % N_C], thickness, style, 20);
+                 colors[CHOSEN_COLOR % N_C], thickness, style, LINES_GAP);
       draw_line (cv_mat, cv::Point (box.x, box.y + box.height),
                  cv::Point (box.x + box.width, box.y + box.height),
-                 colors[CHOSEN_COLOR % N_C], thickness, style, 20);
+                 colors[CHOSEN_COLOR % N_C], thickness, style, LINES_GAP);
     }
   }
 
