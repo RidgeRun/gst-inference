@@ -18,6 +18,7 @@
  * Boston, MA 02111-1307, USA.
  *
  */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -60,8 +61,8 @@ static GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
                                     gchar **labels_list, gint num_labels, LineStyleBoundingBox style);
-void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
-               int thickness, LineStyleBoundingBox style, int gap);
+void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
+               gint thickness, LineStyleBoundingBox style, gint gap);
 
 struct _GstInferenceOverlay {
   GstInferenceBaseOverlay
@@ -99,48 +100,46 @@ static void
 gst_inference_overlay_init (GstInferenceOverlay *inference_overlay) {
 }
 
-void draw_line(cv::Mat *img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
-               int thickness, LineStyleBoundingBox style, int gap) {
+void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
+               gint thickness, LineStyleBoundingBox style, gint gap) {
 
-  g_return_if_fail (img != NULL);
+  gfloat dx = pt1.x - pt2.x;
+  gfloat dy = pt1.y - pt2.y;
 
-  float dx = pt1.x - pt2.x;
-  float dy = pt1.y - pt2.y;
-
-  float dist = sqrt(dx * dx + dy * dy);
+  gfloat dist = sqrt(dx * dx + dy * dy);
 
   std::vector<cv::Point> pts;
-  for (int i = 0; i < dist; i += gap) {
-    float r = (float)i / dist;
-    int x = int((pt1.x * (1.0 - r) + pt2.x * r) + .5);
-    int y = int((pt1.y * (1.0 - r) + pt2.y * r) + .5);
+  for (gint i = 0; i < dist; i += gap) {
+    gfloat r = (gfloat)i / dist;
+    gint x = gint((pt1.x * (1.0 - r) + pt2.x * r) + .5);
+    gint y = gint((pt1.y * (1.0 - r) + pt2.y * r) + .5);
     cv::Point p = cv::Point(x, y);
     pts.push_back(p);
   }
 
-  int pts_size = pts.size();
+  gint pts_size = pts.size();
 
   if (DOTTED == style) {
-    for (int i = 0; i < pts_size; i++) {
-      cv::circle(*img, pts[i], thickness, color, -1);
+    for (gint i = 0; i < pts_size; i++) {
+      cv::circle(img, pts[i], thickness, color, -1);
     }
   } else {
     cv::Point s = pts[0];
     cv::Point e = pts[0];
 
-    for (int i = 0; i < pts_size; i++) {
+    for (gint i = 0; i < pts_size; i++) {
       s = e;
       e = pts[i];
 
       if (1 == i % 2) {
-        cv::line(*img, s, e, color, thickness);
+        cv::line(img, s, e, color, thickness);
       }
     }
   }
 }
 
 static void
-gst_get_meta (GstInferencePrediction *pred, cv::Mat *cv_mat, gdouble font_scale,
+gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
               gint thickness,
               gchar **labels_list, gint num_labels, LineStyleBoundingBox style) {
   cv::Size size;
@@ -156,7 +155,6 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat *cv_mat, gdouble font_scale,
 
   g_return_if_fail (pred != NULL);
   g_return_if_fail (labels_list != NULL);
-  g_return_if_fail (cv_mat != NULL);
 
   list = gst_inference_prediction_get_children(pred);
 
@@ -180,20 +178,20 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat *cv_mat, gdouble font_scale,
       label = cv::format ("Label #%d  Prob: %f", classification->class_id,
                           classification->class_prob);
     }
-    cv::putText (*cv_mat, label, cv::Point (box.x + box.width, box.y + classes * OVERLAY_WIDTH),
+    cv::putText (cv_mat, label, cv::Point (box.x + box.width, box.y + classes * OVERLAY_WIDTH),
                  cv::FONT_HERSHEY_PLAIN, font_scale, cv::Scalar::all(0), thickness);
   }
 
-  cv_mat->copyTo(alpha_overlay);
+  cv_mat.copyTo(alpha_overlay);
   cv::Size text = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
                                    thickness, 0);
   cv::rectangle(alpha_overlay, cv::Rect(box.x + box.width, box.y, text.width,
                                         OVERLAY_HEIGHT * classes), cv::Scalar(255, 255, 255), -1);
-  cv::addWeighted(alpha_overlay, alpha, *cv_mat, 1 - alpha, 0, *cv_mat);
+  cv::addWeighted(alpha_overlay, alpha, cv_mat, 1 - alpha, 0, cv_mat);
 
   if (FALSE == G_NODE_IS_ROOT(pred->predictions)) {
     if (0 == style) {
-      cv::rectangle (*cv_mat, cv::Point (box.x, box.y),
+      cv::rectangle (cv_mat, cv::Point (box.x, box.y),
                      cv::Point (box.x + box.width, box.y + box.height),
                      colors[CHOSEN_COLOR % N_C], thickness);
     }else {
@@ -245,7 +243,7 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
 
   cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
                     (char *) frame->data[0]);
-  gst_get_meta (detect_meta->prediction, &cv_mat, font_scale, thickness,
+  gst_get_meta (detect_meta->prediction, cv_mat, font_scale, thickness,
                 labels_list,  num_labels, style);
 
   return GST_FLOW_OK;
