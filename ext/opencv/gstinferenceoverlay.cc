@@ -152,7 +152,7 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
   gint classes = 0;
   gdouble alpha = 0.5;
   cv::Mat alpha_overlay;
-
+  gint width, height,x, y = 0;
   g_return_if_fail (pred != NULL);
   g_return_if_fail (labels_list != NULL);
 
@@ -182,12 +182,42 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
                  cv::FONT_HERSHEY_PLAIN, font_scale, cv::Scalar::all(0), thickness);
   }
 
-  cv_mat.copyTo(alpha_overlay);
   cv::Size text = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
                                    thickness, 0);
-  cv::rectangle(alpha_overlay, cv::Rect(box.x + box.width, box.y, text.width,
-                                        OVERLAY_HEIGHT * classes), cv::Scalar(255, 255, 255), -1);
-  cv::addWeighted(alpha_overlay, alpha, cv_mat, 1 - alpha, 0, cv_mat);
+
+  if ((box.x + box.width) < 0) {
+    x = 0;
+  } else if ((int)(box.x + box.width) >= cv_mat.cols) {
+    x = cv_mat.cols - 1;
+  } else {
+    x = box.x + box.width;
+  }
+
+  if ((int)(x + box.width + text.width) >= cv_mat.cols) {
+    width = cv_mat.cols - x - 1;
+  } else {
+    width = text.width;
+  }
+
+  if ((int)(box.y + OVERLAY_HEIGHT * classes ) >= cv_mat.rows) {
+    y = cv_mat.rows - 1;
+  }else if ((int)box.y < 0) {
+    y = 1;
+  }else {
+    y = box.y;
+  }
+  if ((int)(y + (OVERLAY_HEIGHT * classes)) >= cv_mat.rows) {
+    height = cv_mat.rows - y - 1;
+  } else {
+    height =  OVERLAY_HEIGHT * classes;
+  }
+
+  if (width && height) {
+    cv::Mat rectangle (height, width, cv_mat.type(), cv::Scalar (255, 255, 255) );
+    cv::Rect roi (x, y, width, height);
+    cv::addWeighted (cv_mat (roi), alpha, rectangle, 1.0 - alpha, 0.0,
+        cv_mat (roi) );
+  }
 
   if (FALSE == G_NODE_IS_ROOT(pred->predictions)) {
     if (0 == style) {
