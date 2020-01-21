@@ -838,6 +838,7 @@ video_inference_transform_meta (GstBuffer * buffer_model,
 {
   GstMeta *meta_bypass = NULL;
   const GstMetaInfo *info;
+  GstVideoMetaTransform trans = { info_model, info_bypass };
 
   g_return_val_if_fail (buffer_model, NULL);
   g_return_val_if_fail (info_model, NULL);
@@ -849,16 +850,12 @@ video_inference_transform_meta (GstBuffer * buffer_model,
 
   info = meta_model->info;
 
-  if (gst_meta_api_type_has_tag (info->api, _size_quark) ||
-      gst_meta_api_type_has_tag (info->api, _orientation_quark)) {
-    GstVideoMetaTransform trans = { info_model, info_bypass };
-
-    info->transform_func (buffer_bypass, meta_model, buffer_model,
-        _scale_quark, &trans);
-  } else {
-    info->transform_func (buffer_bypass, meta_model, buffer_model,
-        _copy_quark, NULL);
-  }
+  /* TODO: elements such as videoscale will drop metas that have tags
+     such as video-size. Until this is fixed, tread all
+     transformations as scaling transformations
+   */
+  info->transform_func (buffer_bypass, meta_model, buffer_model,
+      _scale_quark, &trans);
   meta_bypass = gst_buffer_get_meta (buffer_bypass, info->api);
 
   return meta_bypass;
@@ -897,6 +894,9 @@ gst_video_inference_postprocess (GstVideoInference * self,
 
   meta_model[1] =
       gst_buffer_get_meta (buffer_model, gst_inference_meta_api_get_type ());
+  meta_model[0] =
+      gst_buffer_get_meta (buffer_model, gst_detection_meta_api_get_type ());
+
   if (!meta_model[1]) {
     GstInferenceMeta *imeta;
 
@@ -931,13 +931,8 @@ gst_video_inference_postprocess (GstVideoInference * self,
 
   if (pred_valid) {
     GstVideoFrame *pbpass = buffer_bypass ? &frame_bypass : NULL;
-
     meta_bypass[0] =
         video_inference_transform_meta (buffer_model, info_model, meta_model[0],
-        buffer_bypass, info_bypass);
-
-    meta_bypass[1] =
-        video_inference_transform_meta (buffer_model, info_model, meta_model[1],
         buffer_bypass, info_bypass);
 
     g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL],
@@ -946,6 +941,10 @@ gst_video_inference_postprocess (GstVideoInference * self,
   } else {
     video_inference_remove_meta (buffer_model, meta_model[0]);
   }
+
+  meta_bypass[1] =
+      video_inference_transform_meta (buffer_model, info_model, meta_model[1],
+      buffer_bypass, info_bypass);
 
   video_inference_frame_unmap (buffer_model, &frame_model);
   video_inference_frame_unmap (buffer_bypass, &frame_bypass);

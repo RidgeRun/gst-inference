@@ -51,9 +51,7 @@ GType
 gst_inference_meta_api_get_type (void)
 {
   static volatile GType type = 0;
-  static const gchar *tags[] =
-      { GST_META_TAG_VIDEO_STR, GST_META_TAG_VIDEO_ORIENTATION_STR,
-    GST_META_TAG_VIDEO_SIZE_STR, NULL
+  static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL
   };
 
   if (g_once_init_enter (&type)) {
@@ -144,9 +142,7 @@ GType
 gst_detection_meta_api_get_type (void)
 {
   static volatile GType type = 0;
-  static const gchar *tags[] =
-      { GST_META_TAG_VIDEO_STR, GST_META_TAG_VIDEO_ORIENTATION_STR,
-    GST_META_TAG_VIDEO_SIZE_STR, NULL
+  static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL
   };
 
   if (g_once_init_enter (&type)) {
@@ -282,6 +278,7 @@ gst_inference_meta_transform_new_meta (GstBuffer * dest, GstMeta * meta,
 
   if (GST_VIDEO_META_TRANSFORM_IS_SCALE (type)) {
     GstVideoMetaTransform *trans = (GstVideoMetaTransform *) data;
+
     dmeta->prediction =
         gst_inference_prediction_scale (smeta->prediction, trans->out_info,
         trans->in_info);
@@ -476,12 +473,9 @@ gst_classification_meta_transform (GstBuffer * dest, GstMeta * meta,
 {
   GST_LOG ("Transforming detection metadata");
 
-  if (GST_META_TRANSFORM_IS_COPY (type)) {
-    return gst_classification_meta_copy (dest, meta, buffer);
-  }
-
-  /* No transform supported */
-  return FALSE;
+  /* TODO: Eventually check for the specific transformation here.
+     Fail if its an unsupported transformation */
+  return gst_classification_meta_copy (dest, meta, buffer);
 }
 
 /* inference metadata functions */
