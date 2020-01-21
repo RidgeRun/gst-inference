@@ -892,16 +892,18 @@ gst_video_inference_postprocess (GstVideoInference * self,
     return TRUE;
   }
 
-  meta_model[1] =
-      gst_buffer_get_meta (buffer_model, gst_inference_meta_api_get_type ());
   meta_model[0] =
       gst_buffer_get_meta (buffer_model, gst_detection_meta_api_get_type ());
+  if (!meta_model[0]) {
+    meta_model[0] =
+        gst_buffer_add_meta (buffer_model, klass->inference_meta_info, NULL);
+  }
 
+  meta_model[1] =
+      gst_buffer_get_meta (buffer_model, gst_inference_meta_api_get_type ());
   if (!meta_model[1]) {
     GstInferenceMeta *imeta;
 
-    meta_model[0] =
-        gst_buffer_add_meta (buffer_model, klass->inference_meta_info, NULL);
     meta_model[1] =
         gst_buffer_add_meta (buffer_model, gst_inference_meta_get_info (),
         NULL);
