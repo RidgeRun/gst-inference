@@ -169,7 +169,7 @@ static void video_inference_map_buffers (GstVideoInferencePad * data,
     GstBuffer * inbuf, GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean video_inference_prepare_postprocess (const GstMetaInfo *
     meta_info, GstBuffer * buffer, GstVideoInfo * video_info,
-    GstVideoFrame * out_frame, GstMeta ** out_meta);
+    GstVideoFrame * out_frame);
 static void video_inference_buffer_unref (GstBuffer * buffer);
 static void video_inference_frame_unmap (GstBuffer * buffer,
     GstVideoFrame * frame);
@@ -794,8 +794,7 @@ free_frames:
 
 static gboolean
 video_inference_prepare_postprocess (const GstMetaInfo * meta_info,
-    GstBuffer * buffer, GstVideoInfo * video_info, GstVideoFrame * out_frame,
-    GstMeta ** out_meta)
+    GstBuffer * buffer, GstVideoInfo * video_info, GstVideoFrame * out_frame)
 {
   GstMapFlags flags;
 
@@ -805,19 +804,6 @@ video_inference_prepare_postprocess (const GstMetaInfo * meta_info,
   /* No pad requested, continue without meta */
   if (NULL == buffer || NULL == video_info) {
     return TRUE;
-  }
-
-  if (out_meta) {
-    GstInferenceMeta *imeta = NULL;
-
-    g_return_val_if_fail (gst_buffer_is_writable (buffer), FALSE);
-    out_meta[0] = gst_buffer_add_meta (buffer, meta_info, NULL);
-    out_meta[1] =
-        gst_buffer_add_meta (buffer, gst_inference_meta_get_info (), NULL);
-
-    imeta = (GstInferenceMeta *) out_meta[1];
-    imeta->prediction->bbox.width = video_info->width;
-    imeta->prediction->bbox.height = video_info->height;
   }
 
   flags = (GstMapFlags) (GST_MAP_READ | GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
@@ -909,13 +895,29 @@ gst_video_inference_postprocess (GstVideoInference * self,
     return TRUE;
   }
 
+  meta_model[1] =
+      gst_buffer_get_meta (buffer_model, gst_inference_meta_api_get_type ());
+  if (!meta_model[1]) {
+    GstInferenceMeta *imeta;
+
+    meta_model[0] =
+        gst_buffer_add_meta (buffer_model, klass->inference_meta_info, NULL);
+    meta_model[1] =
+        gst_buffer_add_meta (buffer_model, gst_inference_meta_get_info (),
+        NULL);
+
+    imeta = (GstInferenceMeta *) meta_model[1];
+    imeta->prediction->bbox.width = info_model->width;
+    imeta->prediction->bbox.height = info_model->height;
+  }
+
   if (!video_inference_prepare_postprocess (klass->inference_meta_info,
-          buffer_model, info_model, &frame_model, meta_model)) {
+          buffer_model, info_model, &frame_model)) {
     return FALSE;
   }
 
   if (!video_inference_prepare_postprocess (klass->inference_meta_info,
-          buffer_bypass, info_bypass, &frame_bypass, NULL)) {
+          buffer_bypass, info_bypass, &frame_bypass)) {
     return FALSE;
   }
 
@@ -943,7 +945,6 @@ gst_video_inference_postprocess (GstVideoInference * self,
 
   } else {
     video_inference_remove_meta (buffer_model, meta_model[0]);
-    video_inference_remove_meta (buffer_model, meta_model[1]);
   }
 
   video_inference_frame_unmap (buffer_model, &frame_model);

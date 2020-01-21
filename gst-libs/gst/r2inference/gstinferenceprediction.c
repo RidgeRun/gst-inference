@@ -43,6 +43,8 @@ static GstInferencePrediction *prediction_copy (const GstInferencePrediction *
 static void prediction_free (GstInferencePrediction * obj);
 static gboolean prediction_find (GstInferencePrediction * obj,
     PredictionFindData * found);
+static GstInferencePrediction *prediction_find_unlocked (GstInferencePrediction
+    * self, guint64 id);
 static void prediction_reset (GstInferencePrediction * self);
 static gchar *prediction_to_string (GstInferencePrediction * self, gint level);
 static gchar *prediction_children_to_string (GstInferencePrediction * self,
@@ -51,6 +53,8 @@ static gchar *prediction_classes_to_string (GstInferencePrediction * self,
     gint level);
 static GstInferencePrediction *prediction_scale (const GstInferencePrediction *
     self, GstVideoInfo * to, GstVideoInfo * from);
+static void prediction_scale_ip (GstInferencePrediction * self,
+    GstVideoInfo * to, GstVideoInfo * from);
 static GSList *prediction_get_children_unlocked (GstInferencePrediction * self);
 static void prediction_merge (GstInferencePrediction * src,
     GstInferencePrediction * dst);
@@ -65,10 +69,13 @@ static gchar *bounding_box_to_string (BoundingBox * bbox, gint level);
 
 static void node_get_children (GNode * node, gpointer data);
 static gpointer node_copy (gconstpointer node, gpointer data);
-static gpointer node_scale (gconstpointer node, gpointer data);
+static gboolean node_scale_ip (GNode * node, gpointer data);
+static gpointer node_scale (gconstpointer, gpointer data);
 static gboolean node_assign (GNode * node, gpointer data);
 static gboolean node_find (GNode * node, gpointer data);
 
+static void compute_factors (GstVideoInfo * from, GstVideoInfo * to,
+    gdouble * hfactor, gdouble * vfactor);
 static guint64 get_new_id (void);
 
 static guint64
@@ -440,12 +447,35 @@ gst_inference_prediction_append_classification (GstInferencePrediction * self,
   GST_INFERENCE_PREDICTION_UNLOCK (self);
 }
 
+static void
+compute_factors (GstVideoInfo * from, GstVideoInfo * to, gdouble * hfactor,
+    gdouble * vfactor)
+{
+  gint fw, fh, tw, th;
+
+  g_return_if_fail (from);
+  g_return_if_fail (to);
+  g_return_if_fail (hfactor);
+  g_return_if_fail (vfactor);
+
+  fw = GST_VIDEO_INFO_WIDTH (from);
+  tw = GST_VIDEO_INFO_WIDTH (to);
+  fh = GST_VIDEO_INFO_HEIGHT (from);
+  th = GST_VIDEO_INFO_HEIGHT (to);
+
+  g_return_if_fail (fw);
+  g_return_if_fail (fh);
+
+  *hfactor = tw * 1.0 / fw;
+  *vfactor = th * 1.0 / fh;
+}
+
 static GstInferencePrediction *
 prediction_scale (const GstInferencePrediction * self, GstVideoInfo * to,
     GstVideoInfo * from)
 {
   GstInferencePrediction *dest = NULL;
-  gint fw, fh, tw, th;
+
   gdouble hfactor, vfactor;
 
   g_return_val_if_fail (self, NULL);
@@ -454,16 +484,7 @@ prediction_scale (const GstInferencePrediction * self, GstVideoInfo * to,
 
   dest = gst_inference_prediction_new ();
 
-  fw = GST_VIDEO_INFO_WIDTH (from);
-  tw = GST_VIDEO_INFO_WIDTH (to);
-  fh = GST_VIDEO_INFO_HEIGHT (from);
-  th = GST_VIDEO_INFO_HEIGHT (to);
-
-  g_return_val_if_fail (fw, FALSE);
-  g_return_val_if_fail (fh, FALSE);
-
-  hfactor = tw * 1.0 / fw;
-  vfactor = th * 1.0 / fh;
+  compute_factors (from, to, &hfactor, &vfactor);
 
   dest->bbox.x = self->bbox.x * hfactor;
   dest->bbox.y = self->bbox.y * vfactor;
@@ -479,6 +500,36 @@ prediction_scale (const GstInferencePrediction * self, GstVideoInfo * to,
   return dest;
 }
 
+static void
+prediction_scale_ip (GstInferencePrediction * self, GstVideoInfo * to,
+    GstVideoInfo * from)
+{
+  gdouble hfactor, vfactor;
+
+  g_return_if_fail (self);
+  g_return_if_fail (to);
+  g_return_if_fail (from);
+
+  compute_factors (from, to, &hfactor, &vfactor);
+
+  self->bbox.x = self->bbox.x * hfactor;
+  self->bbox.y = self->bbox.y * vfactor;
+
+  self->bbox.width = self->bbox.width * hfactor;
+  self->bbox.height = self->bbox.height * vfactor;
+}
+
+static gboolean
+node_scale_ip (GNode * node, gpointer data)
+{
+  GstInferencePrediction *self = (GstInferencePrediction *) node->data;
+  PredictionScaleData *sdata = (PredictionScaleData *) data;
+
+  prediction_scale_ip (self, sdata->to, sdata->from);
+
+  return FALSE;
+}
+
 static gpointer
 node_scale (gconstpointer node, gpointer data)
 {
@@ -486,6 +537,24 @@ node_scale (gconstpointer node, gpointer data)
   PredictionScaleData *sdata = (PredictionScaleData *) data;
 
   return prediction_scale (self, sdata->to, sdata->from);
+}
+
+void
+gst_inference_prediction_scale_ip (GstInferencePrediction * self,
+    GstVideoInfo * to, GstVideoInfo * from)
+{
+  PredictionScaleData data = {.from = from,.to = to };
+
+  g_return_if_fail (self);
+  g_return_if_fail (to);
+  g_return_if_fail (from);
+
+  GST_INFERENCE_PREDICTION_LOCK (self);
+
+  g_node_traverse (self->predictions, G_IN_ORDER, G_TRAVERSE_ALL, -1,
+      node_scale_ip, &data);
+
+  GST_INFERENCE_PREDICTION_UNLOCK (self);
 }
 
 GstInferencePrediction *
@@ -538,21 +607,33 @@ node_find (GNode * node, gpointer data)
   return prediction_find (current, found);
 }
 
-GstInferencePrediction *
-gst_inference_prediction_find (GstInferencePrediction * self, guint64 id)
+static GstInferencePrediction *
+prediction_find_unlocked (GstInferencePrediction * self, guint64 id)
 {
   PredictionFindData found = { 0, id };
 
   g_return_val_if_fail (self, NULL);
 
-  GST_INFERENCE_PREDICTION_LOCK (self);
-
   g_node_traverse (self->predictions, G_IN_ORDER, G_TRAVERSE_ALL, -1, node_find,
       &found);
 
+  return found.prediction;
+}
+
+GstInferencePrediction *
+gst_inference_prediction_find (GstInferencePrediction * self, guint64 id)
+{
+  GstInferencePrediction *found = NULL;
+
+  g_return_val_if_fail (self, NULL);
+
+  GST_INFERENCE_PREDICTION_LOCK (self);
+
+  found = prediction_find_unlocked (self, id);
+
   GST_INFERENCE_PREDICTION_UNLOCK (self);
 
-  return found.prediction;
+  return found;
 }
 
 static gint
@@ -610,7 +691,7 @@ prediction_merge (GstInferencePrediction * src, GstInferencePrediction * dst)
 
     /* TODO: Optimize this by only searching the immediate children */
     GstInferencePrediction *found =
-        gst_inference_prediction_find (dst, current->prediction_id);
+        prediction_find_unlocked (dst, current->prediction_id);
 
     /* No matching prediction, save it to append it later */
     if (!found) {
@@ -641,12 +722,10 @@ gst_inference_prediction_merge (GstInferencePrediction * src,
   g_return_if_fail (dst);
 
   GST_INFERENCE_PREDICTION_LOCK (src);
-  if (src != dst)
-    GST_INFERENCE_PREDICTION_LOCK (dst);
+  GST_INFERENCE_PREDICTION_LOCK (dst);
 
   prediction_merge (src, dst);
 
-  if (src != dst)
-    GST_INFERENCE_PREDICTION_UNLOCK (dst);
+  GST_INFERENCE_PREDICTION_UNLOCK (dst);
   GST_INFERENCE_PREDICTION_UNLOCK (src);
 }

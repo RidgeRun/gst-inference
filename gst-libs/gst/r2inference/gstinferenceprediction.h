@@ -213,6 +213,20 @@ GstInferencePrediction * gst_inference_prediction_scale (GstInferencePrediction 
     GstVideoInfo * to, GstVideoInfo * from);
 
 /**
+ * gst_inference_prediction_scale_ip:
+ * @self: the prediction to scale in place
+ * @to: the resulting image size
+ * @from: the original image size
+ *
+ * Modifies the BoundingBox associated with this prediction (and all
+ * its children) to scale to the new image size. This is typically
+ * used by the GstMeta subsystem automatically and not for public
+ * usage.
+ */
+void gst_inference_prediction_scale_ip (GstInferencePrediction * self,
+    GstVideoInfo * to, GstVideoInfo * from);
+
+/**
  * gst_inference_prediction_find:
  * @self: the root prediction
  * @id: the prediction_id of the prediction to return
