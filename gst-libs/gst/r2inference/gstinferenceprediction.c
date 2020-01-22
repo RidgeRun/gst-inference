@@ -482,7 +482,7 @@ prediction_scale (const GstInferencePrediction * self, GstVideoInfo * to,
   g_return_val_if_fail (to, NULL);
   g_return_val_if_fail (from, NULL);
 
-  dest = gst_inference_prediction_new ();
+  dest = prediction_copy (self);
 
   compute_factors (from, to, &hfactor, &vfactor);
 
