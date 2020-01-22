@@ -721,6 +721,10 @@ gst_inference_prediction_merge (GstInferencePrediction * src,
   g_return_if_fail (src);
   g_return_if_fail (dst);
 
+  if (src == dst) {
+    return;
+  }
+
   GST_INFERENCE_PREDICTION_LOCK (src);
   GST_INFERENCE_PREDICTION_LOCK (dst);
 
