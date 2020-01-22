@@ -102,15 +102,6 @@ GstInferencePrediction * gst_inference_prediction_new (void);
 GstInferencePrediction * gst_inference_prediction_new_full (BoundingBox *bbox);
 
 /**
- * gst_inference_prediction_new_full:
- * 
- * Creates a new GstInferencePrediction.
- *
- * Returns: A newly allocated and initialized GstInferencePrediction.
- */
-GstInferencePrediction * gst_inference_prediction_new (void);
-
-/**
  * gst_inference_prediction_reset:
  * @self: the prediction to reset 
  *
