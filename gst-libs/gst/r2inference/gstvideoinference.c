@@ -175,6 +175,7 @@ static gboolean video_inference_prepare_postprocess (const GstMetaInfo *
 static GstMeta *video_inference_transform_meta (GstBuffer * buffer_model,
     GstVideoInfo * info_model, GstMeta * meta_model, GstBuffer * buffer_bypass,
     GstVideoInfo * info_bypass);
+static void video_inference_flush_queue (GQueue * queue, GMutex * mutex);
 
 static guint gst_video_inference_signals[LAST_SIGNAL] = { 0 };
 
@@ -453,6 +454,9 @@ gst_video_inference_stop (GstVideoInference * self)
   GError *err = NULL;
 
   GST_INFO_OBJECT (self, "Stopping video inference");
+
+  video_inference_flush_queue (priv->model_queue, &priv->mtx_model_queue);
+  video_inference_flush_queue (priv->bypass_queue, &priv->mtx_bypass_queue);
 
   if (!gst_backend_stop (priv->backend, &err)) {
     GST_ELEMENT_ERROR (self, LIBRARY, INIT,
@@ -1301,6 +1305,21 @@ gst_video_inference_src_event (GstPad * pad, GstObject * parent,
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
 
   return gst_collect_pads_src_event_default (priv->cpads, pad, event);
+}
+
+static void
+video_inference_flush_queue (GQueue * queue, GMutex * mutex)
+{
+  GstBuffer *buf = NULL;
+
+  g_return_if_fail (queue);
+  g_return_if_fail (mutex);
+
+  g_mutex_lock (mutex);
+  while ((buf = GST_BUFFER_CAST (g_queue_pop_tail (queue)))) {
+    gst_buffer_unref (buf);
+  }
+  g_mutex_unlock (mutex);
 }
 
 static void
