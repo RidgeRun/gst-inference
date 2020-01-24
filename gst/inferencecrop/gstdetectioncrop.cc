@@ -428,9 +428,11 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
                                     (gint) left);
 
     croped_buffer = gst_buffer_copy (buffer);
-    dmeta = (GstInferenceMeta *) gst_buffer_add_meta (croped_buffer,
-            GST_INFERENCE_META_INFO,
-            NULL);
+
+    dmeta = (GstInferenceMeta *) gst_buffer_get_meta (croped_buffer,
+        GST_INFERENCE_META_API_TYPE);
+
+    gst_inference_prediction_unref (dmeta->prediction);
 
     dmeta->prediction = gst_inference_prediction_copy (pred);
 
