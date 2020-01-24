@@ -38,6 +38,7 @@ struct _PredictionFindData
   guint64 prediction_id;
 };
 
+static void gst_inference_prediction_free (GstInferencePrediction * self);
 static GstInferencePrediction *prediction_copy (const GstInferencePrediction *
     self);
 static void prediction_free (GstInferencePrediction * obj);
@@ -100,7 +101,7 @@ gst_inference_prediction_new (void)
   gst_mini_object_init (GST_MINI_OBJECT_CAST (self), 0,
       gst_inference_prediction_get_type (),
       (GstMiniObjectCopyFunction) gst_inference_prediction_copy, NULL,
-      (GstMiniObjectFreeFunction) prediction_free);
+      (GstMiniObjectFreeFunction) gst_inference_prediction_free);
 
   g_mutex_init (&self->mutex);
 
@@ -433,6 +434,14 @@ prediction_free (GstInferencePrediction * self)
     g_node_destroy (self->predictions);
     self->predictions = NULL;
   }
+}
+
+static void
+gst_inference_prediction_free (GstInferencePrediction * self)
+{
+  g_return_if_fail (self);
+
+  prediction_free (self);
 
   g_mutex_clear (&self->mutex);
 }
