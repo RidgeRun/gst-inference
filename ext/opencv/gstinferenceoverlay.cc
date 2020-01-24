@@ -220,6 +220,12 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
     gst_get_meta (predict, cv_mat, font_scale, thickness,
                   labels_list,  num_labels, style);
   }
+
+  if (!pred->enabled) {
+    /* Ignore overlay if the prediction is disabled */
+    return;
+  }
+
   box = pred->bbox;
 
   for (iter = pred->classifications; iter != NULL; iter = g_list_next(iter)) {
@@ -296,6 +302,9 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
     }
   }
 
+  if (NULL != list) {
+    g_slist_free (list);
+  }
 }
 
 static

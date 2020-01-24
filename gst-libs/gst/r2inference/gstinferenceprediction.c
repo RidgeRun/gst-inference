@@ -404,7 +404,7 @@ prediction_reset (GstInferencePrediction * self)
   g_return_if_fail (self);
 
   self->prediction_id = get_new_id ();
-  self->enabled = FALSE;
+  self->enabled = TRUE;
 
   bounding_box_reset (&self->bbox);
 

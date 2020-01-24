@@ -227,6 +227,10 @@ gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
     gst_inferencefilter_filter_enable (inferencefilter, predict, class_id,
         reset);
   }
+
+  if (NULL != iter_child) {
+    g_slist_free (iter_child);
+  }
 }
 
 static GstFlowReturn
