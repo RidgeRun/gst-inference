@@ -302,6 +302,9 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
     }
   }
 
+  if (NULL != list) {
+    g_slist_free (list);
+  }
 }
 
 static
