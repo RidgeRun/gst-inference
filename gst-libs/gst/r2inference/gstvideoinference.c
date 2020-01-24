@@ -1051,14 +1051,14 @@ gst_video_inference_process_bypass (GstVideoInference * self,
   GST_LOG_OBJECT (self, "Queue bypass buffer and get older one");
   g_mutex_lock (&priv->mtx_bypass_queue);
   g_queue_push_head (priv->bypass_queue, (gpointer) bypass_buffer);
-  bypass_buffer = (GstBuffer *) g_queue_pop_tail (priv->bypass_queue);
+  bypass_buffer = GST_BUFFER_CAST (g_queue_pop_tail (priv->bypass_queue));
   g_mutex_unlock (&priv->mtx_bypass_queue);
 
   while (!model_empty) {
     /* Dequeue oldest model buffer from tail */
     g_mutex_lock (&priv->mtx_model_queue);
     GST_LOG_OBJECT (self, "Dequeue model buffer");
-    model_buffer = (GstBuffer *) g_queue_pop_tail (priv->model_queue);
+    model_buffer = GST_BUFFER_CAST (g_queue_pop_tail (priv->model_queue));
     g_mutex_unlock (&priv->mtx_model_queue);
 
     if (NULL == model_buffer) {
