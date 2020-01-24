@@ -247,8 +247,10 @@ GList * gst_inference_prediction_get_enabled (GstInferencePrediction * self);
  * @dst: the destination prediction
  *
  * Copies the extra information from src to dst.
+ *
+ * Returns: TRUE if new sub-predictions were added, FALSE otherwise.
  */
-void gst_inference_prediction_merge (GstInferencePrediction * src, GstInferencePrediction * dst);
+gboolean gst_inference_prediction_merge (GstInferencePrediction * src, GstInferencePrediction * dst);
 
 /**
  * GST_INFERENCE_PREDICTION_LOCK:

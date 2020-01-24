@@ -201,6 +201,7 @@ gst_inference_meta_transform_existing_meta (GstBuffer * dest, GstMeta * meta,
   GstInferenceMeta *dmeta, *smeta;
   GstInferencePrediction *pred = NULL;
   gboolean ret = TRUE;
+  gboolean needs_scale = FALSE;
 
   g_return_val_if_fail (dest, FALSE);
   g_return_val_if_fail (meta, FALSE);
@@ -223,7 +224,7 @@ gst_inference_meta_transform_existing_meta (GstBuffer * dest, GstMeta * meta,
     g_return_val_if_reached (FALSE);
   }
 
-  gst_inference_prediction_merge (smeta->prediction, pred);
+  needs_scale = gst_inference_prediction_merge (smeta->prediction, pred);
 
   if (GST_META_TRANSFORM_IS_COPY (type)) {
     GST_LOG ("Copy detection metadata");
@@ -232,10 +233,13 @@ gst_inference_meta_transform_existing_meta (GstBuffer * dest, GstMeta * meta,
     goto out;
   }
 
-  if (GST_VIDEO_META_TRANSFORM_IS_SCALE (type)) {
-    GstVideoMetaTransform *trans = (GstVideoMetaTransform *) data;
-    gst_inference_prediction_scale_ip (pred, trans->out_info, trans->in_info);
 
+  if (GST_VIDEO_META_TRANSFORM_IS_SCALE (type)) {
+    if (needs_scale) {
+      GstVideoMetaTransform *trans = (GstVideoMetaTransform *) data;
+      gst_inference_prediction_scale_ip (pred, trans->out_info, trans->in_info);
+
+    }
     goto out;
   }
 
