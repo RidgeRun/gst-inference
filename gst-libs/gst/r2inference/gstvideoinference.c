@@ -171,7 +171,7 @@ static void video_inference_map_buffers (GstVideoInferencePad * data,
     GstBuffer * inbuf, GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean video_inference_prepare_postprocess (const GstMetaInfo *
     meta_info, GstBuffer * buffer, GstVideoInfo * video_info,
-    GstVideoFrame * out_frame, GstMeta ** out_meta);
+    GstMeta ** out_meta);
 static void video_inference_buffer_unref (GstBuffer * buffer);
 static void video_inference_frame_unmap (GstBuffer * buffer,
     GstVideoFrame * frame);
@@ -804,38 +804,27 @@ free_frames:
 
 static gboolean
 video_inference_prepare_postprocess (const GstMetaInfo * meta_info,
-    GstBuffer * buffer, GstVideoInfo * video_info, GstVideoFrame * out_frame,
-    GstMeta ** out_meta)
+    GstBuffer * buffer, GstVideoInfo * video_info, GstMeta ** out_meta)
 {
-  GstMapFlags flags;
+  GstInferenceMeta *imeta = NULL;
 
   g_return_val_if_fail (meta_info, FALSE);
-  g_return_val_if_fail (out_frame, FALSE);
+  g_return_val_if_fail (buffer, FALSE);
+  g_return_val_if_fail (video_info, FALSE);
+  g_return_val_if_fail (out_meta, FALSE);
 
-  /* No pad requested, continue without meta */
-  if (NULL == buffer || NULL == video_info) {
-    return TRUE;
+  g_return_val_if_fail (gst_buffer_is_writable (buffer), FALSE);
+  out_meta[0] = gst_buffer_add_meta (buffer, meta_info, NULL);
+
+  /* Create new meta only if the buffer didn't have one */
+  if (!out_meta[1]) {
+    out_meta[1] =
+        gst_buffer_add_meta (buffer, gst_inference_meta_get_info (), NULL);
+
+    imeta = (GstInferenceMeta *) out_meta[1];
+    imeta->prediction->bbox.width = video_info->width;
+    imeta->prediction->bbox.height = video_info->height;
   }
-
-  if (out_meta) {
-    GstInferenceMeta *imeta = NULL;
-
-    g_return_val_if_fail (gst_buffer_is_writable (buffer), FALSE);
-    out_meta[0] = gst_buffer_add_meta (buffer, meta_info, NULL);
-
-    /* Create new meta only if the buffer didn't have one */
-    if (!out_meta[1]) {
-      out_meta[1] =
-          gst_buffer_add_meta (buffer, gst_inference_meta_get_info (), NULL);
-
-      imeta = (GstInferenceMeta *) out_meta[1];
-      imeta->prediction->bbox.width = video_info->width;
-      imeta->prediction->bbox.height = video_info->height;
-    }
-  }
-
-  flags = (GstMapFlags) (GST_MAP_READ | GST_VIDEO_FRAME_MAP_FLAG_NO_REF);
-  gst_video_frame_map (out_frame, video_info, buffer, flags);
 
   return TRUE;
 }
@@ -897,7 +886,6 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
   GstFlowReturn ret = GST_FLOW_OK;
   GstMeta *current_meta = NULL;
   GstMeta *meta_model[2] = { NULL };
-  GstVideoFrame frame_model;
   GstVideoInfo *info_model = NULL;
   GstBuffer *buffer_model = NULL;
   gpointer prediction_data = NULL;
@@ -944,10 +932,11 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
   /* Prepare postprocess */
   info_model = &(pad->info);
   if (!video_inference_prepare_postprocess (klass->inference_meta_info,
-          buffer_model, info_model, &frame_model, meta_model)) {
+          buffer_model, info_model, meta_model)) {
     ret = GST_FLOW_ERROR;
     goto buffer_free;
   }
+
   /* Subclass Processing */
   if (!klass->postprocess (self, prediction_data, prediction_size,
           meta_model, info_model, &pred_valid, priv->labels_list,
@@ -978,8 +967,6 @@ forward_buffer:
       priv->src_model);
 
 buffer_free:
-  video_inference_frame_unmap (buffer_model, &frame_model);
-
   if (GST_FLOW_OK != ret) {
     /* Free if forward failed */
     video_inference_buffer_unref (buffer_model);
