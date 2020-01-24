@@ -19,15 +19,15 @@
  *
  */
 
-#ifndef _GST_INFERENCEDEBUG_H_
-#define _GST_INFERENCEDEBUG_H_
+#ifndef _GST_INFERENCE_DEBUG_H_
+#define _GST_INFERENCE_DEBUG_H_
 
 #include <gst/base/gstbasetransform.h>
 
 G_BEGIN_DECLS
-#define GST_TYPE_INFERENCEDEBUG   (gst_inferencedebug_get_type())
-G_DECLARE_FINAL_TYPE (GstInferencedebug, gst_inferencedebug, GST,
-    INFERENCEDEBUG, GstBaseTransform)
+#define GST_TYPE_INFERENCE_DEBUG   (gst_inference_debug_get_type())
+G_DECLARE_FINAL_TYPE (GstInferenceDebug, gst_inference_debug, GST,
+    INFERENCE_DEBUG, GstBaseTransform)
 
 G_END_DECLS
 #endif

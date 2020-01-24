@@ -42,49 +42,45 @@
 #include "gstinferencedebug.h"
 
 #include <gst/r2inference/gstinferencemeta.h>
-#include <gst/base/gstbasetransform.h>
 
-
-GST_DEBUG_CATEGORY_STATIC (gst_inferencedebug_debug_category);
-#define GST_CAT_DEFAULT gst_inferencedebug_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_inference_debug_debug_category);
+#define GST_CAT_DEFAULT gst_inference_debug_debug_category
 
 /* prototypes */
 
-static void gst_inferencedebug_print_predictions (GstInferencedebug *
+static void gst_inference_debug_print_predictions (GstInferenceDebug *
     inferencedebug, GstInferencePrediction * root);
-static GstFlowReturn gst_inferencedebug_transform_ip (GstBaseTransform * trans,
+static GstFlowReturn gst_inference_debug_transform_ip (GstBaseTransform * trans,
     GstBuffer * buf);
 
-struct _GstInferencedebug
+struct _GstInferenceDebug
 {
-  GstBaseTransform base_inferencedebug;
+  GstBaseTransform base_inference_debug;
 };
-
 
 /* pad templates */
 
-static GstStaticPadTemplate gst_inferencedebug_src_template =
+static GstStaticPadTemplate gst_inference_debug_src_template =
 GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS_ANY);
 
-static GstStaticPadTemplate gst_inferencedebug_sink_template =
+static GstStaticPadTemplate gst_inference_debug_sink_template =
 GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS_ANY);
 
-
 /* class initialization */
 
-G_DEFINE_TYPE_WITH_CODE (GstInferencedebug, gst_inferencedebug,
+G_DEFINE_TYPE_WITH_CODE (GstInferenceDebug, gst_inference_debug,
     GST_TYPE_BASE_TRANSFORM,
-    GST_DEBUG_CATEGORY_INIT (gst_inferencedebug_debug_category,
+    GST_DEBUG_CATEGORY_INIT (gst_inference_debug_debug_category,
         "inferencedebug", 0, "debug category for inferencedebug element"));
 
 static void
-gst_inferencedebug_class_init (GstInferencedebugClass * klass)
+gst_inference_debug_class_init (GstInferenceDebugClass * klass)
 {
   GstBaseTransformClass *base_transform_class =
       GST_BASE_TRANSFORM_CLASS (klass);
@@ -92,9 +88,9 @@ gst_inferencedebug_class_init (GstInferencedebugClass * klass)
   /* Setting up pads and setting metadata should be moved to
      base_class_init if you intend to subclass this class. */
   gst_element_class_add_static_pad_template (GST_ELEMENT_CLASS (klass),
-      &gst_inferencedebug_src_template);
+      &gst_inference_debug_src_template);
   gst_element_class_add_static_pad_template (GST_ELEMENT_CLASS (klass),
-      &gst_inferencedebug_sink_template);
+      &gst_inference_debug_sink_template);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "Inference Debug", "Generic",
@@ -102,17 +98,16 @@ gst_inferencedebug_class_init (GstInferencedebugClass * klass)
       "<carlos.rodriguez@ridgerun.com>");
 
   base_transform_class->transform_ip =
-      GST_DEBUG_FUNCPTR (gst_inferencedebug_transform_ip);
+      GST_DEBUG_FUNCPTR (gst_inference_debug_transform_ip);
 }
 
 static void
-gst_inferencedebug_init (GstInferencedebug * inferencedebug)
+gst_inference_debug_init (GstInferenceDebug * inferencedebug)
 {
 }
 
-
 static void
-gst_inferencedebug_print_predictions (GstInferencedebug * inferencedebug,
+gst_inference_debug_print_predictions (GstInferenceDebug * inferencedebug,
     GstInferencePrediction * root)
 {
   gchar *prediction_tree = NULL;
@@ -128,9 +123,9 @@ gst_inferencedebug_print_predictions (GstInferencedebug * inferencedebug,
 }
 
 static GstFlowReturn
-gst_inferencedebug_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
+gst_inference_debug_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 {
-  GstInferencedebug *inferencedebug = GST_INFERENCEDEBUG (trans);
+  GstInferenceDebug *inferencedebug = GST_INFERENCE_DEBUG (trans);
   GstInferenceMeta *meta;
 
   GST_DEBUG_OBJECT (inferencedebug, "transform_ip");
@@ -146,7 +141,7 @@ gst_inferencedebug_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 
   g_return_val_if_fail (meta->prediction, GST_FLOW_ERROR);
 
-  gst_inferencedebug_print_predictions (inferencedebug, meta->prediction);
+  gst_inference_debug_print_predictions (inferencedebug, meta->prediction);
 
   return GST_FLOW_OK;
 }
@@ -155,9 +150,8 @@ static gboolean
 plugin_init (GstPlugin * plugin)
 {
   return gst_element_register (plugin, "inferencedebug", GST_RANK_NONE,
-      GST_TYPE_INFERENCEDEBUG);
+      GST_TYPE_INFERENCE_DEBUG);
 }
-
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
