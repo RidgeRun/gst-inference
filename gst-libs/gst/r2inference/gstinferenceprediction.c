@@ -59,6 +59,8 @@ static void prediction_scale_ip (GstInferencePrediction * self,
 static GSList *prediction_get_children_unlocked (GstInferencePrediction * self);
 static void prediction_merge (GstInferencePrediction * src,
     GstInferencePrediction * dst);
+static void prediction_get_enabled (GstInferencePrediction * self,
+    GList ** enabled);
 
 static GstInferenceClassification
     * classification_copy (GstInferenceClassification * from, gpointer data);
@@ -74,6 +76,7 @@ static gboolean node_scale_ip (GNode * node, gpointer data);
 static gpointer node_scale (gconstpointer, gpointer data);
 static gboolean node_assign (GNode * node, gpointer data);
 static gboolean node_find (GNode * node, gpointer data);
+static gboolean node_get_enabled (GNode * node, gpointer data);
 
 static void compute_factors (GstVideoInfo * from, GstVideoInfo * to,
     gdouble * hfactor, gdouble * vfactor);
@@ -743,4 +746,44 @@ gst_inference_prediction_merge (GstInferencePrediction * src,
 
   GST_INFERENCE_PREDICTION_UNLOCK (dst);
   GST_INFERENCE_PREDICTION_UNLOCK (src);
+}
+
+static void
+prediction_get_enabled (GstInferencePrediction * self, GList ** found)
+{
+  g_return_if_fail (self);
+  g_return_if_fail (found);
+
+  if (self->enabled) {
+    *found = g_list_append (*found, self);
+  }
+}
+
+static gboolean
+node_get_enabled (GNode * node, gpointer data)
+{
+  GstInferencePrediction *self = NULL;
+  GList **found = (GList **) data;
+
+  g_return_val_if_fail (node, TRUE);
+  g_return_val_if_fail (found, TRUE);
+
+  self = (GstInferencePrediction *) node->data;
+
+  prediction_get_enabled (self, found);
+
+  return FALSE;
+}
+
+GList *
+gst_inference_prediction_get_enabled (GstInferencePrediction * self)
+{
+  GList *found = NULL;
+
+  g_return_val_if_fail (self, NULL);
+
+  g_node_traverse (self->predictions, G_IN_ORDER, G_TRAVERSE_ALL, -1,
+      node_get_enabled, &found);
+
+  return found;
 }

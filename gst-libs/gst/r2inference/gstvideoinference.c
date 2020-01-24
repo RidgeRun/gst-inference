@@ -954,25 +954,6 @@ out:
   return ret;
 }
 
-static gboolean
-gst_inference_is_prediction_enabled (GNode * node, gpointer data)
-{
-  GstInferencePrediction *root = (GstInferencePrediction *) node->data;
-  gboolean *enabled;
-
-  g_return_val_if_fail (root != NULL, TRUE);
-  g_return_val_if_fail (data != NULL, TRUE);
-
-  enabled = (gboolean *) data;
-
-  if (root->enabled) {
-    /* This prediction is enabled, mark enabled flag and terminate traverse */
-    *enabled = TRUE;
-    return TRUE;
-  }
-  return FALSE;
-}
-
 static void
 video_inference_notify (GstVideoInference * self, GstBuffer * model_buffer,
     GstMeta * meta_model[2], GstBuffer * bypass_buffer,
@@ -1034,17 +1015,16 @@ gst_video_inference_process_bypass (GstVideoInference * self,
   current_meta = gst_buffer_get_meta (bypass_buffer,
       gst_inference_meta_api_get_type ());
   if (current_meta) {
-    /* Check if at least one node is enabled to be processed, if not, just forward buffer */
     GstInferenceMeta *imeta = (GstInferenceMeta *) current_meta;
-    gboolean enabled = FALSE;
+    GList *found = gst_inference_prediction_get_enabled (imeta->prediction);
 
-    g_node_traverse (imeta->prediction->predictions, G_LEVEL_ORDER,
-        G_TRAVERSE_ALL, -1, gst_inference_is_prediction_enabled, &enabled);
-    if (!enabled) {
+    if (!found) {
       GST_INFO_OBJECT (self,
           "There is no predictions enabled, bypassing processing...");
       goto forward_buffer;
     }
+
+    g_list_free (found);
   }
 
   /* Queue this new buffer at the head and dequeue the older one */
