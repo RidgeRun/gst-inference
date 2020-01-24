@@ -43,8 +43,8 @@ typedef struct _GstInferencePrediction GstInferencePrediction;
  */
 struct _BoundingBox
 {
-  guint x;
-  guint y;
+  gint x;
+  gint y;
   guint width;
   guint height;
 };

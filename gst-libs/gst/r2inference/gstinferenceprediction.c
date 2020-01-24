@@ -236,8 +236,8 @@ bounding_box_to_string (BoundingBox * bbox, gint level)
   g_return_val_if_fail (bbox, NULL);
 
   return g_strdup_printf ("{\n"
-      "%*s  x : %u\n"
-      "%*s  y : %u\n"
+      "%*s  x : %d\n"
+      "%*s  y : %d\n"
       "%*s  width : %u\n"
       "%*s  height : %u\n"
       "%*s}",
