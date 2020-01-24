@@ -1,1 +1,4 @@
-SUBDIRS = inferencecrop inferencefilter
+SUBDIRS =	\
+	inferencecrop	\
+	inferencefilter	\
+	inferencedebug
