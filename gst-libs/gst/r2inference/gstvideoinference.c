@@ -140,7 +140,7 @@ static GstFlowReturn gst_video_inference_buffer_function (GstCollectPads * pads,
     GstCollectData * data, GstBuffer * buffer, gpointer user_data);
 static GstFlowReturn gst_video_inference_forward_buffer (GstVideoInference *
     self, GstBuffer * buffer, GstPad * pad);
-static gboolean gst_video_inference_model_buffer_process (GstVideoInference *
+static gboolean gst_video_inference_model_run_prediction (GstVideoInference *
     self, GstVideoInferenceClass * klass, GstVideoInferencePrivate * priv,
     GstBuffer * buffer, gpointer * prediction_data, gsize * prediction_size);
 
@@ -759,7 +759,7 @@ gst_video_inference_predict (GstVideoInference * self,
 }
 
 static gboolean
-gst_video_inference_model_buffer_process (GstVideoInference * self,
+gst_video_inference_model_run_prediction (GstVideoInference * self,
     GstVideoInferenceClass * klass, GstVideoInferencePrivate * priv,
     GstBuffer * buffer, gpointer * prediction_data, gsize * prediction_size)
 {
@@ -899,7 +899,7 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
   }
 
   /* Run preprocess and inference on the model and generate prediction */
-  if (!gst_video_inference_model_buffer_process (self, klass, priv,
+  if (!gst_video_inference_model_run_prediction (self, klass, priv,
           buffer_model, &prediction_data, &prediction_size)) {
     ret = GST_FLOW_ERROR;
     goto buffer_free;
