@@ -232,4 +232,6 @@ static void
 classification_free (GstInferenceClassification * self)
 {
   classification_reset (self);
+
+  g_mutex_clear (&self->mutex);
 }

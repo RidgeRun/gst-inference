@@ -433,6 +433,8 @@ prediction_free (GstInferencePrediction * self)
     g_node_destroy (self->predictions);
     self->predictions = NULL;
   }
+
+  g_mutex_clear (&self->mutex);
 }
 
 void
