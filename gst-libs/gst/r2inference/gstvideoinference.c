@@ -1189,6 +1189,7 @@ gst_video_inference_buffer_function (GstCollectPads * pads,
     GstCollectData * data, GstBuffer * buffer, gpointer user_data)
 {
   GstVideoInference *self = (GstVideoInference *) user_data;
+  GstVideoInferencePrivate *priv = NULL;
   GstVideoInferencePad *pad = (GstVideoInferencePad *) data;
   GstFlowReturn ret = GST_FLOW_OK;
 
@@ -1201,13 +1202,13 @@ gst_video_inference_buffer_function (GstCollectPads * pads,
   g_return_val_if_fail (pads != NULL, GST_FLOW_ERROR);
   g_return_val_if_fail (self != NULL, GST_FLOW_ERROR);
 
-  if (!g_strcmp0 (GST_PAD_NAME (data->pad), "sink_model")) {
+  priv = GST_VIDEO_INFERENCE_PRIVATE (self);
+
+  if (data->pad == priv->sink_model) {
     GST_LOG_OBJECT (self, "Model buffer arrived, processing it...");
     ret = gst_video_inference_process_model (self, buffer, pad);
     goto out;
-  }
-
-  if (!g_strcmp0 (GST_PAD_NAME (data->pad), "sink_bypass")) {
+  } else {
     GST_LOG_OBJECT (self, "Bypass buffer arrived, processing it...");
     ret = gst_video_inference_process_bypass (self, buffer, pad);
     goto out;
