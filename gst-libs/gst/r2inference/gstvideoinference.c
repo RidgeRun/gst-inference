@@ -1012,6 +1012,7 @@ gst_video_inference_process_bypass (GstVideoInference * self,
   if (NULL == priv->sink_model) {
     GST_LOG_OBJECT (self,
         "There is no sinkpad for model, forwarding bypass buffer...");
+    bypass_buffer = buffer;
     goto forward_buffer;
   }
 
