@@ -68,6 +68,7 @@ struct _GstInferencePrediction
 {
   /*<private>*/
   GstMiniObject base;
+  GMutex mutex;
 
   /*<public>*/
   guint64 prediction_id;
@@ -80,11 +81,25 @@ struct _GstInferencePrediction
 /**
  * gst_inference_prediction_new:
  * 
- * Creates a new GstInferencePrediction.
+ * Creates a new GstInferencePrediction. Values can be later assigned
+ * manually, however these assignments should be done with the
+ * GST_INFERENCE_PREDICTION_LOCK held. See
+ * gst_inference_prediction_new_full for a thread safe version.
  *
  * Returns: A newly allocated and initialized GstInferencePrediction.
  */
 GstInferencePrediction * gst_inference_prediction_new (void);
+
+/**
+ * gst_inference_prediction_new_full:
+ * @bbox: The bounding box of this prediction.
+ *
+ * Creates a new GstInferencePrediction and initializes its internal
+ * values.
+ *
+ * Returns: A newly allocated and initialized GstInferencePrediction.
+ */
+GstInferencePrediction * gst_inference_prediction_new_full (BoundingBox *bbox);
 
 /**
  * gst_inference_prediction_reset:
@@ -174,7 +189,7 @@ void gst_inference_prediction_append_classification (GstInferencePrediction * se
 
 /**
  * gst_inference_prediction_scale:
- * @self: the original prediction
+ * @self: the prediction to scale
  * @to: the resulting image size
  * @from: the original image size
  *
@@ -187,6 +202,60 @@ void gst_inference_prediction_append_classification (GstInferencePrediction * se
  */
 GstInferencePrediction * gst_inference_prediction_scale (GstInferencePrediction * self,
     GstVideoInfo * to, GstVideoInfo * from);
+
+/**
+ * gst_inference_prediction_scale_ip:
+ * @self: the prediction to scale in place
+ * @to: the resulting image size
+ * @from: the original image size
+ *
+ * Modifies the BoundingBox associated with this prediction (and all
+ * its children) to scale to the new image size. This is typically
+ * used by the GstMeta subsystem automatically and not for public
+ * usage.
+ */
+void gst_inference_prediction_scale_ip (GstInferencePrediction * self,
+    GstVideoInfo * to, GstVideoInfo * from);
+
+/**
+ * gst_inference_prediction_find:
+ * @self: the root prediction
+ * @id: the prediction_id of the prediction to return
+ *
+ * Traverses the prediction tree looking for a child with the given
+ * id.
+ *
+ * Returns: a reference to the prediction with id or NULL if not
+ * found. Unref after usage.
+ */
+GstInferencePrediction * gst_inference_prediction_find (GstInferencePrediction * self,
+    guint64 id);
+
+/**
+ * gst_inference_prediction_merge:
+ * @src: the source prediction
+ * @dst: the destination prediction
+ *
+ * Copies the extra information from src to dst.
+ */
+void gst_inference_prediction_merge (GstInferencePrediction * src, GstInferencePrediction * dst);
+
+/**
+ * GST_INFERENCE_PREDICTION_LOCK:
+ * @p: The GstInferencePrediction to lock
+ *
+ * Locks the prediction to avoid concurrent access from different
+ * threads.
+ */
+#define GST_INFERENCE_PREDICTION_LOCK(p) g_mutex_lock (&((p)->mutex))
+
+/**
+ * GST_INFERENCE_PREDICTION_UNLOCK:
+ * @p: The GstInferencePrediction to unlock
+ *
+ * Unlocks the prediction to yield the access to other threads.
+ */
+#define GST_INFERENCE_PREDICTION_UNLOCK(p) g_mutex_unlock (&((p)->mutex))
 
 G_END_DECLS
 

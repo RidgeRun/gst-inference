@@ -28,6 +28,7 @@ G_BEGIN_DECLS
 
 /**
  * GstInferenceClassification:
+ * @classification_id: a unique id associated to this classification
  * @class_id: the numerical id associated to the assigned class
  * @class_prob: the resulting probability of the assigned
  * class. Typically between 0 and 1
@@ -43,8 +44,10 @@ struct _GstInferenceClassification
 {
   /*<private>*/
   GstMiniObject base;
+  GMutex mutex;
 
   /*<public>*/
+  guint64 classification_id;
   gint class_id;
   gdouble class_prob;
   gchar *class_label;
@@ -133,6 +136,23 @@ void gst_inference_classification_unref (GstInferenceClassification * self);
  * Returns: a string representing the classification.
  */
 gchar * gst_inference_classification_to_string (GstInferenceClassification * self, gint level);
+
+/**
+ * GST_INFERENCE_CLASSIFICATION_LOCK:
+ * @c: The GstInferenceClassification to lock
+ *
+ * Locks the classification to avoid concurrent access from different
+ * threads.
+ */
+#define GST_INFERENCE_CLASSIFICATION_LOCK(c) g_mutex_lock (&((c)->mutex))
+
+/**
+ * GST_INFERENCE_CLASSIFICATION_UNLOCK:
+ * @c: The GstInferenceClassification to unlock
+ *
+ * Unlocks the prediction to yield the access to other threads.
+ */
+#define GST_INFERENCE_CLASSIFICATION_UNLOCK(c) g_mutex_unlock (&((c)->mutex))
 
 G_END_DECLS
 

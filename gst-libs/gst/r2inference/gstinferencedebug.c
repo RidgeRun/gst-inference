@@ -106,8 +106,9 @@ gst_inference_print_predictions (GstVideoInference * vi,
   g_return_if_fail (inference_meta != NULL);
 
   pred = inference_meta->prediction;
-
   spred = gst_inference_prediction_to_string (pred);
+
   GST_CAT_LOG (category, "\n%s", spred);
+
   g_free (spred);
 }

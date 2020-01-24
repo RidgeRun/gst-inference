@@ -51,9 +51,7 @@ GType
 gst_inference_meta_api_get_type (void)
 {
   static volatile GType type = 0;
-  static const gchar *tags[] =
-      { GST_META_TAG_VIDEO_STR, GST_META_TAG_VIDEO_ORIENTATION_STR,
-    GST_META_TAG_VIDEO_SIZE_STR, NULL
+  static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL
   };
 
   if (g_once_init_enter (&type)) {
@@ -144,9 +142,7 @@ GType
 gst_detection_meta_api_get_type (void)
 {
   static volatile GType type = 0;
-  static const gchar *tags[] =
-      { GST_META_TAG_VIDEO_STR, GST_META_TAG_VIDEO_ORIENTATION_STR,
-    GST_META_TAG_VIDEO_SIZE_STR, NULL
+  static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL
   };
 
   if (g_once_init_enter (&type)) {
@@ -199,7 +195,61 @@ gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer)
 }
 
 static gboolean
-gst_inference_meta_transform (GstBuffer * dest, GstMeta * meta,
+gst_inference_meta_transform_existing_meta (GstBuffer * dest, GstMeta * meta,
+    GstBuffer * buffer, GQuark type, gpointer data)
+{
+  GstInferenceMeta *dmeta, *smeta;
+  GstInferencePrediction *pred = NULL;
+  gboolean ret = TRUE;
+
+  g_return_val_if_fail (dest, FALSE);
+  g_return_val_if_fail (meta, FALSE);
+  g_return_val_if_fail (buffer, FALSE);
+
+  smeta = (GstInferenceMeta *) meta;
+  dmeta =
+      (GstInferenceMeta *) gst_buffer_get_meta (dest,
+      gst_inference_meta_api_get_type ());
+
+  g_return_val_if_fail (dmeta, FALSE);
+
+  pred =
+      gst_inference_prediction_find (dmeta->prediction,
+      smeta->prediction->prediction_id);
+
+  if (!pred) {
+    GST_ERROR
+        ("Predictions between metas do not match. Something really wrong happened");
+    g_return_val_if_reached (FALSE);
+  }
+
+  gst_inference_prediction_merge (smeta->prediction, pred);
+
+  if (GST_META_TRANSFORM_IS_COPY (type)) {
+    GST_LOG ("Copy detection metadata");
+
+    /* The merge already handled the copy */
+    goto out;
+  }
+
+  if (GST_VIDEO_META_TRANSFORM_IS_SCALE (type)) {
+    GstVideoMetaTransform *trans = (GstVideoMetaTransform *) data;
+    gst_inference_prediction_scale_ip (pred, trans->out_info, trans->in_info);
+
+    goto out;
+  }
+
+  /* Invalid transformation */
+  gst_buffer_remove_meta (dest, (GstMeta *) dmeta);
+  ret = FALSE;
+
+out:
+  gst_inference_prediction_unref (pred);
+  return ret;
+}
+
+static gboolean
+gst_inference_meta_transform_new_meta (GstBuffer * dest, GstMeta * meta,
     GstBuffer * buffer, GQuark type, gpointer data)
 {
   GstInferenceMeta *dmeta, *smeta;
@@ -207,8 +257,6 @@ gst_inference_meta_transform (GstBuffer * dest, GstMeta * meta,
   g_return_val_if_fail (dest, FALSE);
   g_return_val_if_fail (meta, FALSE);
   g_return_val_if_fail (buffer, FALSE);
-
-  GST_LOG ("Transforming inference metadata");
 
   smeta = (GstInferenceMeta *) meta;
   dmeta =
@@ -230,6 +278,7 @@ gst_inference_meta_transform (GstBuffer * dest, GstMeta * meta,
 
   if (GST_VIDEO_META_TRANSFORM_IS_SCALE (type)) {
     GstVideoMetaTransform *trans = (GstVideoMetaTransform *) data;
+
     dmeta->prediction =
         gst_inference_prediction_scale (smeta->prediction, trans->out_info,
         trans->in_info);
@@ -239,6 +288,28 @@ gst_inference_meta_transform (GstBuffer * dest, GstMeta * meta,
   /* Invalid transformation */
   gst_buffer_remove_meta (dest, (GstMeta *) dmeta);
   return FALSE;
+}
+
+static gboolean
+gst_inference_meta_transform (GstBuffer * dest, GstMeta * meta,
+    GstBuffer * buffer, GQuark type, gpointer data)
+{
+  GstMeta *dmeta;
+
+  g_return_val_if_fail (dest, FALSE);
+  g_return_val_if_fail (meta, FALSE);
+  g_return_val_if_fail (buffer, FALSE);
+
+  GST_LOG ("Transforming inference metadata");
+
+  dmeta = gst_buffer_get_meta (dest, gst_inference_meta_api_get_type ());
+  if (!dmeta) {
+    return gst_inference_meta_transform_new_meta (dest, meta, buffer, type,
+        data);
+  } else {
+    return gst_inference_meta_transform_existing_meta (dest, meta, buffer, type,
+        data);
+  }
 }
 
 static gboolean
@@ -402,12 +473,9 @@ gst_classification_meta_transform (GstBuffer * dest, GstMeta * meta,
 {
   GST_LOG ("Transforming detection metadata");
 
-  if (GST_META_TRANSFORM_IS_COPY (type)) {
-    return gst_classification_meta_copy (dest, meta, buffer);
-  }
-
-  /* No transform supported */
-  return FALSE;
+  /* TODO: Eventually check for the specific transformation here.
+     Fail if its an unsupported transformation */
+  return gst_classification_meta_copy (dest, meta, buffer);
 }
 
 /* inference metadata functions */
