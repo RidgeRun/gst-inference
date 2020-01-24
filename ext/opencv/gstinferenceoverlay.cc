@@ -32,6 +32,14 @@
 #include "opencv2/highgui.hpp"
 #endif
 
+#define DEFAULT_LABELS NULL
+
+enum
+{
+  PROP_0,
+  PROP_LABELS
+};
+
 static const
 cv::Scalar
 colors[] = {
@@ -58,6 +66,10 @@ GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_inference_overlay_debug_category
 
 /* prototypes */
+static void gst_inference_overlay_set_property (GObject * object,
+    guint property_id, const GValue * value, GParamSpec * pspec);
+static void gst_inference_overlay_get_property (GObject * object,
+    guint property_id, GValue * value, GParamSpec * pspec);
 static GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
                                     GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
@@ -86,11 +98,19 @@ static void
 gst_inference_overlay_class_init (GstInferenceOverlayClass *klass) {
   GstInferenceBaseOverlayClass *
   io_class = GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
-
+  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
+ 
+  gobject_class->set_property = gst_inference_overlay_set_property;
+  gobject_class->get_property = gst_inference_overlay_get_property;
+ 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
                                          "inferenceoverlay", "Filter",
                                          "Overlays Inferece metadata on input buffer",
                                          "Lenin Torres <lenin.torres@ridgerun.com>");
+  g_object_class_install_property (gobject_class, PROP_LABELS,
+      g_param_spec_string ("labels", "labels",
+          "(Deprecated) Semicolon separated string containing inference labels.",
+          DEFAULT_LABELS, G_PARAM_READWRITE));
 
   io_class->process_meta =
     GST_DEBUG_FUNCPTR (gst_inference_overlay_process_meta);
@@ -99,6 +119,42 @@ gst_inference_overlay_class_init (GstInferenceOverlayClass *klass) {
 
 static void
 gst_inference_overlay_init (GstInferenceOverlay *inference_overlay) {
+}
+
+void
+gst_inference_overlay_set_property (GObject * object, guint property_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  GstInferenceOverlay *inference_overlay =
+      GST_INFERENCE_OVERLAY (object);
+
+  GST_DEBUG_OBJECT (inference_overlay, "set_property");
+
+  switch (property_id) {
+    case PROP_LABELS:
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+void
+gst_inference_overlay_get_property (GObject * object, guint property_id,
+    GValue * value, GParamSpec * pspec)
+{
+  GstInferenceOverlay *inference_overlay =
+      GST_INFERENCE_OVERLAY (object);
+
+  GST_DEBUG_OBJECT (inference_overlay, "get_property");
+
+  switch (property_id) {
+    case PROP_LABELS:
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
 }
 
 void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
@@ -155,7 +211,6 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
   cv::Mat alpha_overlay;
   gint width, height,x, y = 0;
   g_return_if_fail (pred != NULL);
-  g_return_if_fail (labels_list != NULL);
 
   list = gst_inference_prediction_get_children(pred);
 
@@ -256,7 +311,6 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
   g_return_val_if_fail (inference_overlay != NULL ,GST_FLOW_ERROR);
   g_return_val_if_fail (frame != NULL ,GST_FLOW_ERROR);
   g_return_val_if_fail (meta != NULL  ,GST_FLOW_ERROR);
-  g_return_val_if_fail (labels_list != NULL  ,GST_FLOW_ERROR);
 
   switch (GST_VIDEO_FRAME_FORMAT (frame)) {
     case GST_VIDEO_FORMAT_RGB:
