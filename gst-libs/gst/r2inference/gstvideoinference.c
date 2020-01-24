@@ -928,7 +928,7 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
 
   /* Check if bypass pad was requested, if not, forward buffer */
   if (NULL == priv->sink_bypass) {
-    GST_INFO_OBJECT (self,
+    GST_LOG_OBJECT (self,
         "There is no sinkpad for bypass, forwarding model buffer...");
     goto forward_buffer;
   } else {
@@ -1025,7 +1025,7 @@ gst_video_inference_process_bypass (GstVideoInference * self,
 
   /* Check if model pad was requested, if not, forward buffer */
   if (NULL == priv->sink_model) {
-    GST_INFO_OBJECT (self,
+    GST_LOG_OBJECT (self,
         "There is no sinkpad for model, forwarding bypass buffer...");
     goto forward_buffer;
   }
