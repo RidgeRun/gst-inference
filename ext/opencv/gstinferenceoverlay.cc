@@ -155,7 +155,6 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
   cv::Mat alpha_overlay;
   gint width, height,x, y = 0;
   g_return_if_fail (pred != NULL);
-  g_return_if_fail (labels_list != NULL);
 
   list = gst_inference_prediction_get_children(pred);
 
@@ -256,7 +255,6 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
   g_return_val_if_fail (inference_overlay != NULL ,GST_FLOW_ERROR);
   g_return_val_if_fail (frame != NULL ,GST_FLOW_ERROR);
   g_return_val_if_fail (meta != NULL  ,GST_FLOW_ERROR);
-  g_return_val_if_fail (labels_list != NULL  ,GST_FLOW_ERROR);
 
   switch (GST_VIDEO_FRAME_FORMAT (frame)) {
     case GST_VIDEO_FORMAT_RGB:
