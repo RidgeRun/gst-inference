@@ -232,13 +232,25 @@ GstInferencePrediction * gst_inference_prediction_find (GstInferencePrediction *
     guint64 id);
 
 /**
+ * gst_inference_prediction_get_enabled:
+ * @self: the root prediction
+ *
+ * Traverse the prediction three saving the predictions that are enabled.
+ *
+ * Returns: a GList of predictions that are enabled.
+ */
+GList * gst_inference_prediction_get_enabled (GstInferencePrediction * self);
+
+/**
  * gst_inference_prediction_merge:
  * @src: the source prediction
  * @dst: the destination prediction
  *
  * Copies the extra information from src to dst.
+ *
+ * Returns: TRUE if new sub-predictions were added, FALSE otherwise.
  */
-void gst_inference_prediction_merge (GstInferencePrediction * src, GstInferencePrediction * dst);
+gboolean gst_inference_prediction_merge (GstInferencePrediction * src, GstInferencePrediction * dst);
 
 /**
  * GST_INFERENCE_PREDICTION_LOCK:

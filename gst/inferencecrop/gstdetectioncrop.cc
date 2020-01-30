@@ -93,7 +93,8 @@ enum {
 
 struct _GstDetectionCrop {
   GstBin parent;
-  GstPad *pad;
+  GstPad *sinkpad;
+  GstPad *srcpad;
   CropElement *element;
   gint width_ratio;
   gint height_ratio;
@@ -149,7 +150,7 @@ gst_detection_crop_init (GstDetectionCrop *self) {
   GstElement *element;
   GstPad *sinkpad, *sinkgpad, *srcpad, *srcgpad;
 
-  self->pad = NULL;
+  self->sinkpad = NULL;
   self->element = new VideoCrop ();
   self->width_ratio = PROP_CROP_RATIO_DEFAULT_WIDTH;
   self->height_ratio = PROP_CROP_RATIO_DEFAULT_HEIGHT;
@@ -165,7 +166,7 @@ gst_detection_crop_init (GstDetectionCrop *self) {
   sinkpad = self->element->GetSinkPad ();
   g_return_if_fail (sinkpad);
 
-  self->pad = GST_PAD(gst_object_ref(sinkpad));
+  self->sinkpad = GST_PAD(gst_object_ref(sinkpad));
 
   sinkgpad = gst_ghost_pad_new ("sink", sinkpad);
   gst_pad_set_active (sinkgpad, TRUE);
@@ -178,6 +179,8 @@ gst_detection_crop_init (GstDetectionCrop *self) {
 
   srcpad = self->element->GetSrcPad ();
   g_return_if_fail (srcpad);
+
+  self->srcpad = GST_PAD(gst_object_ref(srcpad));
 
   srcgpad = gst_ghost_pad_new ("src", srcpad);
   gst_pad_set_active (srcgpad, TRUE);
@@ -194,8 +197,10 @@ gst_detection_crop_finalize (GObject *object) {
   g_return_if_fail(self);
 
   delete (self->element);
-  gst_object_unref (self->pad);
-  self->pad = NULL;
+  gst_object_unref (self->sinkpad);
+  self->sinkpad = NULL;
+  gst_object_unref (self->srcpad);
+  self->srcpad = NULL;
 
   G_OBJECT_CLASS (gst_detection_crop_parent_class)->finalize (object);
 }
@@ -391,6 +396,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   GstPadProbeReturn ret = GST_PAD_PROBE_DROP;
   GList *list = NULL;
   GList *iter = NULL;
+  gboolean gap = TRUE;
 
   GST_OBJECT_LOCK (self);
   crop_width_ratio = self->width_ratio;
@@ -441,15 +447,21 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     dmeta->prediction->bbox.width = self->width - right - left;
     dmeta->prediction->bbox.height = self->height - top - bottom;
 
-    if (GST_FLOW_OK != gst_pad_chain(self->pad, croped_buffer)) {
+    if (GST_FLOW_OK != gst_pad_chain(self->sinkpad, croped_buffer)) {
       GST_ELEMENT_ERROR(self, CORE, FAILED,
                         ("Failed to push a new buffer into crop element"), (NULL));
     }
+    gap = FALSE;
   }
 
   ret = GST_PAD_PROBE_DROP;
 
 out:
+  if (gap) {
+    gst_pad_push_event (self->srcpad, gst_event_new_gap (GST_BUFFER_TIMESTAMP (buffer),
+							 GST_BUFFER_DURATION (buffer)));
+  }
+
   return ret;
 }
 
@@ -459,7 +471,7 @@ plugin_init (GstPlugin *plugin) {
 
   ret =
     gst_element_register (plugin, "detectioncrop", GST_RANK_NONE,
-                          GST_TYPE_DETECTION_CROP);
+			  GST_TYPE_DETECTION_CROP);
 
   return ret;
 }
