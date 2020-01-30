@@ -536,7 +536,7 @@ gst_video_inference_create_pad (GstVideoInference * self,
 
     *data =
         (GstVideoInferencePad *) gst_collect_pads_add_pad (priv->cpads, pad,
-        sizeof (GstVideoInferencePad), NULL, TRUE);
+        sizeof (GstVideoInferencePad), NULL, FALSE);
     if (NULL == *data) {
       GST_ERROR_OBJECT (self, "Unable to add pad %s to collect pads", name);
       goto free_pad;
