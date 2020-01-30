@@ -271,6 +271,8 @@ prediction_children_to_string (GstInferencePrediction * self, gint level)
     g_free (child);
   }
 
+  g_slist_free (subpreds);
+
   return g_string_free (string, FALSE);
 }
 
@@ -421,14 +423,11 @@ static void
 prediction_free (GstInferencePrediction * self)
 {
   GSList *children = prediction_get_children_unlocked (self);
-  GSList *iter = NULL;
 
-  for (iter = children; iter != NULL; iter = g_slist_next (iter)) {
-    GstInferencePrediction *child = (GstInferencePrediction *) iter->data;
+  /* Free all children recursively */
+  g_slist_free_full (children, (GDestroyNotify) gst_inference_prediction_unref);
 
-    gst_inference_prediction_unref (child);
-  }
-
+  /* Now  free our classifications */
   g_list_free_full (self->classifications,
       (GDestroyNotify) gst_inference_classification_unref);
   self->classifications = NULL;
@@ -730,6 +729,7 @@ prediction_merge (GstInferencePrediction * src, GstInferencePrediction * dst)
 
   new_added |= new_children ? TRUE : FALSE;
 
+  g_slist_free (src_children);
   g_slist_free_full (new_children,
       (GDestroyNotify) gst_inference_prediction_unref);
 
