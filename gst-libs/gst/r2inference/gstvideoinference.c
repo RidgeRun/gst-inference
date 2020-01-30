@@ -1081,6 +1081,8 @@ gst_video_inference_process_bypass (GstVideoInference * self,
           g_queue_push_tail (priv->model_queue, (gpointer) model_buffer);
           g_mutex_unlock (&priv->mtx_model_queue);
           goto forward_buffer;
+        } else {
+          gst_inference_prediction_unref (root_bypass);
         }
       }
 
