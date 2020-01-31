@@ -25,24 +25,21 @@
 
 #include "gstclassificationoverlay.h"
 #include "gst/r2inference/gstinferencemeta.h"
-#ifdef OCV_VERSION_LT_3_2
-#include "opencv2/highgui/highgui.hpp"
-#else
-#include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#endif
 
+/* *INDENT-OFF* */
 static const cv::Scalar black = cv::Scalar (0, 0, 0, 0);
 static const cv::Scalar white = cv::Scalar (255, 255, 255, 255);
+/* *INDENT-ON* */
 
 GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_classification_overlay_debug_category
 
 /* prototypes */
-static GstFlowReturn gst_classification_overlay_process_meta
-    (GstInferenceBaseOverlay * inference_overlay, cv::Mat &cv_mat,
-    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels, LineStyleBoundingBox style);
+static GstFlowReturn
+gst_classification_overlay_process_meta (GstInferenceBaseOverlay *
+    inference_overlay, cv::Mat & cv_mat, GstVideoFrame * frame, GstMeta * meta,
+    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels,
+    LineStyleBoundingBox style);
 
 enum
 {
@@ -70,7 +67,8 @@ G_DEFINE_TYPE_WITH_CODE (GstClassificationOverlay, gst_classification_overlay,
 static void
 gst_classification_overlay_class_init (GstClassificationOverlayClass * klass)
 {
-  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class =
+      GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "classificationoverlay", "Filter",
@@ -94,9 +92,10 @@ gst_classification_overlay_init (GstClassificationOverlay *
 }
 
 static GstFlowReturn
-gst_classification_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
-    cv::Mat &cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
-    gint thickness, gchar ** labels_list, gint num_labels, LineStyleBoundingBox style)
+gst_classification_overlay_process_meta (GstInferenceBaseOverlay *
+    inference_overlay, cv::Mat & cv_mat, GstVideoFrame * frame, GstMeta * meta,
+    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels,
+    LineStyleBoundingBox style)
 {
   GstClassificationMeta *class_meta;
   gint index, i;
@@ -126,10 +125,10 @@ gst_classification_overlay_process_meta (GstInferenceBaseOverlay * inference_ove
    * 10*font_scale+16 aproximates text's rendered size on screen as a
    * lineal function to avoid using cv::getTextSize
    */
-  cv::putText (cv_mat, str, cv::Point (0, 10*font_scale+16), cv::FONT_HERSHEY_PLAIN,
-      font_scale, white, thickness + (thickness*0.5));
-  cv::putText (cv_mat, str, cv::Point (0, 10*font_scale+16), cv::FONT_HERSHEY_PLAIN,
-      font_scale, black, thickness);
+  cv::putText (cv_mat, str, cv::Point (0, 10 * font_scale + 16),
+      cv::FONT_HERSHEY_PLAIN, font_scale, white, thickness + (thickness * 0.5));
+  cv::putText (cv_mat, str, cv::Point (0, 10 * font_scale + 16),
+      cv::FONT_HERSHEY_PLAIN, font_scale, black, thickness);
 
   return GST_FLOW_OK;
 }

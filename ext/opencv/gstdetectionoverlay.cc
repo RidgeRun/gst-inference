@@ -25,13 +25,8 @@
 
 #include "gstdetectionoverlay.h"
 #include "gst/r2inference/gstinferencemeta.h"
-#ifdef OCV_VERSION_LT_3_2
-#include "opencv2/highgui/highgui.hpp"
-#else
-#include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#endif
 
+/* *INDENT-OFF* */
 static const cv::Scalar colors[] = {
   cv::Scalar (254, 254, 254), cv::Scalar (239, 211, 127),
   cv::Scalar (225, 169, 0), cv::Scalar (211, 127, 254),
@@ -44,16 +39,18 @@ static const cv::Scalar colors[] = {
   cv::Scalar (28, 42, 127), cv::Scalar (14, 84, 0),
   cv::Scalar (0, 254, 254), cv::Scalar (14, 211, 127)
 };
+/* *INDENT-ON* */
+
 #define N_C (sizeof (colors)/sizeof (cv::Scalar))
 
 GST_DEBUG_CATEGORY_STATIC (gst_detection_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_detection_overlay_debug_category
 
 /* prototypes */
-static GstFlowReturn gst_detection_overlay_process_meta
-    (GstInferenceBaseOverlay * inference_overlay, cv::Mat &cv_mat,
-    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels, LineStyleBoundingBox style);
+static GstFlowReturn gst_detection_overlay_process_meta (GstInferenceBaseOverlay
+    * inference_overlay, cv::Mat & cv_mat, GstVideoFrame * frame,
+    GstMeta * meta, gdouble font_scale, gint thickness, gchar ** labels_list,
+    gint num_labels, LineStyleBoundingBox style);
 
 enum
 {
@@ -80,7 +77,8 @@ G_DEFINE_TYPE_WITH_CODE (GstDetectionOverlay, gst_detection_overlay,
 static void
 gst_detection_overlay_class_init (GstDetectionOverlayClass * klass)
 {
-  GstInferenceBaseOverlayClass *io_class = GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class =
+      GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "detectionoverlay", "Filter",
@@ -104,8 +102,9 @@ gst_detection_overlay_init (GstDetectionOverlay * detection_overlay)
 
 static GstFlowReturn
 gst_detection_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
-    cv::Mat &cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
-    gint thickness, gchar ** labels_list, gint num_labels, LineStyleBoundingBox style)
+    cv::Mat & cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
+    gint thickness, gchar ** labels_list, gint num_labels,
+    LineStyleBoundingBox style)
 {
   GstDetectionMeta *detect_meta;
   gint i;
