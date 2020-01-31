@@ -327,7 +327,9 @@ gst_inference_base_overlay_transform_frame_ip (GstVideoFilter * trans,
   }
 
   GST_LOG_OBJECT (trans, "Valid inference meta found");
-  channels = GST_VIDEO_FRAME_N_COMPONENTS (frame);
+
+  /* Use pixel stride instead of num components because RGBx reports 3 channels */
+  channels = GST_VIDEO_FRAME_COMP_PSTRIDE (frame, 0);
   width = GST_VIDEO_FRAME_WIDTH (frame);
   height = GST_VIDEO_FRAME_HEIGHT (frame);
   data = (gchar *) GST_VIDEO_FRAME_PLANE_DATA (frame, 0);
@@ -336,7 +338,7 @@ gst_inference_base_overlay_transform_frame_ip (GstVideoFilter * trans,
   sizes[1] = width;
 
   /* This is not a mistake, it's oddly inverted */
-  steps[1] = height;
+  steps[1] = channels;
   steps[0] = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0);
 
   GST_LOG_OBJECT (trans, "width: %d, height: %d, stride: %" G_GSIZE_FORMAT
