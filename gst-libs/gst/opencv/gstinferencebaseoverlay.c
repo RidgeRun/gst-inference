@@ -99,7 +99,7 @@ gst_inference_base_overlay_transform_frame_ip (GstVideoFilter * trans,
 G_DEFINE_TYPE_WITH_CODE (GstInferenceBaseOverlay, gst_inference_base_overlay,
     GST_TYPE_VIDEO_FILTER,
     GST_DEBUG_CATEGORY_INIT (gst_inference_base_overlay_debug_category,
-        "inferenceoverlay", 0, "debug category for inferenceoverlay class");
+        "inferencebaseoverlay", 0, "debug category for inferenceoverlay class");
     G_ADD_PRIVATE (GstInferenceBaseOverlay));
 
 #define GST_INFERENCE_BASE_OVERLAY_PRIVATE(self) \
