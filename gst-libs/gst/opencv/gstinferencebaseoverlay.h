@@ -24,6 +24,12 @@
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
+#ifdef OCV_VERSION_LT_3_2
+#include "opencv2/highgui/highgui.hpp"
+#else
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
+#endif
 
 G_BEGIN_DECLS
 
@@ -52,8 +58,8 @@ struct _GstInferenceBaseOverlayClass
   GstVideoFilterClass parent_class;
 
   GstFlowReturn (* process_meta) (GstInferenceBaseOverlay * inference_base_overlay,
-      GstVideoFrame * frame, GstMeta* meta, gdouble font_scale, gint thickness,
-      gchar **labels_list, gint num_labels, LineStyleBoundingBox style);
+      cv::Mat &mat, GstVideoFrame * frame, GstMeta* meta, gdouble font_scale,
+      gint thickness, gchar **labels_list, gint num_labels, LineStyleBoundingBox style);
 
   GType meta_type;
 };

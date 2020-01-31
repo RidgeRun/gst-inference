@@ -39,10 +39,10 @@ GST_DEBUG_CATEGORY_STATIC (gst_classification_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_classification_overlay_debug_category
 
 /* prototypes */
-static GstFlowReturn
-gst_classification_overlay_process_meta (GstInferenceBaseOverlay *
-    inference_overlay, GstVideoFrame * frame, GstMeta * meta,
-    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels, LineStyleBoundingBox style);
+static GstFlowReturn gst_classification_overlay_process_meta
+    (GstInferenceBaseOverlay * inference_overlay, cv::Mat &cv_mat,
+    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
+    gchar ** labels_list, gint num_labels, LineStyleBoundingBox style);
 
 enum
 {
@@ -94,28 +94,15 @@ gst_classification_overlay_init (GstClassificationOverlay *
 }
 
 static GstFlowReturn
-gst_classification_overlay_process_meta (GstInferenceBaseOverlay *
-    inference_overlay, GstVideoFrame * frame, GstMeta * meta,
-    gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels, LineStyleBoundingBox style)
+gst_classification_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
+    cv::Mat &cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
+    gint thickness, gchar ** labels_list, gint num_labels, LineStyleBoundingBox style)
 {
   GstClassificationMeta *class_meta;
-  gint index, i, width, height, channels;
+  gint index, i;
   gdouble max, current;
-  cv::Mat cv_mat;
   cv::String str;
   cv::Size size;
-
-  switch (GST_VIDEO_FRAME_FORMAT (frame)) {
-    case GST_VIDEO_FORMAT_RGB:
-    case GST_VIDEO_FORMAT_BGR:
-      channels = 3;
-      break;
-    default:
-      channels = 4;
-      break;
-  }
-  width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / channels;
-  height = GST_VIDEO_FRAME_HEIGHT (frame);
 
   class_meta = (GstClassificationMeta *) meta;
 
@@ -134,8 +121,7 @@ gst_classification_overlay_process_meta (GstInferenceBaseOverlay *
   } else {
     str = cv::format ("Label #%d prob:%f", index, max);
   }
-  cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
-      (char *) frame->data[0]);
+
   /* Put string on screen
    * 10*font_scale+16 aproximates text's rendered size on screen as a
    * lineal function to avoid using cv::getTextSize

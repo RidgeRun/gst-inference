@@ -2,9 +2,15 @@
 lib_LTLIBRARIES = libgstinferencebaseoverlay-@GST_API_VERSION@.la
 
 libgstinferencebaseoverlay_@GST_API_VERSION@_la_SOURCES=	\
-	gstinferencebaseoverlay.c
+	gstinferencebaseoverlay.cc
 
 libgstinferencebaseoverlay_@GST_API_VERSION@_la_CFLAGS=	\
+	$(GST_CFLAGS)				\
+	$(GST_BASE_CFLAGS)			\
+	$(GST_PLUGINS_BASE_CFLAGS)		\
+	$(R2INFERENCE_CFLAGS)
+
+libgstinferencebaseoverlay_@GST_API_VERSION@_la_CXXFLAGS=	\
 	$(GST_CFLAGS)				\
 	$(GST_BASE_CFLAGS)			\
 	$(GST_PLUGINS_BASE_CFLAGS)		\

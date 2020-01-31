@@ -201,7 +201,7 @@ gst_inference_base_overlay_set_property (GObject * object, guint property_id,
           priv->labels);
       break;
     case PROP_STYLE:
-      priv->style = g_value_get_enum (value);
+      priv->style = (LineStyleBoundingBox)g_value_get_enum (value);
       GST_DEBUG_OBJECT (inference_overlay, "Changed box style to %d",
           priv->style);
       break;
@@ -310,20 +310,44 @@ gst_inference_base_overlay_transform_frame_ip (GstVideoFilter * trans,
       GST_INFERENCE_BASE_OVERLAY_PRIVATE (inference_overlay);
   GstMeta *meta;
   GstFlowReturn ret = GST_FLOW_ERROR;
+  gint  width, height, channels;
+  cv::Mat cv_mat;
+  gint sizes[2] = { 0, 0 };
+  gsize steps[2] = { 0, 0 };
+  const gint num_dims = 2;
+  gchar * data = NULL;
+
+  g_return_val_if_fail (io_class->process_meta != NULL, GST_FLOW_ERROR);
 
   meta = gst_buffer_get_meta (frame->buffer, io_class->meta_type);
   if (NULL == meta) {
     GST_LOG_OBJECT (trans, "No inference meta found");
     ret = GST_FLOW_OK;
-  } else {
-    GST_LOG_OBJECT (trans, "Valid inference meta found");
-    if (io_class->process_meta != NULL) {
-      ret =
-          io_class->process_meta (inference_overlay, frame, meta,
-          priv->font_scale, priv->thickness, priv->labels_list,
-          priv->num_labels, priv->style);
-    }
+    goto out;
   }
 
+  GST_LOG_OBJECT (trans, "Valid inference meta found");
+  channels = GST_VIDEO_FRAME_N_COMPONENTS (frame);
+  width = GST_VIDEO_FRAME_WIDTH (frame);
+  height = GST_VIDEO_FRAME_HEIGHT (frame);
+  data = (gchar *)GST_VIDEO_FRAME_PLANE_DATA (frame, 0);
+
+  sizes[0] = height;
+  sizes[1] = width;
+
+  /* This is not a mistake, it's oddly inverted */
+  steps[1] = height;
+  steps[0] = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0);
+
+  GST_LOG_OBJECT (trans, "width: %d, height: %d, stride: %" G_GSIZE_FORMAT
+      ", channels: %d", width, height, steps[0], channels);
+
+  cv_mat = cv::Mat (num_dims, (gint *)sizes, CV_MAKETYPE (CV_8U, channels), data,
+      (gsize *)steps);
+
+  ret = io_class->process_meta (inference_overlay, cv_mat, frame, meta, priv->font_scale,
+      priv->thickness, priv->labels_list, priv->num_labels, priv->style);
+
+out:
   return ret;
 }

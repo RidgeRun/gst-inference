@@ -50,8 +50,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_detection_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_detection_overlay_debug_category
 
 /* prototypes */
-static GstFlowReturn
-gst_detection_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
+static GstFlowReturn gst_detection_overlay_process_meta
+    (GstInferenceBaseOverlay * inference_overlay, cv::Mat &cv_mat,
     GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
     gchar ** labels_list, gint num_labels, LineStyleBoundingBox style);
 
@@ -104,31 +104,16 @@ gst_detection_overlay_init (GstDetectionOverlay * detection_overlay)
 
 static GstFlowReturn
 gst_detection_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
-    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels, LineStyleBoundingBox style)
+    cv::Mat &cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
+    gint thickness, gchar ** labels_list, gint num_labels, LineStyleBoundingBox style)
 {
   GstDetectionMeta *detect_meta;
-  gint i, width, height, channels;
-  cv::Mat cv_mat;
+  gint i;
   cv::Size size;
   cv::String str;
   BBox box;
 
-  switch (GST_VIDEO_FRAME_FORMAT (frame)) {
-    case GST_VIDEO_FORMAT_RGB:
-    case GST_VIDEO_FORMAT_BGR:
-      channels = 3;
-      break;
-    default:
-      channels = 4;
-      break;
-  }
-  width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / channels;
-  height = GST_VIDEO_FRAME_HEIGHT (frame);
-
   detect_meta = (GstDetectionMeta *) meta;
-  cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
-      (char *) frame->data[0]);
   for (i = 0; i < detect_meta->num_boxes; ++i) {
     box = detect_meta->boxes[i];
     if (num_labels > box.label) {

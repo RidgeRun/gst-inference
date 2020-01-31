@@ -25,12 +25,6 @@
 
 #include "gstinferenceoverlay.h"
 #include "gst/r2inference/gstinferencemeta.h"
-#ifdef OCV_VERSION_LT_3_2
-#include "opencv2/highgui/highgui.hpp"
-#else
-#include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#endif
 
 #define DEFAULT_LABELS NULL
 
@@ -70,12 +64,12 @@ static void gst_inference_overlay_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
 static void gst_inference_overlay_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
-static GstFlowReturn
-gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
-                                    GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
-                                    gchar **labels_list, gint num_labels, LineStyleBoundingBox style);
-void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
-               gint thickness, LineStyleBoundingBox style, gint gap);
+static GstFlowReturn gst_inference_overlay_process_meta
+    (GstInferenceBaseOverlay *inference_overlay, cv::Mat &cv_mat, GstVideoFrame *frame,
+    GstMeta *meta, gdouble font_scale, gint thickness, gchar **labels_list,
+    gint num_labels, LineStyleBoundingBox style);
+static void draw_line(cv::Mat &img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
+    gint thickness, LineStyleBoundingBox style, gint gap);
 
 struct _GstInferenceOverlay {
   GstInferenceBaseOverlay
@@ -310,33 +304,17 @@ gst_get_meta (GstInferencePrediction *pred, cv::Mat &cv_mat, gdouble font_scale,
 static
 GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay *inference_overlay,
-                                    GstVideoFrame *frame, GstMeta *meta, gdouble font_scale, gint thickness,
-                                    gchar **labels_list, gint num_labels, LineStyleBoundingBox style) {
-  GstInferenceMeta *
-  detect_meta;
-  gint  width, height, channels;
-  cv::Mat cv_mat;
+    cv::Mat &cv_mat, GstVideoFrame *frame, GstMeta *meta, gdouble font_scale,
+    gint thickness, gchar **labels_list, gint num_labels, LineStyleBoundingBox style)
+{
+  GstInferenceMeta *detect_meta;
 
   g_return_val_if_fail (inference_overlay != NULL ,GST_FLOW_ERROR);
   g_return_val_if_fail (frame != NULL ,GST_FLOW_ERROR);
   g_return_val_if_fail (meta != NULL  ,GST_FLOW_ERROR);
 
-  switch (GST_VIDEO_FRAME_FORMAT (frame)) {
-    case GST_VIDEO_FORMAT_RGB:
-    case GST_VIDEO_FORMAT_BGR:
-      channels = 3;
-      break;
-    default:
-      channels = 4;
-      break;
-  }
-  width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / channels;
-  height = GST_VIDEO_FRAME_HEIGHT (frame);
-
   detect_meta = (GstInferenceMeta *) meta;
 
-  cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
-                    (char *) frame->data[0]);
   gst_get_meta (detect_meta->prediction, cv_mat, font_scale, thickness,
                 labels_list,  num_labels, style);
 
