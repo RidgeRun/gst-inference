@@ -85,10 +85,12 @@ static void gst_inference_crop_find_predictions (GstInferenceCrop *self,
 
 #define PROP_CROP_RATIO_DEFAULT_WIDTH 1
 #define PROP_CROP_RATIO_DEFAULT_HEIGHT 1
+#define PROP_ENABLE_DEFAULT TRUE
 
 enum {
   PROP_0,
   PROP_CROP_ASPECT_RATIO,
+  PROP_ENABLE,
 };
 
 struct _GstInferenceCrop {
@@ -100,6 +102,7 @@ struct _GstInferenceCrop {
   gint height_ratio;
   gint width;
   gint height;
+  gboolean enable;
 };
 
 struct _GstInferenceCropClass {
@@ -143,6 +146,12 @@ gst_inference_crop_class_init (GstInferenceCropClass *klass) {
                                        G_MAXINT, 1,
                                        PROP_CROP_RATIO_DEFAULT_WIDTH, PROP_CROP_RATIO_DEFAULT_HEIGHT,
                                        G_PARAM_READWRITE ));
+
+  g_object_class_install_property (object_class, PROP_ENABLE,
+                                   g_param_spec_boolean ("enable", "Enable Crop",
+                                       "Whether or not no crop out subpredictions",
+                                       PROP_ENABLE_DEFAULT,
+                                       G_PARAM_READWRITE ));
 }
 
 static void
@@ -154,6 +163,8 @@ gst_inference_crop_init (GstInferenceCrop *self) {
   self->element = new VideoCrop ();
   self->width_ratio = PROP_CROP_RATIO_DEFAULT_WIDTH;
   self->height_ratio = PROP_CROP_RATIO_DEFAULT_HEIGHT;
+  self->enable = PROP_ENABLE;
+
   if (FALSE == self->element->Validate ()) {
     const std::string factory = self->element->GetFactory ();
     GST_ERROR_OBJECT (self, "Unable to find element %s", factory.c_str ());
@@ -221,6 +232,11 @@ gst_inference_crop_set_property (GObject *object, guint property_id,
       }
       GST_OBJECT_UNLOCK (self);
       break;
+    case PROP_ENABLE:
+      GST_OBJECT_LOCK (self);
+      self->enable = g_value_get_boolean (value);
+      GST_OBJECT_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -238,6 +254,11 @@ gst_inference_crop_get_property (GObject *object, guint property_id,
     case PROP_CROP_ASPECT_RATIO:
       GST_OBJECT_LOCK (self);
       gst_value_set_fraction (value, self->width_ratio, self->height_ratio);
+      GST_OBJECT_UNLOCK (self);
+      break;
+    case PROP_ENABLE:
+      GST_OBJECT_LOCK (self);
+      g_value_set_boolean (value, self->enable);
       GST_OBJECT_UNLOCK (self);
       break;
     default:
@@ -397,11 +418,20 @@ gst_inference_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   GList *list = NULL;
   GList *iter = NULL;
   gboolean gap = TRUE;
+  gboolean enable = FALSE;
 
   GST_OBJECT_LOCK (self);
   crop_width_ratio = self->width_ratio;
   crop_height_ratio = self->height_ratio;
+  enable = self->enable;
   GST_OBJECT_UNLOCK (self);
+
+  if (FALSE == enable) {
+    GST_LOG_OBJECT (self, "Cropping disabled, forwarding buffer");
+    gap = FALSE;
+    ret = GST_PAD_PROBE_OK;
+    goto out;
+  }
 
   buffer = gst_pad_probe_info_get_buffer (info);
 
@@ -409,7 +439,7 @@ gst_inference_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     (GstInferenceMeta *) gst_buffer_get_meta (buffer,
         GST_INFERENCE_META_API_TYPE);
 
-  if (NULL == inference_meta ) {
+  if (NULL == inference_meta) {
     GST_LOG_OBJECT (self, "No meta found, dropping buffer");
     goto out;
   }

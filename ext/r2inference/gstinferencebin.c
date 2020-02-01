@@ -76,6 +76,7 @@ enum
   PROP_INPUT_LAYER,
   PROP_OUTPUT_LAYER,
   PROP_LABELS,
+  PROP_CROP,
 };
 
 #define PROP_ARCH_DEFAULT "tinyyolov2"
@@ -83,6 +84,7 @@ enum
 #define PROP_INPUT_LAYER_DEFAULT NULL
 #define PROP_OUTPUT_LAYER_DEFAULT NULL
 #define PROP_LABELS_DEFAULT NULL
+#define PROP_CROP_DEFAULT FALSE
 
 struct _GstInferenceBin
 {
@@ -93,6 +95,8 @@ struct _GstInferenceBin
   gchar *input_layer;
   gchar *output_layer;
   gchar *labels;
+  gboolean crop;
+
   GstPad *sinkpad;
   GstPad *srcpad;
 };
@@ -156,6 +160,11 @@ gst_inference_bin_class_init (GstInferenceBinClass * klass)
       g_param_spec_string ("labels", "Model labels",
           "The labels used to train the model",
           PROP_LABELS_DEFAULT, G_PARAM_READWRITE));
+
+  g_object_class_install_property (object_class, PROP_CROP,
+      g_param_spec_boolean ("crop", "Crop",
+          "Whether or not to crop out objects in the current prediction",
+          PROP_CROP_DEFAULT, G_PARAM_READWRITE));
 }
 
 static void
@@ -166,6 +175,7 @@ gst_inference_bin_init (GstInferenceBin * self)
   self->input_layer = g_strdup (PROP_INPUT_LAYER_DEFAULT);
   self->output_layer = g_strdup (PROP_OUTPUT_LAYER_DEFAULT);
   self->labels = g_strdup (PROP_LABELS_DEFAULT);
+  self->crop = PROP_CROP_DEFAULT;
 
   self->sinkpad =
       gst_ghost_pad_new_no_target_from_template (NULL,
@@ -235,6 +245,9 @@ gst_inference_bin_set_property (GObject * object, guint property_id,
       g_free (self->labels);
       self->labels = g_value_dup_string (value);
       break;
+    case PROP_CROP:
+      self->crop = g_value_get_boolean (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -269,6 +282,9 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
     case PROP_LABELS:
       g_value_set_string (value, self->labels);
       break;
+    case PROP_CROP:
+      g_value_set_boolean (value, self->crop);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -282,10 +298,11 @@ gst_inference_bin_start (GstInferenceBin * self)
 {
   gboolean ret = FALSE;
   const gchar *template =
-      "inferencefilter ! videoconvert !  tee name=tee "
+      "inferencefilter ! inferencedebug name=before ! videoconvert ! tee name=tee "
       "tee. ! queue max-size-buffers=3 ! arch.sink_bypass "
-      "tee. ! queue max-size-buffers=3 ! videoscale ! arch.sink_model "
-      "arch.src_bypass ! queue ! inferencedebug ! inferenceoverlay "
+      "tee. ! queue max-size-buffers=3 ! detectioncrop enable=%s ! "
+      "videoscale ! arch.sink_model "
+      "arch.src_bypass ! queue ! inferencedebug name=after ! inferenceoverlay "
       "%s name=arch model-location=%s labels=%s "
       "backend::input-layer=%s backend::output-layer=%s";
   gchar *desc = NULL;
@@ -293,11 +310,12 @@ gst_inference_bin_start (GstInferenceBin * self)
   GError *error = NULL;
   GstPad *sinkpad = NULL;
   GstPad *srcpad = NULL;
+  const gchar *crop = self->crop ? "true" : "false";
 
   g_return_val_if_fail (self, FALSE);
 
   desc =
-      g_strdup_printf (template, self->arch, self->model_location,
+      g_strdup_printf (template, crop, self->arch, self->model_location,
       self->labels, self->input_layer, self->output_layer);
   GST_INFO_OBJECT (self, "Attempting to build \"%s\"", desc);
 
