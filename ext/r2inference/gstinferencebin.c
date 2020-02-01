@@ -77,6 +77,7 @@ enum
   PROP_OUTPUT_LAYER,
   PROP_LABELS,
   PROP_CROP,
+  PROP_FILTER,
 };
 
 #define PROP_ARCH_DEFAULT "tinyyolov2"
@@ -85,6 +86,10 @@ enum
 #define PROP_OUTPUT_LAYER_DEFAULT NULL
 #define PROP_LABELS_DEFAULT NULL
 #define PROP_CROP_DEFAULT FALSE
+#define PROP_FILTER_MIN -1
+#define PROP_FILTER_MAX G_MAXINT32
+#define PROP_FILTER_DEFAULT PROP_FILTER_MIN
+
 
 struct _GstInferenceBin
 {
@@ -96,6 +101,7 @@ struct _GstInferenceBin
   gchar *output_layer;
   gchar *labels;
   gboolean crop;
+  guint filter;
 
   GstPad *sinkpad;
   GstPad *srcpad;
@@ -165,6 +171,12 @@ gst_inference_bin_class_init (GstInferenceBinClass * klass)
       g_param_spec_boolean ("crop", "Crop",
           "Whether or not to crop out objects in the current prediction",
           PROP_CROP_DEFAULT, G_PARAM_READWRITE));
+
+  g_object_class_install_property (object_class, PROP_FILTER,
+      g_param_spec_int ("filter", "Inference Filter",
+          "The filter to apply to the inference (-1 disables).",
+          PROP_FILTER_MIN, PROP_FILTER_MAX, PROP_FILTER_DEFAULT,
+          G_PARAM_READWRITE));
 }
 
 static void
@@ -176,6 +188,7 @@ gst_inference_bin_init (GstInferenceBin * self)
   self->output_layer = g_strdup (PROP_OUTPUT_LAYER_DEFAULT);
   self->labels = g_strdup (PROP_LABELS_DEFAULT);
   self->crop = PROP_CROP_DEFAULT;
+  self->filter = PROP_FILTER_DEFAULT;
 
   self->sinkpad =
       gst_ghost_pad_new_no_target_from_template (NULL,
@@ -248,6 +261,9 @@ gst_inference_bin_set_property (GObject * object, guint property_id,
     case PROP_CROP:
       self->crop = g_value_get_boolean (value);
       break;
+    case PROP_FILTER:
+      self->filter = g_value_get_int (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -285,6 +301,9 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
     case PROP_CROP:
       g_value_set_boolean (value, self->crop);
       break;
+    case PROP_FILTER:
+      g_value_set_int (value, self->filter);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -298,7 +317,8 @@ gst_inference_bin_start (GstInferenceBin * self)
 {
   gboolean ret = FALSE;
   const gchar *template =
-      "inferencefilter ! inferencedebug name=before ! videoconvert ! tee name=tee "
+      "inferencefilter filter-class=%d ! inferencedebug name=before ! "
+      "videoconvert ! tee name=tee "
       "tee. ! queue max-size-buffers=3 ! arch.sink_bypass "
       "tee. ! queue max-size-buffers=3 ! detectioncrop enable=%s ! "
       "videoscale ! arch.sink_model "
@@ -315,8 +335,9 @@ gst_inference_bin_start (GstInferenceBin * self)
   g_return_val_if_fail (self, FALSE);
 
   desc =
-      g_strdup_printf (template, crop, self->arch, self->model_location,
-      self->labels, self->input_layer, self->output_layer);
+      g_strdup_printf (template, self->filter, crop, self->arch,
+      self->model_location, self->labels, self->input_layer,
+      self->output_layer);
   GST_INFO_OBJECT (self, "Attempting to build \"%s\"", desc);
 
   bin =
