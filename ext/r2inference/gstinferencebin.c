@@ -32,7 +32,7 @@
  * backend=tensorflow arch::backend::input-layer=$INPUT_LAYER arch::backend::output-layer=OUTPUT_LAYER ! \
  * videoconvert ! ximagesink sync=false
  * ]|
- * Detect object in a camera stream
+ * Detects object in a camera stream
  * </refsect2>
  */
 
@@ -70,16 +70,19 @@ static gboolean gst_inference_bin_stop (GstInferenceBin * self);
 enum
 {
   PROP_0,
-  PROP_ARCH
+  PROP_ARCH,
+  PROP_MODEL_LOCATION
 };
 
 #define PROP_ARCH_DEFAULT "tinyyolov2"
+#define PROP_MODEL_LOCATION_DEFAULT NULL
 
 struct _GstInferenceBin
 {
   GstBin parent;
 
   gchar *arch;
+  gchar *model_location;
   GstPad *sinkpad;
   GstPad *srcpad;
 };
@@ -123,12 +126,18 @@ gst_inference_bin_class_init (GstInferenceBinClass * klass)
       g_param_spec_string ("arch", "Architecture",
           "The factory name of the network architecture to use for inference",
           PROP_ARCH_DEFAULT, G_PARAM_READWRITE));
+
+  g_object_class_install_property (object_class, PROP_MODEL_LOCATION,
+      g_param_spec_string ("model-location", "Model location",
+          "The location of the model to use for the inference",
+          PROP_MODEL_LOCATION_DEFAULT, G_PARAM_READWRITE));
 }
 
 static void
 gst_inference_bin_init (GstInferenceBin * self)
 {
   self->arch = g_strdup (PROP_ARCH_DEFAULT);
+  self->model_location = g_strdup (PROP_MODEL_LOCATION_DEFAULT);
 
   self->sinkpad =
       gst_ghost_pad_new_no_target_from_template (NULL,
@@ -152,6 +161,9 @@ gst_inference_bin_finalize (GObject * object)
   g_free (self->arch);
   self->arch = NULL;
 
+  g_free (self->model_location);
+  self->model_location = NULL;
+
   G_OBJECT_CLASS (gst_inference_bin_parent_class)->finalize (object);
 }
 
@@ -169,6 +181,10 @@ gst_inference_bin_set_property (GObject * object, guint property_id,
     case PROP_ARCH:
       g_free (self->arch);
       self->arch = g_value_dup_string (value);
+      break;
+    case PROP_MODEL_LOCATION:
+      g_free (self->model_location);
+      self->model_location = g_value_dup_string (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -192,6 +208,9 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
     case PROP_ARCH:
       g_value_set_string (value, self->arch);
       break;
+    case PROP_MODEL_LOCATION:
+      g_value_set_string (value, self->model_location);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -208,7 +227,8 @@ gst_inference_bin_start (GstInferenceBin * self)
       "inferencefilter ! videoconvert !  tee name=tee "
       "tee. ! queue ! arch.sink_bypass "
       "tee. ! queue ! detectioncrop ! videoscale ! arch.sink_model "
-      "arch.src_bypass ! queue ! inferenceoverlay " "%s name=arch";
+      "arch.src_bypass ! queue ! inferenceoverlay "
+      "%s model-location=%s name=arch";
   gchar *desc = NULL;
   GstElement *bin = NULL;
   GError *error = NULL;
@@ -217,10 +237,13 @@ gst_inference_bin_start (GstInferenceBin * self)
 
   g_return_val_if_fail (self, FALSE);
 
-  desc = g_strdup_printf (template, self->arch);
+  desc = g_strdup_printf (template, self->arch, self->model_location);
+  GST_INFO_OBJECT (self, "Attempting to build \"%s\"", desc);
+
   bin =
       gst_parse_bin_from_description_full (desc, TRUE, NULL,
       GST_PARSE_FLAG_FATAL_ERRORS, &error);
+
   g_free (desc);
 
   if (!bin) {
@@ -235,8 +258,11 @@ gst_inference_bin_start (GstInferenceBin * self)
     goto out;
   }
 
-  sinkpad = gst_bin_find_unlinked_pad (GST_BIN (bin), GST_PAD_SINK);
-  srcpad = gst_bin_find_unlinked_pad (GST_BIN (bin), GST_PAD_SRC);
+  sinkpad = gst_element_get_static_pad (bin, "sink");
+  srcpad = gst_element_get_static_pad (bin, "src");
+
+  g_return_val_if_fail (sinkpad, FALSE);
+  g_return_val_if_fail (srcpad, FALSE);
 
   gst_ghost_pad_set_target (GST_GHOST_PAD (self->sinkpad), sinkpad);
   gst_ghost_pad_set_target (GST_GHOST_PAD (self->srcpad), srcpad);
