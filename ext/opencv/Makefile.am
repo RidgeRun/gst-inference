@@ -3,7 +3,7 @@ plugin_LTLIBRARIES = libgstinferenceoverlayplugin.la
 libgstinferenceoverlayplugin_la_SOURCES =	\
 	gstclassificationoverlay.cc	\
 	gstdetectionoverlay.cc		\
-	gstinferenceoverlayplugin.c		\
+	gstplugin.cc			\
 	gstinferenceoverlay.cc		\
 	gstembeddingoverlay.cc
 
