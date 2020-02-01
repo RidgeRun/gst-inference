@@ -28,8 +28,9 @@
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch-1.0 v4l2src device=$CAMERA ! inferencebin arch=tinyyolov2 model-location=$MODEL_LOCATION ! \
- * backend=tensorflow input-layer=$INPUT_LAYER output-layer=OUTPUT_LAYER ! \
+ * gst-launch-1.0 v4l2src device=$CAMERA ! inferencebin arch=tinyyolov2 \
+ * model-location=$MODEL_LOCATION ! backend=tensorflow input-layer=$INPUT_LAYER \
+ * output-layer=OUTPUT_LAYER labels="`cat labels.txt`" arch::iou-threshold=0.3 ! \
  * videoconvert ! ximagesink sync=false
  * ]|
  * Detects object in a camera stream
@@ -74,12 +75,14 @@ enum
   PROP_MODEL_LOCATION,
   PROP_INPUT_LAYER,
   PROP_OUTPUT_LAYER,
+  PROP_LABELS,
 };
 
 #define PROP_ARCH_DEFAULT "tinyyolov2"
 #define PROP_MODEL_LOCATION_DEFAULT NULL
 #define PROP_INPUT_LAYER_DEFAULT NULL
 #define PROP_OUTPUT_LAYER_DEFAULT NULL
+#define PROP_LABELS_DEFAULT NULL
 
 struct _GstInferenceBin
 {
@@ -89,6 +92,7 @@ struct _GstInferenceBin
   gchar *model_location;
   gchar *input_layer;
   gchar *output_layer;
+  gchar *labels;
   GstPad *sinkpad;
   GstPad *srcpad;
 };
@@ -147,6 +151,11 @@ gst_inference_bin_class_init (GstInferenceBinClass * klass)
       g_param_spec_string ("output-layer", "Model output",
           "The name of the output of the model",
           PROP_OUTPUT_LAYER_DEFAULT, G_PARAM_READWRITE));
+
+  g_object_class_install_property (object_class, PROP_LABELS,
+      g_param_spec_string ("labels", "Model labels",
+          "The labels used to train the model",
+          PROP_LABELS_DEFAULT, G_PARAM_READWRITE));
 }
 
 static void
@@ -156,6 +165,7 @@ gst_inference_bin_init (GstInferenceBin * self)
   self->model_location = g_strdup (PROP_MODEL_LOCATION_DEFAULT);
   self->input_layer = g_strdup (PROP_INPUT_LAYER_DEFAULT);
   self->output_layer = g_strdup (PROP_OUTPUT_LAYER_DEFAULT);
+  self->labels = g_strdup (PROP_LABELS_DEFAULT);
 
   self->sinkpad =
       gst_ghost_pad_new_no_target_from_template (NULL,
@@ -188,6 +198,9 @@ gst_inference_bin_finalize (GObject * object)
   g_free (self->output_layer);
   self->output_layer = NULL;
 
+  g_free (self->labels);
+  self->labels = NULL;
+
   G_OBJECT_CLASS (gst_inference_bin_parent_class)->finalize (object);
 }
 
@@ -217,6 +230,10 @@ gst_inference_bin_set_property (GObject * object, guint property_id,
     case PROP_OUTPUT_LAYER:
       g_free (self->output_layer);
       self->output_layer = g_value_dup_string (value);
+      break;
+    case PROP_LABELS:
+      g_free (self->labels);
+      self->labels = g_value_dup_string (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -249,6 +266,9 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
     case PROP_OUTPUT_LAYER:
       g_value_set_string (value, self->output_layer);
       break;
+    case PROP_LABELS:
+      g_value_set_string (value, self->labels);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -266,7 +286,8 @@ gst_inference_bin_start (GstInferenceBin * self)
       "tee. ! queue max-size-buffers=3 ! arch.sink_bypass "
       "tee. ! queue max-size-buffers=3 ! videoscale ! arch.sink_model "
       "arch.src_bypass ! queue ! inferencedebug ! inferenceoverlay "
-      "%s model-location=%s backend::input-layer=%s backend::output-layer=%s name=arch";
+      "%s name=arch model-location=%s labels=%s "
+      "backend::input-layer=%s backend::output-layer=%s";
   gchar *desc = NULL;
   GstElement *bin = NULL;
   GError *error = NULL;
@@ -277,7 +298,7 @@ gst_inference_bin_start (GstInferenceBin * self)
 
   desc =
       g_strdup_printf (template, self->arch, self->model_location,
-      self->input_layer, self->output_layer);
+      self->labels, self->input_layer, self->output_layer);
   GST_INFO_OBJECT (self, "Attempting to build \"%s\"", desc);
 
   bin =
