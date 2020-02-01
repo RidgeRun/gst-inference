@@ -28,8 +28,8 @@
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch-1.0 v4l2src device=$CAMERA ! inferencebin architecture=tinyyolov2 model-location=$MODEL_LOCATION ! \
- * backend=tensorflow architecture::backend::input-layer=$INPUT_LAYER architecture::backend::output-layer=OUTPUT_LAYER ! \
+ * gst-launch-1.0 v4l2src device=$CAMERA ! inferencebin arch=tinyyolov2 model-location=$MODEL_LOCATION ! \
+ * backend=tensorflow arch::backend::input-layer=$INPUT_LAYER arch::backend::output-layer=OUTPUT_LAYER ! \
  * videoconvert ! ximagesink sync=false
  * ]|
  * Detect object in a camera stream
@@ -67,15 +67,21 @@ static GstStateChangeReturn gst_inference_bin_change_state (GstElement *
 static gboolean gst_inference_bin_start (GstInferenceBin * self);
 static gboolean gst_inference_bin_stop (GstInferenceBin * self);
 
-
 enum
 {
   PROP_0,
+  PROP_ARCH
 };
+
+#define PROP_ARCH_DEFAULT "tinyyolov2"
 
 struct _GstInferenceBin
 {
   GstBin parent;
+
+  gchar *arch;
+  GstPad *sinkpad;
+  GstPad *srcpad;
 };
 
 struct _GstInferenceBinClass
@@ -112,17 +118,40 @@ gst_inference_bin_class_init (GstInferenceBinClass * klass)
   object_class->finalize = gst_inference_bin_finalize;
   object_class->set_property = gst_inference_bin_set_property;
   object_class->get_property = gst_inference_bin_get_property;
+
+  g_object_class_install_property (object_class, PROP_ARCH,
+      g_param_spec_string ("arch", "Architecture",
+          "The factory name of the network architecture to use for inference",
+          PROP_ARCH_DEFAULT, G_PARAM_READWRITE));
 }
 
 static void
 gst_inference_bin_init (GstInferenceBin * self)
 {
+  self->arch = g_strdup (PROP_ARCH_DEFAULT);
 
+  self->sinkpad =
+      gst_ghost_pad_new_no_target_from_template (NULL,
+      gst_static_pad_template_get (&sink_template));
+
+  gst_pad_set_active (self->sinkpad, TRUE);
+  gst_element_add_pad (GST_ELEMENT (self), self->sinkpad);
+
+  self->srcpad =
+      gst_ghost_pad_new_no_target_from_template (NULL,
+      gst_static_pad_template_get (&src_template));
+  gst_pad_set_active (self->srcpad, TRUE);
+  gst_element_add_pad (GST_ELEMENT (self), self->srcpad);
 }
 
 static void
 gst_inference_bin_finalize (GObject * object)
 {
+  GstInferenceBin *self = GST_INFERENCE_BIN (object);
+
+  g_free (self->arch);
+  self->arch = NULL;
+
   G_OBJECT_CLASS (gst_inference_bin_parent_class)->finalize (object);
 }
 
@@ -137,6 +166,9 @@ gst_inference_bin_set_property (GObject * object, guint property_id,
   GST_OBJECT_LOCK (self);
 
   switch (property_id) {
+    case PROP_ARCH:
+      g_free (self->arch);
+      self->arch = g_value_dup_string (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -157,6 +189,9 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
   GST_OBJECT_LOCK (self);
 
   switch (property_id) {
+    case PROP_ARCH:
+      g_value_set_string (value, self->arch);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -168,9 +203,52 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
 static gboolean
 gst_inference_bin_start (GstInferenceBin * self)
 {
+  gboolean ret = FALSE;
+  const gchar *template =
+      "inferencefilter ! videoconvert !  tee name=tee "
+      "tee. ! queue ! arch.sink_bypass "
+      "tee. ! queue ! detectioncrop ! videoscale ! arch.sink_model "
+      "arch.src_bypass ! queue ! inferenceoverlay " "%s name=arch";
+  gchar *desc = NULL;
+  GstElement *bin = NULL;
+  GError *error = NULL;
+  GstPad *sinkpad = NULL;
+  GstPad *srcpad = NULL;
+
   g_return_val_if_fail (self, FALSE);
 
-  return TRUE;
+  desc = g_strdup_printf (template, self->arch);
+  bin =
+      gst_parse_bin_from_description_full (desc, TRUE, NULL,
+      GST_PARSE_FLAG_FATAL_ERRORS, &error);
+  g_free (desc);
+
+  if (!bin) {
+    GST_ERROR_OBJECT (self, "Unable to create bin: %s", error->message);
+    g_error_free (error);
+    goto out;
+  }
+
+  if (!gst_bin_add (GST_BIN (self), bin)) {
+    GST_ERROR_OBJECT (self, "Unable to add to bin");
+    gst_object_unref (bin);
+    goto out;
+  }
+
+  sinkpad = gst_bin_find_unlinked_pad (GST_BIN (bin), GST_PAD_SINK);
+  srcpad = gst_bin_find_unlinked_pad (GST_BIN (bin), GST_PAD_SRC);
+
+  gst_ghost_pad_set_target (GST_GHOST_PAD (self->sinkpad), sinkpad);
+  gst_ghost_pad_set_target (GST_GHOST_PAD (self->srcpad), srcpad);
+
+  gst_object_unref (sinkpad);
+  gst_object_unref (srcpad);
+
+  GST_INFO_OBJECT (self, "Created bin successfully");
+  ret = TRUE;
+
+out:
+  return ret;
 }
 
 static gboolean
