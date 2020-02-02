@@ -29,6 +29,12 @@ static gboolean gst_inference_meta_init (GstMeta * meta,
 static void gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer);
 static gboolean gst_inference_meta_transform (GstBuffer * transbuf,
     GstMeta * meta, GstBuffer * buffer, GQuark type, gpointer data);
+static gboolean gst_inference_stream_meta_init (GstMeta * meta,
+    gpointer params, GstBuffer * buffer);
+static void gst_inference_stream_meta_free (GstMeta * meta, GstBuffer * buffer);
+static gboolean gst_inference_stream_meta_transform (GstBuffer * transbuf,
+    GstMeta * meta, GstBuffer * buffer, GQuark type, gpointer data);
+
 static gboolean gst_classification_meta_init (GstMeta * meta,
     gpointer params, GstBuffer * buffer);
 static void gst_classification_meta_free (GstMeta * meta, GstBuffer * buffer);
@@ -75,6 +81,38 @@ gst_inference_meta_get_info (void)
     g_once_init_leave (&inference_meta_info, meta);
   }
   return inference_meta_info;
+}
+
+GType
+gst_inference_stream_meta_api_get_type (void)
+{
+  static volatile GType type = 0;
+  static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL
+  };
+
+  if (g_once_init_enter (&type)) {
+    GType _type =
+        gst_meta_api_type_register ("GstInferenceStreamMetaAPI", tags);
+    g_once_init_leave (&type, _type);
+  }
+  return type;
+}
+
+/* inference stream metadata */
+const GstMetaInfo *
+gst_inference_stream_meta_get_info (void)
+{
+  static const GstMetaInfo *inference_stream_meta_info = NULL;
+
+  if (g_once_init_enter (&inference_stream_meta_info)) {
+    const GstMetaInfo *meta =
+        gst_meta_register (GST_INFERENCE_STREAM_META_API_TYPE,
+        "GstInferenceStreamMeta", sizeof (GstInferenceStreamMeta),
+        gst_inference_stream_meta_init, gst_inference_stream_meta_free,
+        gst_inference_stream_meta_transform);
+    g_once_init_leave (&inference_stream_meta_info, meta);
+  }
+  return inference_stream_meta_info;
 }
 
 GType
@@ -507,4 +545,62 @@ gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer)
 
   imeta = (GstInferenceMeta *) meta;
   gst_inference_prediction_unref (imeta->prediction);
+}
+
+/* inference stream metadata functions */
+static gboolean
+gst_inference_stream_meta_init (GstMeta * meta, gpointer params,
+    GstBuffer * buffer)
+{
+  GstInferenceStreamMeta *imeta = (GstInferenceStreamMeta *) meta;
+
+  imeta->stream_id = NULL;
+
+  return TRUE;
+}
+
+static void
+gst_inference_stream_meta_free (GstMeta * meta, GstBuffer * buffer)
+{
+  GstInferenceStreamMeta *imeta = NULL;
+
+  g_return_if_fail (meta != NULL);
+  g_return_if_fail (buffer != NULL);
+
+  imeta = (GstInferenceStreamMeta *) meta;
+  if (imeta->stream_id)
+    g_free (imeta->stream_id);
+}
+
+static gboolean
+gst_inference_stream_meta_transform (GstBuffer * dest, GstMeta * meta,
+    GstBuffer * buffer, GQuark type, gpointer data)
+{
+  GstInferenceStreamMeta *dmeta = NULL;
+  GstInferenceStreamMeta *smeta = NULL;
+
+  g_return_val_if_fail (dest, FALSE);
+  g_return_val_if_fail (meta, FALSE);
+  g_return_val_if_fail (buffer, FALSE);
+
+  GST_LOG ("Transforming inference stream metadata");
+
+  smeta = (GstInferenceStreamMeta *) meta;
+  dmeta =
+      (GstInferenceStreamMeta *) gst_buffer_get_meta (dest,
+      gst_inference_stream_meta_api_get_type ());
+
+  if (!dmeta) {
+    dmeta =
+        (GstInferenceStreamMeta *) gst_buffer_add_meta (dest,
+        GST_INFERENCE_STREAM_META_INFO, NULL);
+  } else {
+    if (dmeta->stream_id) {
+      g_free (dmeta->stream_id);
+    }
+  }
+
+  dmeta->stream_id = g_strdup (smeta->stream_id);
+
+  return TRUE;
 }

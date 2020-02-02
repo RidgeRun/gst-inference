@@ -35,6 +35,8 @@ G_BEGIN_DECLS
 #define GST_DETECTION_META_INFO  (gst_detection_meta_get_info())
 #define GST_INFERENCE_META_API_TYPE (gst_inference_meta_api_get_type())
 #define GST_INFERENCE_META_INFO  (gst_inference_meta_get_info())
+#define GST_INFERENCE_STREAM_META_API_TYPE (gst_inference_stream_meta_api_get_type())
+#define GST_INFERENCE_STREAM_META_INFO  (gst_inference_stream_meta_get_info())
 
 /**
  * Basic bounding box structure for detection
@@ -48,6 +50,17 @@ struct _BBox
   gdouble y;
   gdouble width;
   gdouble height;
+};
+
+/**
+ * Implements the placeholder for inference stream information.
+ */
+typedef struct _GstInferenceStreamMeta GstInferenceStreamMeta;
+struct _GstInferenceStreamMeta
+{
+  GstMeta meta;
+
+  gchar *stream_id;
 };
 
 /**
@@ -105,6 +118,9 @@ const GstMetaInfo *gst_classification_meta_get_info (void);
 
 GType gst_detection_meta_api_get_type (void);
 const GstMetaInfo *gst_detection_meta_get_info (void);
+
+GType gst_inference_stream_meta_api_get_type (void);
+const GstMetaInfo *gst_inference_stream_meta_get_info (void);
 
 G_END_DECLS
 #endif // GST_INFERENCE_META_H
