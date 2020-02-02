@@ -167,6 +167,9 @@ static guint gst_video_inference_get_backend_type (GstVideoInference * self);
 static void gst_video_inference_set_caps (GstVideoInference * self,
     GstVideoInferencePrivate * priv, GstCollectData * pad, GstEvent * event);
 
+static void gst_video_inference_update_stream_id (GstVideoInference *
+    self, GstBuffer * buffer, GstPad * pad);
+
 static void video_inference_map_buffers (GstVideoInferencePad * data,
     GstBuffer * inbuf, GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean video_inference_prepare_postprocess (const GstMetaInfo *
@@ -645,6 +648,7 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
 {
   GstFlowReturn ret = GST_FLOW_OK;
   GstDebugLevel level = GST_LEVEL_LOG;
+  GstInferenceStreamMeta *imeta = NULL;
 
   g_return_val_if_fail (self, GST_FLOW_ERROR);
 
@@ -658,6 +662,27 @@ gst_video_inference_forward_buffer (GstVideoInference * self,
     GST_LOG_OBJECT (self, "Dropping buffer %" GST_PTR_FORMAT, buffer);
     gst_buffer_unref (buffer);
     return ret;
+  }
+
+  /* Get Stream ID */
+  imeta =
+      (GstInferenceStreamMeta *) gst_buffer_get_meta (buffer,
+      gst_inference_stream_meta_api_get_type ());
+  if (imeta) {
+    if (imeta->stream_id) {
+      /* Check current stream ID in pad */
+      gchar *stream_id = gst_pad_get_stream_id (pad);
+      if (0 != g_strcmp0 (stream_id, imeta->stream_id)) {
+        /* Different Stream IDs, forward new stream-start event */
+        GstEvent *stream_start = gst_event_new_stream_start (imeta->stream_id);
+        GST_LOG_OBJECT (self,
+            "stream-start mismatch, resetting: Current Stream ID: %s, Buffer Stream ID: %s",
+            stream_id, imeta->stream_id);
+        if (!gst_pad_push_event (pad, stream_start))
+          GST_WARNING_OBJECT (self, "Failed to push stream start event");
+      }
+      g_free (stream_id);
+    }
   }
 
   GST_LOG_OBJECT (self,
@@ -870,7 +895,6 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
   GstMeta *current_meta = NULL;
   GstMeta *meta_model[2] = { NULL };
   GstVideoInfo *info_model = NULL;
-  GstBuffer *buffer_model = NULL;
   gpointer prediction_data = NULL;
   gsize prediction_size;
   gboolean pred_valid = FALSE;
@@ -888,9 +912,8 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
     goto buffer_free;
   }
 
-  buffer_model = gst_buffer_make_writable (buffer);
   current_meta =
-      gst_buffer_get_meta (buffer_model, gst_inference_meta_api_get_type ());
+      gst_buffer_get_meta (buffer, gst_inference_meta_api_get_type ());
   if (current_meta) {
     /* Check if root is enabled to be processed, if not, just forward buffer */
     GstInferenceMeta *inference_meta = (GstInferenceMeta *) current_meta;
@@ -904,7 +927,7 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
 
   /* Run preprocess and inference on the model and generate prediction */
   if (!gst_video_inference_model_run_prediction (self, klass, priv,
-          buffer_model, &prediction_data, &prediction_size)) {
+          buffer, &prediction_data, &prediction_size)) {
     ret = GST_FLOW_ERROR;
     goto buffer_free;
   }
@@ -915,7 +938,7 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
   /* Prepare postprocess */
   info_model = &(pad->info);
   if (!video_inference_prepare_postprocess (klass->inference_meta_info,
-          buffer_model, info_model, meta_model)) {
+          buffer, info_model, meta_model)) {
     ret = GST_FLOW_ERROR;
     goto prediction_free;
   }
@@ -939,20 +962,20 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
     /* Queue buffer */
     GST_LOG_OBJECT (self, "Queue model buffer");
     g_mutex_lock (&priv->mtx_model_queue);
-    g_queue_push_head (priv->model_queue, (gpointer) buffer_model);
+    g_queue_push_head (priv->model_queue, (gpointer) buffer);
     g_mutex_unlock (&priv->mtx_model_queue);
     goto out;
   }
 
 forward_buffer:
-  ret = gst_video_inference_forward_buffer (self, gst_buffer_ref (buffer_model),
+  ret = gst_video_inference_forward_buffer (self, gst_buffer_ref (buffer),
       priv->src_model);
 
 prediction_free:
   g_free (prediction_data);
 
 buffer_free:
-  gst_buffer_unref (buffer_model);
+  gst_buffer_unref (buffer);
 
 out:
   return ret;
@@ -998,7 +1021,6 @@ gst_video_inference_process_bypass (GstVideoInference * self,
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstFlowReturn ret = GST_FLOW_OK;
   GstMeta *current_meta = NULL;
-  GstBuffer *bypass_buffer = NULL;
   GstBuffer *model_buffer = NULL;
   gboolean model_empty = FALSE;
 
@@ -1012,12 +1034,10 @@ gst_video_inference_process_bypass (GstVideoInference * self,
   if (NULL == priv->sink_model) {
     GST_LOG_OBJECT (self,
         "There is no sinkpad for model, forwarding bypass buffer...");
-    bypass_buffer = buffer;
     goto forward_buffer;
   }
 
-  bypass_buffer = gst_buffer_make_writable (buffer);
-  current_meta = gst_buffer_get_meta (bypass_buffer,
+  current_meta = gst_buffer_get_meta (buffer,
       gst_inference_meta_api_get_type ());
   if (current_meta) {
     GstInferenceMeta *imeta = (GstInferenceMeta *) current_meta;
@@ -1035,8 +1055,8 @@ gst_video_inference_process_bypass (GstVideoInference * self,
   /* Queue this new buffer at the head and dequeue the older one */
   GST_LOG_OBJECT (self, "Queue bypass buffer and get older one");
   g_mutex_lock (&priv->mtx_bypass_queue);
-  g_queue_push_head (priv->bypass_queue, (gpointer) bypass_buffer);
-  bypass_buffer = GST_BUFFER_CAST (g_queue_pop_tail (priv->bypass_queue));
+  g_queue_push_head (priv->bypass_queue, (gpointer) buffer);
+  buffer = GST_BUFFER_CAST (g_queue_pop_tail (priv->bypass_queue));
   g_mutex_unlock (&priv->mtx_bypass_queue);
 
   while (!model_empty) {
@@ -1066,7 +1086,7 @@ gst_video_inference_process_bypass (GstVideoInference * self,
       root_model = ((GstInferenceMeta *) meta_model[1])->prediction;
 
       /* If bypass doesn't have meta, just transfer the model meta */
-      current_meta = gst_buffer_get_meta (bypass_buffer,
+      current_meta = gst_buffer_get_meta (buffer,
           gst_inference_meta_api_get_type ());
 
       if (current_meta) {
@@ -1091,13 +1111,13 @@ gst_video_inference_process_bypass (GstVideoInference * self,
 
       meta_bypass[0] =
           video_inference_transform_meta (model_buffer, info_model,
-          (GstMeta *) meta_model[0], bypass_buffer, info_bypass);
+          (GstMeta *) meta_model[0], buffer, info_bypass);
       meta_bypass[1] =
           video_inference_transform_meta (model_buffer, info_model,
-          (GstMeta *) meta_model[1], bypass_buffer, info_bypass);
+          (GstMeta *) meta_model[1], buffer, info_bypass);
 
       /* Notify prediction */
-      video_inference_notify (self, model_buffer, meta_model, bypass_buffer,
+      video_inference_notify (self, model_buffer, meta_model, buffer,
           meta_bypass);
 
       /* Forward buffer to model src pad */
@@ -1111,7 +1131,7 @@ gst_video_inference_process_bypass (GstVideoInference * self,
   /* Queue old bypass buffer at the tail */
   GST_LOG_OBJECT (self, "Queue bypass buffer");
   g_mutex_lock (&priv->mtx_bypass_queue);
-  g_queue_push_tail (priv->bypass_queue, (gpointer) bypass_buffer);
+  g_queue_push_tail (priv->bypass_queue, (gpointer) buffer);
   g_mutex_unlock (&priv->mtx_bypass_queue);
 
   return ret;
@@ -1119,11 +1139,37 @@ gst_video_inference_process_bypass (GstVideoInference * self,
 forward_buffer:
   /* Forward buffer to bypass src pad */
   GST_LOG_OBJECT (self, "Forward bypass buffer");
-  ret =
-      gst_video_inference_forward_buffer (self, bypass_buffer,
-      priv->src_bypass);
+  ret = gst_video_inference_forward_buffer (self, buffer, priv->src_bypass);
 
   return ret;
+}
+
+static void
+gst_video_inference_update_stream_id (GstVideoInference * self,
+    GstBuffer * buffer, GstPad * pad)
+{
+  GstInferenceStreamMeta *ismeta = NULL;
+
+  g_return_if_fail (self);
+  g_return_if_fail (buffer);
+  g_return_if_fail (pad);
+
+  ismeta =
+      (GstInferenceStreamMeta *) gst_buffer_get_meta (buffer,
+      gst_inference_stream_meta_api_get_type ());
+  if (ismeta) {
+    if (ismeta->stream_id) {
+      g_free (ismeta->stream_id);
+    }
+  } else {
+    /* Add new Inference Stream Meta to this buffer */
+    ismeta =
+        (GstInferenceStreamMeta *) gst_buffer_add_meta (buffer,
+        gst_inference_stream_meta_get_info (), NULL);
+  }
+
+  /* Update Stream ID */
+  ismeta->stream_id = gst_pad_get_stream_id (pad);
 }
 
 static GstFlowReturn
@@ -1134,6 +1180,7 @@ gst_video_inference_buffer_function (GstCollectPads * pads,
   GstVideoInferencePrivate *priv = NULL;
   GstVideoInferencePad *pad = (GstVideoInferencePad *) data;
   GstFlowReturn ret = GST_FLOW_OK;
+  GstBuffer *buffer_writable = NULL;
 
   if (!buffer) {
     /* EOS reached the pad */
@@ -1146,13 +1193,18 @@ gst_video_inference_buffer_function (GstCollectPads * pads,
 
   priv = GST_VIDEO_INFERENCE_PRIVATE (self);
 
+  buffer_writable = gst_buffer_make_writable (buffer);
+
+  /* Update Stream ID */
+  gst_video_inference_update_stream_id (self, buffer_writable, data->pad);
+
   if (data->pad == priv->sink_model) {
     GST_LOG_OBJECT (self, "Model buffer arrived, processing it...");
-    ret = gst_video_inference_process_model (self, buffer, pad);
+    ret = gst_video_inference_process_model (self, buffer_writable, pad);
     goto out;
   } else {
     GST_LOG_OBJECT (self, "Bypass buffer arrived, processing it...");
-    ret = gst_video_inference_process_bypass (self, buffer, pad);
+    ret = gst_video_inference_process_bypass (self, buffer_writable, pad);
     goto out;
   }
 
