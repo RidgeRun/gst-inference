@@ -78,6 +78,8 @@ enum
   PROP_LABELS,
   PROP_CROP,
   PROP_FILTER,
+  PROP_SCALER,
+  PROP_CONVERTER,
 };
 
 #define PROP_ARCH_DEFAULT "tinyyolov2"
@@ -89,7 +91,8 @@ enum
 #define PROP_FILTER_MIN -1
 #define PROP_FILTER_MAX G_MAXINT32
 #define PROP_FILTER_DEFAULT PROP_FILTER_MIN
-
+#define PROP_SCALER_DEFAULT "videoscale"
+#define PROP_CONVERTER_DEFAULT "videoconvert"
 
 struct _GstInferenceBin
 {
@@ -102,6 +105,8 @@ struct _GstInferenceBin
   gchar *labels;
   gboolean crop;
   guint filter;
+  gchar *scaler;
+  gchar *converter;
 
   GstPad *sinkpad;
   GstPad *srcpad;
@@ -177,6 +182,16 @@ gst_inference_bin_class_init (GstInferenceBinClass * klass)
           "The filter to apply to the inference (-1 disables).",
           PROP_FILTER_MIN, PROP_FILTER_MAX, PROP_FILTER_DEFAULT,
           G_PARAM_READWRITE));
+
+  g_object_class_install_property (object_class, PROP_SCALER,
+      g_param_spec_string ("scaler", "Video Scaler",
+          "Bin description to use as video scaler",
+          PROP_SCALER_DEFAULT, G_PARAM_READWRITE));
+
+  g_object_class_install_property (object_class, PROP_CONVERTER,
+      g_param_spec_string ("converter", "Color Space Converter",
+          "Bin description to use as color space converter",
+          PROP_CONVERTER_DEFAULT, G_PARAM_READWRITE));
 }
 
 static void
@@ -189,6 +204,8 @@ gst_inference_bin_init (GstInferenceBin * self)
   self->labels = g_strdup (PROP_LABELS_DEFAULT);
   self->crop = PROP_CROP_DEFAULT;
   self->filter = PROP_FILTER_DEFAULT;
+  self->scaler = g_strdup (PROP_SCALER_DEFAULT);
+  self->converter = g_strdup (PROP_CONVERTER_DEFAULT);
 
   self->sinkpad =
       gst_ghost_pad_new_no_target_from_template (NULL,
@@ -223,6 +240,12 @@ gst_inference_bin_finalize (GObject * object)
 
   g_free (self->labels);
   self->labels = NULL;
+
+  g_free (self->scaler);
+  self->scaler = NULL;
+
+  g_free (self->converter);
+  self->converter = NULL;
 
   G_OBJECT_CLASS (gst_inference_bin_parent_class)->finalize (object);
 }
@@ -264,6 +287,14 @@ gst_inference_bin_set_property (GObject * object, guint property_id,
     case PROP_FILTER:
       self->filter = g_value_get_int (value);
       break;
+    case PROP_SCALER:
+      g_free (self->scaler);
+      self->scaler = g_value_dup_string (value);
+      break;
+    case PROP_CONVERTER:
+      g_free (self->converter);
+      self->converter = g_value_dup_string (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -304,6 +335,12 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
     case PROP_FILTER:
       g_value_set_int (value, self->filter);
       break;
+    case PROP_SCALER:
+      g_value_set_string (value, self->scaler);
+      break;
+    case PROP_CONVERTER:
+      g_value_set_string (value, self->converter);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -318,10 +355,10 @@ gst_inference_bin_start (GstInferenceBin * self)
   gboolean ret = FALSE;
   const gchar *template =
       "inferencefilter filter-class=%d ! inferencedebug name=before ! "
-      "videoconvert ! tee name=tee "
+      "%s ! tee name=tee "
       "tee. ! queue max-size-buffers=3 ! arch.sink_bypass "
       "tee. ! queue max-size-buffers=3 ! detectioncrop enable=%s ! "
-      "videoscale ! arch.sink_model "
+      "%s ! arch.sink_model "
       "arch.src_bypass ! queue ! inferencedebug name=after ! inferenceoverlay "
       "%s name=arch model-location=%s labels=%s "
       "backend::input-layer=%s backend::output-layer=%s";
@@ -335,9 +372,9 @@ gst_inference_bin_start (GstInferenceBin * self)
   g_return_val_if_fail (self, FALSE);
 
   desc =
-      g_strdup_printf (template, self->filter, crop, self->arch,
-      self->model_location, self->labels, self->input_layer,
-      self->output_layer);
+      g_strdup_printf (template, self->filter, self->converter, crop,
+      self->scaler, self->arch, self->model_location, self->labels,
+      self->input_layer, self->output_layer);
   GST_INFO_OBJECT (self, "Attempting to build \"%s\"", desc);
 
   bin =
