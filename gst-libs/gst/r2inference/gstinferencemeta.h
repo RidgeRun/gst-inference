@@ -59,6 +59,8 @@ struct _GstInferenceMeta
   GstMeta meta;
 
   GstInferencePrediction *prediction;
+
+  gchar *stream_id;
 };
 
 /**
