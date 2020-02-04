@@ -226,13 +226,16 @@ gst_inference_meta_transform_existing_meta (GstBuffer * dest, GstMeta * meta,
 
   needs_scale = gst_inference_prediction_merge (smeta->prediction, pred);
 
+  /* Transfer Stream ID */
+  g_free (dmeta->stream_id);
+  dmeta->stream_id = g_strdup (smeta->stream_id);
+
   if (GST_META_TRANSFORM_IS_COPY (type)) {
-    GST_LOG ("Copy detection metadata");
+    GST_LOG ("Copy inference metadata");
 
     /* The merge already handled the copy */
     goto out;
   }
-
 
   if (GST_VIDEO_META_TRANSFORM_IS_SCALE (type)) {
     if (needs_scale) {
@@ -273,8 +276,12 @@ gst_inference_meta_transform_new_meta (GstBuffer * dest, GstMeta * meta,
 
   gst_inference_prediction_unref (dmeta->prediction);
 
+  /* Transfer Stream ID */
+  g_free (dmeta->stream_id);
+  dmeta->stream_id = g_strdup (smeta->stream_id);
+
   if (GST_META_TRANSFORM_IS_COPY (type)) {
-    GST_LOG ("Copy detection metadata");
+    GST_LOG ("Copy inference metadata");
 
     dmeta->prediction = gst_inference_prediction_copy (smeta->prediction);
     return TRUE;
@@ -493,6 +500,7 @@ gst_inference_meta_init (GstMeta * meta, gpointer params, GstBuffer * buffer)
   root = gst_inference_prediction_new ();
 
   imeta->prediction = root;
+  imeta->stream_id = NULL;
 
   return TRUE;
 }
@@ -507,4 +515,5 @@ gst_inference_meta_free (GstMeta * meta, GstBuffer * buffer)
 
   imeta = (GstInferenceMeta *) meta;
   gst_inference_prediction_unref (imeta->prediction);
+  g_free (imeta->stream_id);
 }
