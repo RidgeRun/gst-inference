@@ -48,7 +48,7 @@ gst_fill_classification_meta (GstClassificationMeta * class_meta,
   g_return_val_if_fail (class_meta != NULL, FALSE);
   g_return_val_if_fail (prediction != NULL, FALSE);
 
-  class_meta->num_labels = predsize / sizeof (gfloat);
+  class_meta->num_labels = predsize;
   class_meta->label_probs =
       g_malloc (class_meta->num_labels * sizeof (gdouble));
   for (gint i = 0; i < class_meta->num_labels; ++i) {
