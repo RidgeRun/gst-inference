@@ -36,9 +36,7 @@ GST_START_TEST (test_gst_fill_classification_meta)
       (GstClassificationMeta *) gst_classification_meta_api_get_type ();
 
   gst_fill_classification_meta (class_meta, prediction, predsize);
-
-  fail_if (class_meta->num_labels != predsize / sizeof (gfloat));
-
+  fail_if (class_meta->num_labels != predsize);
   for (gint i = 0; i < class_meta->num_labels; i++) {
     fail_if (class_meta->label_probs[i] != values[i]);
   }
