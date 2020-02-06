@@ -22,7 +22,7 @@
 #include "gstinferencepreprocess.h"
 #include <math.h>
 
-static gboolean gst_check_format_RGB (GstVideoFrame * inframe,
+static gboolean gst_configure_format_values (GstVideoFrame * inframe,
     gint * first_index, gint * last_index, gint * offset, gint * channels);
 static void gst_apply_means_std (GstVideoFrame * inframe,
     GstVideoFrame * outframe, gint first_index, gint last_index,
@@ -65,7 +65,7 @@ gst_apply_means_std (GstVideoFrame * inframe, GstVideoFrame * outframe,
 }
 
 static gboolean
-gst_check_format_RGB (GstVideoFrame * inframe, gint * first_index,
+gst_configure_format_values (GstVideoFrame * inframe, gint * first_index,
     gint * last_index, gint * offset, gint * channels)
 {
   g_return_val_if_fail (inframe != NULL, FALSE);
@@ -102,6 +102,11 @@ gst_check_format_RGB (GstVideoFrame * inframe, gint * first_index,
       *last_index = 0;
       *offset = 1;
       break;
+    case GST_VIDEO_FORMAT_GRAY8:
+      *first_index = 0;
+      *last_index = 0;
+      *offset = 0;
+      break;
     default:
       return FALSE;
       break;
@@ -116,7 +121,7 @@ gst_normalize (GstVideoFrame * inframe, GstVideoFrame * outframe, gdouble mean,
   gint first_index = 0, last_index = 0, offset = 0, channels = 0;
   g_return_val_if_fail (inframe != NULL, FALSE);
   g_return_val_if_fail (outframe != NULL, FALSE);
-  if (gst_check_format_RGB (inframe, &first_index, &last_index, &offset,
+  if (gst_configure_format_values (inframe, &first_index, &last_index, &offset,
           &channels) == FALSE) {
     return FALSE;
   }
@@ -193,7 +198,7 @@ gst_subtract_mean (GstVideoFrame * inframe, GstVideoFrame * outframe,
   const gdouble std = 1;
   g_return_val_if_fail (inframe != NULL, FALSE);
   g_return_val_if_fail (outframe != NULL, FALSE);
-  if (gst_check_format_RGB (inframe, &first_index, &last_index, &offset,
+  if (gst_configure_format_values (inframe, &first_index, &last_index, &offset,
           &channels) == FALSE) {
     return FALSE;
   }
@@ -211,7 +216,7 @@ gst_pixel_to_float (GstVideoFrame * inframe, GstVideoFrame * outframe,
   const gdouble std = 1, mean = 0;
   g_return_val_if_fail (inframe != NULL, FALSE);
   g_return_val_if_fail (outframe != NULL, FALSE);
-  if (gst_check_format_RGB (inframe, &first_index, &last_index, &offset,
+  if (gst_configure_format_values (inframe, &first_index, &last_index, &offset,
           &channels) == FALSE) {
     return FALSE;
   }
