@@ -300,7 +300,7 @@ gst_create_class_from_prediction (GstVideoInference * vi,
 
   g_return_val_if_fail (vi != NULL, NULL);
 
-  num_classes = predsize / sizeof (gfloat);
+  num_classes = predsize;
 
   /* FIXME: This is just dumb */
   if (sizeof (gfloat) != sizeof (gdouble)) {
