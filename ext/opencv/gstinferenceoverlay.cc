@@ -233,13 +233,13 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
 
     classes++;
     if (classification->num_classes > classification->class_id
-        && classification->labels != NULL) {
+        && classification->class_label != NULL) {
       label =
-          cv::format ("%s  Prob: %f",
-          classification->labels[classification->class_id],
+          cv::format ("%s : %0.3f",
+          classification->class_label,
           classification->class_prob);
     } else {
-      label = cv::format ("Label #%d  Prob: %f", classification->class_id,
+      label = cv::format ("Label #%d : %0.3f", classification->class_id,
           classification->class_prob);
     }
     cv::putText (cv_mat, label, cv::Point (box.x + box.width,
