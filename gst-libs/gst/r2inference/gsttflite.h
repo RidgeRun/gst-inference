@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2019 RidgeRun
+ * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,29 +19,17 @@
  *
  */
 
-#ifndef __GST_INFERENCE_OVERLAY_H__
-#define __GST_INFERENCE_OVERLAY_H__
+#ifndef __GST_TFLITE_H__
+#define __GST_TFLITE_H__
 
 #include <gst/gst.h>
-#include <gst/video/video.h>
+#include <gst/r2inference/gstbackendsubclass.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_INFERENCE_OVERLAY gst_inference_overlay_get_type ()
-G_DECLARE_DERIVABLE_TYPE (GstInferenceOverlay, gst_inference_overlay, GST,
-    INFERENCE_OVERLAY, GstVideoFilter);
-
-struct _GstInferenceOverlayClass
-{
-  GstVideoFilterClass parent_class;
-
-  GstFlowReturn (* process_meta) (GstInferenceOverlay * inference_overlay,
-      GstVideoFrame * frame, GstMeta* meta, gdouble font_scale, gint thickness,
-      gchar **labels_list, gint num_labels);
-
-  GType meta_type;
-};
+#define GST_TYPE_TFLITE gst_tflite_get_type ()
+G_DECLARE_FINAL_TYPE(GstTflite, gst_tflite, GST, TFLITE, GstBackend);
 
 G_END_DECLS
 
-#endif //__GST_INFERENCE_OVERLAY_H__
+#endif //__GST_TFLITE_H__

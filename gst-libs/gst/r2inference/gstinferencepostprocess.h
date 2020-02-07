@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2019 RidgeRun
+ * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -26,7 +26,6 @@
 #define __GST_INFERENCE_POSTPROCESS_H__
 
 G_BEGIN_DECLS
-
 /**
  * \brief Fill all the classification meta with predictions
  *
@@ -34,17 +33,14 @@ G_BEGIN_DECLS
  * \param prediction Value of the prediction
  * \param predsize Size of the prediction
  */
-
-gboolean gst_fill_classification_meta(GstClassificationMeta *class_meta, const gpointer prediction,
-    gsize predsize);
+    gboolean gst_fill_classification_meta (GstClassificationMeta * class_meta,
+    const gpointer prediction, gsize predsize);
 
 /**
  * \brief Fill all the detection meta with the boxes
  *
  * \param vi Father object of every architecture
  * \param prediction Value of the prediction
- * \param detect_meta Meta to fill
- * \param info_model Info about the model to use
  * \param valid_prediction Check if the prediction is valid
  * \param resulting_boxes The output boxes of the prediction
  * \param elements The number of objects
@@ -53,17 +49,14 @@ gboolean gst_fill_classification_meta(GstClassificationMeta *class_meta, const g
  * \param iou_thresh Intersection over union threshold
  */
 gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
-    GstDetectionMeta *detect_meta, GstVideoInfo * info_model,
     gboolean * valid_prediction, BBox ** resulting_boxes,
-    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh);
+    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh, gdouble ** probabilities);
 
 /**
  * \brief Fill all the detection meta with the boxes
  *
  * \param vi Father object of every architecture
  * \param prediction Value of the prediction
- * \param detect_meta Meta to fill
- * \param info_model Info about the model to use
  * \param valid_prediction Check if the prediction is valid
  * \param resulting_boxes The output boxes of the prediction
  * \param elements The number of objects
@@ -71,11 +64,33 @@ gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
  * \param prob_thresh Class probability threshold
  * \param iou_thresh Intersection over union threshold
  */
-gboolean gst_create_boxes_float (GstVideoInference * vi, const gpointer prediction,
-    GstDetectionMeta *detect_meta, GstVideoInfo * info_model,
-    gboolean * valid_prediction, BBox ** resulting_boxes,
-    gint * elements, gdouble obj_thresh, gdouble prob_thresh, gdouble iou_thresh);
+gboolean gst_create_boxes_float (GstVideoInference * vi,
+    const gpointer prediction, gboolean * valid_prediction,
+    BBox ** resulting_boxes, gint * elements, gdouble obj_thresh,
+    gdouble prob_thresh, gdouble iou_thresh);
+
+/**
+ * \brief Create Prediction from box
+ *
+ * \param vi Father object of every architecture
+ * \param box Box used to fill Prediction
+ * \param labels_list List with all possible lables
+ * \param num_labels The number of posibble labels
+ */
+GstInferencePrediction *gst_create_prediction_from_box (GstVideoInference * vi,
+    BBox * box, gchar **labels_list, gint num_labels, const gdouble * probabilities);
+
+/**
+ * \brief Create Classification from prediction data
+ *
+ * \param vi Father object of every architecture
+ * \param prediction Value of the prediction
+ * \param predsize Size of the prediction
+ * \param labels_list List with all possible lables
+ * \param num_labels The number of posibble labels
+ */
+GstInferenceClassification *gst_create_class_from_prediction (GstVideoInference * vi,
+    const gpointer prediction, gsize predsize, gchar **labels_list, gint num_labels);
 
 G_END_DECLS
-
 #endif

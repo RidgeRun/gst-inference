@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2019 RidgeRun
+ * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -18,18 +18,14 @@
  * Boston, MA 02111-1307, USA.
  *
  */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include "gstembeddingoverlay.h"
+
 #include "gst/r2inference/gstinferencemeta.h"
-#ifdef OCV_VERSION_LT_3_2
-#include "opencv2/highgui/highgui.hpp"
-#else
-#include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#endif
 
 #define DEFAULT_EMBEDDINGS NULL
 #define DEFAULT_NUM_EMBEDDINGS 0
@@ -37,9 +33,11 @@
 #define MAX_LIKENESS_THRESH G_MAXDOUBLE
 #define DEFAULT_LIKENESS_THRESH 1.0
 
+/* *INDENT-OFF* */
 static const cv::Scalar forest_green = cv::Scalar (11, 102, 35);
 static const cv::Scalar chilli_red = cv::Scalar (194, 24, 7);
 static const cv::Scalar white = cv::Scalar (255, 255, 255, 255);
+/* *INDENT-ON* */
 
 GST_DEBUG_CATEGORY_STATIC (gst_embedding_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_embedding_overlay_debug_category
@@ -50,13 +48,12 @@ static void gst_embedding_overlay_set_property (GObject * object,
 static void gst_embedding_overlay_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
 static void gst_embedding_overlay_finalize (GObject * object);
-static GstFlowReturn
-gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
-    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels);
-static gboolean 
-gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay * embedding_overlay,
-    const GValue * value);
+static GstFlowReturn gst_embedding_overlay_process_meta (GstInferenceBaseOverlay
+    * inference_overlay, cv::Mat & cv_mat, GstVideoFrame * frame,
+    GstMeta * meta, gdouble font_scale, gint thickness, gchar ** labels_list,
+    gint num_labels, LineStyleBoundingBox style);
+static gboolean gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay *
+    embedding_overlay, const GValue * value);
 
 enum
 {
@@ -67,7 +64,7 @@ enum
 
 struct _GstEmbeddingOverlay
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
   gchar *embeddings;
   gchar **embeddings_list;
   gint num_embeddings;
@@ -77,13 +74,13 @@ struct _GstEmbeddingOverlay
 
 struct _GstClassificationOverlayClass
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
 };
 
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE (GstEmbeddingOverlay, gst_embedding_overlay,
-    GST_TYPE_INFERENCE_OVERLAY,
+    GST_TYPE_INFERENCE_BASE_OVERLAY,
     GST_DEBUG_CATEGORY_INIT (gst_embedding_overlay_debug_category,
         "embeddingoverlay", 0, "debug category for embedding_overlay element"));
 
@@ -91,7 +88,8 @@ static void
 gst_embedding_overlay_class_init (GstEmbeddingOverlayClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
-  GstInferenceOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class =
+      GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
 
   gobject_class->set_property = gst_embedding_overlay_set_property;
   gobject_class->get_property = gst_embedding_overlay_get_property;
@@ -143,20 +141,20 @@ gst_embedding_overlay_set_property (GObject * object, guint property_id,
 
   switch (property_id) {
     case PROP_EMBEDDINGS:
-      if (gst_embedding_overlay_set_embeddings(embedding_overlay, value)){
+      if (gst_embedding_overlay_set_embeddings (embedding_overlay, value)) {
         GST_DEBUG_OBJECT (embedding_overlay, "Changed inference labels %s",
-          embedding_overlay->embeddings);
+            embedding_overlay->embeddings);
       } else {
         GST_ERROR_OBJECT (embedding_overlay, "Failed setting embeddings");
       }
       break;
     case PROP_LIKENESS_THRESH:
-      GST_OBJECT_LOCK(embedding_overlay);
+      GST_OBJECT_LOCK (embedding_overlay);
       embedding_overlay->likeness_thresh = g_value_get_double (value);
       GST_DEBUG_OBJECT (embedding_overlay,
           "Changed likeness threshold to %lf",
           embedding_overlay->likeness_thresh);
-      GST_OBJECT_UNLOCK(embedding_overlay);
+      GST_OBJECT_UNLOCK (embedding_overlay);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -174,14 +172,14 @@ gst_embedding_overlay_get_property (GObject * object, guint property_id,
 
   switch (property_id) {
     case PROP_EMBEDDINGS:
-      GST_OBJECT_LOCK(embedding_overlay);
+      GST_OBJECT_LOCK (embedding_overlay);
       g_value_set_string (value, embedding_overlay->embeddings);
-      GST_OBJECT_UNLOCK(embedding_overlay);
+      GST_OBJECT_UNLOCK (embedding_overlay);
       break;
     case PROP_LIKENESS_THRESH:
-      GST_OBJECT_LOCK(embedding_overlay);
+      GST_OBJECT_LOCK (embedding_overlay);
       g_value_set_double (value, embedding_overlay->likeness_thresh);
-      GST_OBJECT_UNLOCK(embedding_overlay);
+      GST_OBJECT_UNLOCK (embedding_overlay);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -208,15 +206,16 @@ gst_embedding_overlay_finalize (GObject * object)
 }
 
 static GstFlowReturn
-gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
-    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels)
+gst_embedding_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
+    cv::Mat & cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
+    gint thickness, gchar ** labels_list, gint num_labels,
+    LineStyleBoundingBox style)
 {
-  GstEmbeddingOverlay *embedding_overlay = GST_EMBEDDING_OVERLAY (inference_overlay);
+  GstEmbeddingOverlay *embedding_overlay =
+      GST_EMBEDDING_OVERLAY (inference_overlay);
   GstClassificationMeta *class_meta;
-  gint i, j, width, height, channels;
+  gint i, j, width, height;
   gdouble current, diff;
-  cv::Mat cv_mat;
   cv::String str;
   cv::Size size;
   cv::Scalar tmp_color;
@@ -227,36 +226,23 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
   gint embedding_size;
   gdouble likeness_thresh;
 
-  GST_OBJECT_LOCK(embedding_overlay);
+  GST_OBJECT_LOCK (embedding_overlay);
   embeddings_list = g_strdupv (embedding_overlay->embeddings_list);
   num_embeddings = embedding_overlay->num_embeddings;
   embedding_size = embedding_overlay->embedding_size;
   likeness_thresh = embedding_overlay->likeness_thresh;
-  GST_OBJECT_UNLOCK(embedding_overlay);
+  GST_OBJECT_UNLOCK (embedding_overlay);
 
-  if (num_embeddings == 0){
+  if (num_embeddings == 0) {
     GST_WARNING_OBJECT (embedding_overlay,
         "Please set at least one valid embedding using the 'embeddings'"
         "property");
     goto end;
   }
 
-  switch (GST_VIDEO_FRAME_FORMAT (frame)) {
-    case GST_VIDEO_FORMAT_RGB:
-    case GST_VIDEO_FORMAT_BGR:
-      channels = 3;
-      break;
-    default:
-      channels = 4;
-      break;
-  }
-
-  width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / channels;
-  height = GST_VIDEO_FRAME_HEIGHT (frame);
-
   class_meta = (GstClassificationMeta *) meta;
 
-  if (class_meta->num_labels != embedding_size){
+  if (class_meta->num_labels != embedding_size) {
     GST_WARNING_OBJECT (embedding_overlay,
         "Provided embeddings and inference output have different sizes");
     goto end;
@@ -270,8 +256,7 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
     diff = 0.0;
     for (j = 0; j < embedding_size; ++j) {
       current = class_meta->label_probs[j];
-      current -=
-          atof (embeddings_list[i * embedding_size + j]);
+      current -= atof (embeddings_list[i * embedding_size + j]);
       current = current * current;
       diff = diff + current;
     }
@@ -314,22 +299,25 @@ gst_embedding_overlay_process_meta (GstInferenceOverlay * inference_overlay,
       break;
   }
 
-  cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
-      (char *) frame->data[0]);
+  width = cv_mat.cols;
+  height = cv_mat.rows;
+
   /* Put string on screen
    * 10*font_scale+16 aproximates text's rendered size on screen as a
    * lineal function to avoid using cv::getTextSize.
    * 5*thickness adds the border offset
    */
-  cv::putText (cv_mat, str, cv::Point (5*thickness, 5*thickness+10*font_scale+16),
-      cv::FONT_HERSHEY_PLAIN, font_scale, white, thickness + (thickness*0.5));
-  cv::putText (cv_mat, str, cv::Point (5*thickness, 5*thickness+10*font_scale+16),
-      cv::FONT_HERSHEY_PLAIN, font_scale, color, thickness);
+  cv::putText (cv_mat, str, cv::Point (5 * thickness,
+          5 * thickness + 10 * font_scale + 16), cv::FONT_HERSHEY_PLAIN,
+      font_scale, white, thickness + (thickness * 0.5));
+  cv::putText (cv_mat, str, cv::Point (5 * thickness,
+          5 * thickness + 10 * font_scale + 16), cv::FONT_HERSHEY_PLAIN,
+      font_scale, color, thickness);
   cv::rectangle (cv_mat, cv::Point (0, 0), cv::Point (width, height), color,
-      10*thickness);
+      10 * thickness);
 
 end:
-  g_strfreev(embeddings_list);
+  g_strfreev (embeddings_list);
   return GST_FLOW_OK;
 }
 
@@ -340,7 +328,7 @@ gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay * embedding_overlay,
   g_return_val_if_fail (embedding_overlay, FALSE);
   g_return_val_if_fail (value, FALSE);
 
-  GST_OBJECT_LOCK(embedding_overlay);
+  GST_OBJECT_LOCK (embedding_overlay);
   if (embedding_overlay->embeddings != NULL) {
     g_free (embedding_overlay->embeddings);
   }
@@ -358,7 +346,7 @@ gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay * embedding_overlay,
   embedding_overlay->embedding_size =
       g_strv_length (embedding_overlay->embeddings_list) /
       embedding_overlay->num_embeddings;
-  GST_OBJECT_UNLOCK(embedding_overlay);
+  GST_OBJECT_UNLOCK (embedding_overlay);
 
   return TRUE;
 }

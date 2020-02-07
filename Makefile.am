@@ -2,6 +2,7 @@ DISTCHECK_CONFIGURE_FLAGS=--enable-gtk-doc
 
 ALWAYS_SUBDIRS =	\
 	gst-libs	\
+	gst		\
 	ext 		\
 	tests		\
 	common		\
@@ -54,3 +55,8 @@ CRUFT_DIRS =
 include $(top_srcdir)/common/cruft.mak
 
 all-local: check-cruft
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = gst-inference-@GST_API_VERSION@.pc
+
+EXTRA_DIST = gst-inference.pc.in

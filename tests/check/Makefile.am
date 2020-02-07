@@ -45,7 +45,6 @@ AM_CFLAGS = 				\
 
 LDADD =									\
 	$(top_builddir)/gst-libs/gst/r2inference/libgstinference-1.0.la 	\
-	$(top_builddir)/gst-libs/gst/opencv/libgstinferenceoverlay-1.0.la 	\
 	$(GST_LIBS) 								\
 	$(GST_PLUGINS_BASE_LIBS)                        			\
 	-lgstvideo-1.0								\

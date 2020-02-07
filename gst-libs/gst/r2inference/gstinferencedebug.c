@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2019 RidgeRun
+ * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -18,6 +18,7 @@
  * Boston, MA 02111-1307, USA.
  *
  */
+
 #include "gstinferencedebug.h"
 
 void
@@ -91,4 +92,23 @@ gst_inference_print_boxes (GstVideoInference * vi, GstDebugCategory * category,
         detect_meta->boxes[index].y, detect_meta->boxes[index].width,
         detect_meta->boxes[index].height, detect_meta->boxes[index].prob);
   }
+}
+
+void
+gst_inference_print_predictions (GstVideoInference * vi,
+    GstDebugCategory * category, GstInferenceMeta * inference_meta)
+{
+  GstInferencePrediction *pred = NULL;
+  gchar *spred = NULL;
+
+  g_return_if_fail (vi != NULL);
+  g_return_if_fail (category != NULL);
+  g_return_if_fail (inference_meta != NULL);
+
+  pred = inference_meta->prediction;
+  spred = gst_inference_prediction_to_string (pred);
+
+  GST_CAT_LOG (category, "\n%s", spred);
+
+  g_free (spred);
 }

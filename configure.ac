@@ -5,7 +5,7 @@ dnl please read gstreamer/docs/random/autotools before changing this file
 dnl initialize autoconf
 dnl releases only do -Wall, git and prerelease does -Werror too
 dnl use a three digit version number for releases, and four for git/pre
-AC_INIT([GStreamer Inference],[0.6.1.1],[https://github.com/RidgeRun/gst-inference/issues],[gst-inference])
+AC_INIT([GStreamer Inference],[0.7.0.1],[https://github.com/RidgeRun/gst-inference/issues],[gst-inference])
 
 AG_GST_INIT
 
@@ -20,7 +20,6 @@ AS_NANO(GST_GIT="no", GST_GIT="yes")
 
 dnl can autoconf find the source ?
 AC_CONFIG_SRCDIR([ext/r2inference/gstinference.c])
-AC_CONFIG_SRCDIR([ext/opencv/gstinferenceoverlay.c])
 
 dnl define the output header for config
 AC_CONFIG_HEADERS([config.h])
@@ -195,7 +194,7 @@ AC_ARG_ENABLE(Bsymbolic,
 dnl *** set variables based on configure arguments ***
 
 dnl set license and copyright notice
-GST_LICENSE="Proprietary"
+GST_LICENSE="LGPL"
 AC_DEFINE_UNQUOTED(GST_LICENSE, "$GST_LICENSE", [GStreamer Inference license])
 AC_SUBST(GST_LICENSE)
 
@@ -289,8 +288,9 @@ if test "$USE_OPENCV" = "yes"; then
 fi
 
 dnl *** r2inference ***
+R2INFERENCE_REQ=0.4.0
 AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun\'s Inference Framework], r2inference, [
-  AG_GST_PKG_CHECK_MODULES(R2INFERENCE, r2inference-0.0)
+  AG_GST_PKG_CHECK_MODULES(R2INFERENCE, r2inference-0.0 >= $R2INFERENCE_REQ)
 ],[],[],[
   AC_MSG_ERROR([Please install R2Inference from https://github.com/RidgeRun/r2inference.git])
 ])
@@ -367,6 +367,9 @@ AC_SUBST(GST_PLUGIN_LDFLAGS)
 
 dnl *** output files ***
 
+# Our Include path, to be shared in multiple makefiles
+AC_SUBST([GSTINCLUDEDIR],[$includedir/gstreamer-1.0])
+
 dnl keep this alphabetic per directory, please
 AC_CONFIG_FILES(
 Makefile
@@ -378,12 +381,17 @@ docs/version.entities
 ext/Makefile
 ext/opencv/Makefile
 ext/r2inference/Makefile
+gst/Makefile
+gst/inferencecrop/Makefile
+gst/inferencefilter/Makefile
+gst/inferencedebug/Makefile
 gst-libs/Makefile
 gst-libs/gst/Makefile
 gst-libs/gst/opencv/Makefile
 gst-libs/gst/r2inference/Makefile
 m4/Makefile
 tests/check/Makefile
+gst-inference-${GST_API_VERSION}.pc:gst-inference.pc.in
 tests/Makefile
 tests/examples/classification/Makefile
 tests/examples/detection/Makefile
@@ -394,4 +402,3 @@ tests/files/Makefile
 AC_OUTPUT
 
 AG_GST_OUTPUT_PLUGINS
-

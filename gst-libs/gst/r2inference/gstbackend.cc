@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -395,6 +395,27 @@ error:
   return FALSE;
 }
 
+static r2i::ImageFormat::Id
+gst_backend_cast_format (GstVideoFormat format) {
+  r2i::ImageFormat::Id image_format;
+
+  switch (format) {
+    case GST_VIDEO_FORMAT_RGB:
+      image_format = r2i::ImageFormat::Id::RGB;
+      break;
+    case GST_VIDEO_FORMAT_BGR:
+      image_format = r2i::ImageFormat::Id::BGR;
+      break;
+    case GST_VIDEO_FORMAT_GRAY8:
+      image_format = r2i::ImageFormat::Id::GRAY8;
+      break;
+    default:
+      image_format = r2i::ImageFormat::Id::RGB;
+      break;
+  }
+  return image_format;
+}
+
 gboolean
 gst_backend_process_frame (GstBackend *self, GstVideoFrame *input_frame,
                            gpointer *prediction_data, gsize *prediction_size, GError **err) {
@@ -419,7 +440,8 @@ gst_backend_process_frame (GstBackend *self, GstVideoFrame *input_frame,
 
   error =
     frame->Configure (input_frame->data[0], input_frame->info.width,
-                      input_frame->info.height, r2i::ImageFormat::Id::RGB);
+                      input_frame->info.height,
+                      gst_backend_cast_format(input_frame->info.finfo->format));
   if (error.IsError ()) {
     goto error;
   }

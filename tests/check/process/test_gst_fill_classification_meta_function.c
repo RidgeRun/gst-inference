@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2019 RidgeRun
+ * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -18,6 +18,7 @@
  * Boston, MA 02111-1307, USA.
  *
  */
+
 #include <gst/check/gstcheck.h>
 #include "gst/r2inference/gstinferencepostprocess.h"
 #include "gst/r2inference/gstinferencemeta.h"
@@ -35,9 +36,7 @@ GST_START_TEST (test_gst_fill_classification_meta)
       (GstClassificationMeta *) gst_classification_meta_api_get_type ();
 
   gst_fill_classification_meta (class_meta, prediction, predsize);
-
-  fail_if (class_meta->num_labels != predsize / sizeof (gfloat));
-
+  fail_if (class_meta->num_labels != predsize);
   for (gint i = 0; i < class_meta->num_labels; i++) {
     fail_if (class_meta->label_probs[i] != values[i]);
   }

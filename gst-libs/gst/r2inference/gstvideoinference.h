@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -26,25 +26,25 @@
 #include <gst/video/video.h>
 
 G_BEGIN_DECLS
-
 #define GST_TYPE_VIDEO_INFERENCE gst_video_inference_get_type ()
-G_DECLARE_DERIVABLE_TYPE(GstVideoInference, gst_video_inference, GST,
-  VIDEO_INFERENCE, GstElement);
+G_DECLARE_DERIVABLE_TYPE (GstVideoInference, gst_video_inference, GST,
+    VIDEO_INFERENCE, GstElement);
 
 struct _GstVideoInferenceClass
 {
   GstElementClass parent_class;
 
-  gboolean (* start) (GstVideoInference *self);
-  gboolean (* stop) (GstVideoInference *self);
-  gboolean (* preprocess) (GstVideoInference *self, GstVideoFrame *inframe,
-    GstVideoFrame *outframe);
-  gboolean (* postprocess) (GstVideoInference *self, const gpointer prediction,
-    gsize size, GstMeta *meta_model, GstVideoInfo *info_model, gboolean *valid_prediction);
+    gboolean (*start) (GstVideoInference * self);
+    gboolean (*stop) (GstVideoInference * self);
+    gboolean (*preprocess) (GstVideoInference * self, GstVideoFrame * inframe,
+      GstVideoFrame * outframe);
+    gboolean (*postprocess) (GstVideoInference * self,
+      const gpointer prediction, gsize size, GstMeta * meta_model[2],
+      GstVideoInfo * info_model, gboolean * valid_prediction, gchar **labels_list, gint num_labels);
 
   const GstMetaInfo *inference_meta_info;
+
 };
 
 G_END_DECLS
-
 #endif //__GST_VIDEO_INFERENCE_H__

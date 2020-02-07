@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018 RidgeRun
+ * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -18,19 +18,15 @@
  * Boston, MA 02111-1307, USA.
  *
  */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include "gstdetectionoverlay.h"
 #include "gst/r2inference/gstinferencemeta.h"
-#ifdef OCV_VERSION_LT_3_2
-#include "opencv2/highgui/highgui.hpp"
-#else
-#include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#endif
 
+/* *INDENT-OFF* */
 static const cv::Scalar colors[] = {
   cv::Scalar (254, 254, 254), cv::Scalar (239, 211, 127),
   cv::Scalar (225, 169, 0), cv::Scalar (211, 127, 254),
@@ -43,16 +39,18 @@ static const cv::Scalar colors[] = {
   cv::Scalar (28, 42, 127), cv::Scalar (14, 84, 0),
   cv::Scalar (0, 254, 254), cv::Scalar (14, 211, 127)
 };
+/* *INDENT-ON* */
+
 #define N_C (sizeof (colors)/sizeof (cv::Scalar))
 
 GST_DEBUG_CATEGORY_STATIC (gst_detection_overlay_debug_category);
 #define GST_CAT_DEFAULT gst_detection_overlay_debug_category
 
 /* prototypes */
-static GstFlowReturn
-gst_detection_overlay_process_meta (GstInferenceOverlay * inference_overlay,
-    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels);
+static GstFlowReturn gst_detection_overlay_process_meta (GstInferenceBaseOverlay
+    * inference_overlay, cv::Mat & cv_mat, GstVideoFrame * frame,
+    GstMeta * meta, gdouble font_scale, gint thickness, gchar ** labels_list,
+    gint num_labels, LineStyleBoundingBox style);
 
 enum
 {
@@ -61,25 +59,26 @@ enum
 
 struct _GstDetectionOverlay
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
 };
 
 struct _GstDetectionOverlayClass
 {
-  GstInferenceOverlay parent;
+  GstInferenceBaseOverlay parent;
 };
 
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE (GstDetectionOverlay, gst_detection_overlay,
-    GST_TYPE_INFERENCE_OVERLAY,
+    GST_TYPE_INFERENCE_BASE_OVERLAY,
     GST_DEBUG_CATEGORY_INIT (gst_detection_overlay_debug_category,
         "detectionoverlay", 0, "debug category for detection_overlay element"));
 
 static void
 gst_detection_overlay_class_init (GstDetectionOverlayClass * klass)
 {
-  GstInferenceOverlayClass *io_class = GST_INFERENCE_OVERLAY_CLASS (klass);
+  GstInferenceBaseOverlayClass *io_class =
+      GST_INFERENCE_BASE_OVERLAY_CLASS (klass);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "detectionoverlay", "Filter",
@@ -102,32 +101,18 @@ gst_detection_overlay_init (GstDetectionOverlay * detection_overlay)
 }
 
 static GstFlowReturn
-gst_detection_overlay_process_meta (GstInferenceOverlay * inference_overlay,
-    GstVideoFrame * frame, GstMeta * meta, gdouble font_scale, gint thickness,
-    gchar ** labels_list, gint num_labels)
+gst_detection_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
+    cv::Mat & cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
+    gint thickness, gchar ** labels_list, gint num_labels,
+    LineStyleBoundingBox style)
 {
   GstDetectionMeta *detect_meta;
-  gint i, width, height, channels;
-  cv::Mat cv_mat;
+  gint i;
   cv::Size size;
   cv::String str;
   BBox box;
 
-  switch (GST_VIDEO_FRAME_FORMAT (frame)) {
-    case GST_VIDEO_FORMAT_RGB:
-    case GST_VIDEO_FORMAT_BGR:
-      channels = 3;
-      break;
-    default:
-      channels = 4;
-      break;
-  }
-  width = GST_VIDEO_FRAME_COMP_STRIDE (frame, 0) / channels;
-  height = GST_VIDEO_FRAME_HEIGHT (frame);
-
   detect_meta = (GstDetectionMeta *) meta;
-  cv_mat = cv::Mat (height, width, CV_MAKETYPE (CV_8U, channels),
-      (char *) frame->data[0]);
   for (i = 0; i < detect_meta->num_boxes; ++i) {
     box = detect_meta->boxes[i];
     if (num_labels > box.label) {
