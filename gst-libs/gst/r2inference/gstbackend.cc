@@ -410,7 +410,7 @@ gst_backend_cast_format (GstVideoFormat format) {
       image_format = r2i::ImageFormat::Id::GRAY8;
       break;
     default:
-      image_format = r2i::ImageFormat::Id::UNKNOWN_FORMAT;
+      image_format = r2i::ImageFormat::Id::RGB;
       break;
   }
   return image_format;
