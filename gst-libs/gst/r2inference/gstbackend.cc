@@ -454,8 +454,8 @@ gst_backend_process_frame (GstBackend *self, GstVideoFrame *input_frame,
   *prediction_size = prediction->GetResultSize ();
 
   /*could we avoid memory copy ?*/
-  *prediction_data = g_malloc(*prediction_size * sizeof(gfloat));
-  memcpy(*prediction_data, prediction->GetResultData(), *prediction_size * sizeof(gfloat));
+  *prediction_data = g_malloc(*prediction_size);
+  memcpy(*prediction_data, prediction->GetResultData(), *prediction_size);
 
   GST_LOG_OBJECT (self, "Size of prediction %p is %lu",
                   *prediction_data, *prediction_size);
