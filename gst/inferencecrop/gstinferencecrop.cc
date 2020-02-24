@@ -20,9 +20,9 @@
  */
 
 /**
- * SECTION:element-gstdetectioncrop
+ * SECTION:element-gstinferencecrop
  *
- * The detectioncrop element parses a detectionmeta and crops the incomming
+ * The inferencecrop element parses a inferencemeta and crops the incomming
  * image to the bounding box.
  *
  * <refsect2>
@@ -31,9 +31,9 @@
  * gst-launch-1.0 v4l2src device=$CAMERA ! videoconvert ! tee name=t t. ! videoscale ! queue !
    net.sink_model t. ! queue ! net.sink_bypass tinyyolov2 name=net model-location=$MODEL_LOCATION ! \
    backend=tensorflow backend::input-layer=$INPUT_LAYER backend::output-layer=OUTPUT_LAYER net.src_bypass \
-   detectioncrop aspect-ratio=1/1 ! videoscale ! ximagesink sync=false
+   inferencecrop aspect-ratio=1/1 ! videoscale ! ximagesink sync=false
  * ]|
- * Process video frames from the camera using a detectioncrop model.
+ * Crops video frames based on inferencemeta information.
  * </refsect2>
  */
 
@@ -42,7 +42,7 @@
 #endif
 
 
-#include "gstdetectioncrop.h"
+#include "gstinferencecrop.h"
 
 #include "gst/r2inference/gstinferencemeta.h"
 #include "videocrop.h"
@@ -59,27 +59,27 @@ static GstStaticPadTemplate src_template = GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS_ANY);
 
-GST_DEBUG_CATEGORY_STATIC (gst_detection_crop_debug_category);
-#define GST_CAT_DEFAULT gst_detection_crop_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_inference_crop_debug_category);
+#define GST_CAT_DEFAULT gst_inference_crop_debug_category
 
-static void gst_detection_crop_finalize (GObject *object);
-static void gst_detection_crop_set_property (GObject *object,
+static void gst_inference_crop_finalize (GObject *object);
+static void gst_inference_crop_set_property (GObject *object,
     guint property_id, const GValue *value, GParamSpec *pspec);
-static void gst_detection_crop_get_property (GObject *object,
+static void gst_inference_crop_get_property (GObject *object,
     guint property_id, GValue *value, GParamSpec *pspec);
-static GstStateChangeReturn gst_detection_crop_change_state (GstElement *
+static GstStateChangeReturn gst_inference_crop_change_state (GstElement *
     element, GstStateChange transition);
-static gboolean gst_detection_crop_start (GstDetectionCrop *self);
-static void gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
-    GstDetectionCrop *self);
-static void gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x,
+static gboolean gst_inference_crop_start (GstInferenceCrop *self);
+static void gst_inference_crop_set_caps (GstPad *pad, GParamSpec *unused,
+    GstInferenceCrop *self);
+static void gst_inference_crop_new_buffer_size (GstInferenceCrop *self, gint x,
     gint y,
     gint width, gint height, gint width_ratio, gint height_ratio, gint *top,
     gint *bottom, gint *right, gint *left);
-static GstPadProbeReturn gst_detection_crop_new_buffer (GstPad *pad,
-    GstPadProbeInfo *info, GstDetectionCrop *self);
-static void gst_detection_crop_find_predictions (GstDetectionCrop *self,
-    gint *num_detections, GstInferenceMeta *meta, GList **list,
+static GstPadProbeReturn gst_inference_crop_new_buffer (GstPad *pad,
+    GstPadProbeInfo *info, GstInferenceCrop *self);
+static void gst_inference_crop_find_predictions (GstInferenceCrop *self,
+    gint *num_inferences, GstInferenceMeta *meta, GList **list,
     GstInferencePrediction *pred);
 
 
@@ -91,7 +91,7 @@ enum {
   PROP_CROP_ASPECT_RATIO,
 };
 
-struct _GstDetectionCrop {
+struct _GstInferenceCrop {
   GstBin parent;
   GstPad *sinkpad;
   GstPad *srcpad;
@@ -102,19 +102,19 @@ struct _GstDetectionCrop {
   gint height;
 };
 
-struct _GstDetectionCropClass {
+struct _GstInferenceCropClass {
   GstBinClass parent;
 };
 
 /* class initialization */
 
-G_DEFINE_TYPE_WITH_CODE (GstDetectionCrop, gst_detection_crop,
+G_DEFINE_TYPE_WITH_CODE (GstInferenceCrop, gst_inference_crop,
                          GST_TYPE_BIN,
-                         GST_DEBUG_CATEGORY_INIT (gst_detection_crop_debug_category, "detectioncrop",
-                             0, "debug category for detectioncrop element"));
+                         GST_DEBUG_CATEGORY_INIT (gst_inference_crop_debug_category, "inferencecrop",
+                             0, "debug category for inferencecrop element"));
 
 static void
-gst_detection_crop_class_init (GstDetectionCropClass *klass) {
+gst_inference_crop_class_init (GstInferenceCropClass *klass) {
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
@@ -124,21 +124,21 @@ gst_detection_crop_class_init (GstDetectionCropClass *klass) {
                                       gst_static_pad_template_get (&src_template));
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-                                         "detectioncrop", "Filter",
+                                         "inferencecrop", "Filter",
                                          "Crops an incoming image based on an inference prediction bounding box",
                                          "Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
                                          "   Lenin Torres <lenin.torres@ridgerun.com>");
 
   element_class->change_state =
-    GST_DEBUG_FUNCPTR (gst_detection_crop_change_state);
+    GST_DEBUG_FUNCPTR (gst_inference_crop_change_state);
 
-  object_class->finalize = gst_detection_crop_finalize;
-  object_class->set_property = gst_detection_crop_set_property;
-  object_class->get_property = gst_detection_crop_get_property;
+  object_class->finalize = gst_inference_crop_finalize;
+  object_class->set_property = gst_inference_crop_set_property;
+  object_class->get_property = gst_inference_crop_get_property;
 
   g_object_class_install_property (object_class, PROP_CROP_ASPECT_RATIO,
                                    gst_param_spec_fraction ("aspect-ratio", "Aspect Ratio",
-                                       "Aspect ratio to crop the detections, width and height separated by '/'. "
+                                       "Aspect ratio to crop the predictions, width and height separated by '/'. "
                                        "If set to 0/1 it maintains the aspect ratio of each bounding box.", 0, 1,
                                        G_MAXINT, 1,
                                        PROP_CROP_RATIO_DEFAULT_WIDTH, PROP_CROP_RATIO_DEFAULT_HEIGHT,
@@ -146,7 +146,7 @@ gst_detection_crop_class_init (GstDetectionCropClass *klass) {
 }
 
 static void
-gst_detection_crop_init (GstDetectionCrop *self) {
+gst_inference_crop_init (GstInferenceCrop *self) {
   GstElement *element;
   GstPad *sinkpad, *sinkgpad, *srcpad, *srcgpad;
 
@@ -173,9 +173,9 @@ gst_detection_crop_init (GstDetectionCrop *self) {
   gst_element_add_pad (GST_ELEMENT (self), sinkgpad);
 
   g_signal_connect (sinkgpad, "notify::caps",
-                    G_CALLBACK (gst_detection_crop_set_caps), self);
+                    G_CALLBACK (gst_inference_crop_set_caps), self);
   gst_pad_add_probe (sinkgpad, GST_PAD_PROBE_TYPE_BUFFER,
-                     (GstPadProbeCallback) gst_detection_crop_new_buffer, self, NULL);
+                     (GstPadProbeCallback) gst_inference_crop_new_buffer, self, NULL);
 
   srcpad = self->element->GetSrcPad ();
   g_return_if_fail (srcpad);
@@ -191,8 +191,8 @@ gst_detection_crop_init (GstDetectionCrop *self) {
 }
 
 static void
-gst_detection_crop_finalize (GObject *object) {
-  GstDetectionCrop *self = GST_DETECTION_CROP (object);
+gst_inference_crop_finalize (GObject *object) {
+  GstInferenceCrop *self = GST_INFERENCE_CROP (object);
 
   g_return_if_fail(self);
 
@@ -202,13 +202,13 @@ gst_detection_crop_finalize (GObject *object) {
   gst_object_unref (self->srcpad);
   self->srcpad = NULL;
 
-  G_OBJECT_CLASS (gst_detection_crop_parent_class)->finalize (object);
+  G_OBJECT_CLASS (gst_inference_crop_parent_class)->finalize (object);
 }
 
 static void
-gst_detection_crop_set_property (GObject *object, guint property_id,
+gst_inference_crop_set_property (GObject *object, guint property_id,
                                  const GValue *value, GParamSpec *pspec) {
-  GstDetectionCrop *self = GST_DETECTION_CROP (object);
+  GstInferenceCrop *self = GST_INFERENCE_CROP (object);
 
   GST_DEBUG_OBJECT (self, "set_property");
 
@@ -228,9 +228,9 @@ gst_detection_crop_set_property (GObject *object, guint property_id,
 }
 
 static void
-gst_detection_crop_get_property (GObject *object, guint property_id,
+gst_inference_crop_get_property (GObject *object, guint property_id,
                                  GValue *value, GParamSpec *pspec) {
-  GstDetectionCrop *self = GST_DETECTION_CROP (object);
+  GstInferenceCrop *self = GST_INFERENCE_CROP (object);
 
   GST_DEBUG_OBJECT (self, "get_property");
 
@@ -247,21 +247,21 @@ gst_detection_crop_get_property (GObject *object, guint property_id,
 }
 
 static gboolean
-gst_detection_crop_start (GstDetectionCrop *self) {
+gst_inference_crop_start (GstInferenceCrop *self) {
   g_return_val_if_fail (self, FALSE);
 
   return self->element->Validate ();
 }
 
 static GstStateChangeReturn
-gst_detection_crop_change_state (GstElement *element,
+gst_inference_crop_change_state (GstElement *element,
                                  GstStateChange transition) {
   GstStateChangeReturn ret;
-  GstDetectionCrop *self = GST_DETECTION_CROP (element);
+  GstInferenceCrop *self = GST_INFERENCE_CROP (element);
 
   switch (transition) {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
-      if (FALSE == gst_detection_crop_start (self)) {
+      if (FALSE == gst_inference_crop_start (self)) {
         GST_ERROR_OBJECT (self, "Failed to start");
         ret = GST_STATE_CHANGE_FAILURE;
         goto out;
@@ -270,7 +270,7 @@ gst_detection_crop_change_state (GstElement *element,
       break;
   }
   ret =
-    GST_ELEMENT_CLASS (gst_detection_crop_parent_class)->change_state
+    GST_ELEMENT_CLASS (gst_inference_crop_parent_class)->change_state
     (element, transition);
   if (GST_STATE_CHANGE_FAILURE == ret) {
     GST_ERROR_OBJECT (self, "Parent failed to change state");
@@ -282,8 +282,8 @@ out:
 }
 
 static void
-gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
-                             GstDetectionCrop *self) {
+gst_inference_crop_set_caps (GstPad *pad, GParamSpec *unused,
+                             GstInferenceCrop *self) {
   GstCaps *caps;
   GstStructure *st;
   gint width;
@@ -305,7 +305,7 @@ gst_detection_crop_set_caps (GstPad *pad, GParamSpec *unused,
 }
 
 static void
-gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
+gst_inference_crop_new_buffer_size (GstInferenceCrop *self, gint x, gint y,
                                     gint width, gint height, gint width_ratio, gint height_ratio, gint *top,
                                     gint *bottom, gint *right, gint *left) {
 
@@ -357,14 +357,14 @@ gst_detection_crop_new_buffer_size (GstDetectionCrop *self, gint x, gint y,
 }
 
 static void
-gst_detection_crop_find_predictions (GstDetectionCrop *self,
-                                     gint *num_detections,
+gst_inference_crop_find_predictions (GstInferenceCrop *self,
+                                     gint *num_inferences,
                                      GstInferenceMeta *meta, GList **list, GstInferencePrediction *pred) {
   GSList *children_list = NULL;
   GSList *iter = NULL;
 
   g_return_if_fail (self);
-  g_return_if_fail (num_detections);
+  g_return_if_fail (num_inferences);
   g_return_if_fail (meta);
   g_return_if_fail (list);
   g_return_if_fail (pred);
@@ -374,22 +374,22 @@ gst_detection_crop_find_predictions (GstDetectionCrop *self,
   for (iter = children_list; iter != NULL; iter = g_slist_next(iter)) {
     GstInferencePrediction *predict = (GstInferencePrediction *)iter->data;
 
-    gst_detection_crop_find_predictions (self, num_detections, meta, list,
+    gst_inference_crop_find_predictions (self, num_inferences, meta, list,
                                          predict );
   }
   if (FALSE == G_NODE_IS_ROOT(pred->predictions) && TRUE == pred->enabled ) {
     *list = g_list_append (*list, pred);
-    *num_detections = *num_detections + 1;
+    *num_inferences = *num_inferences + 1;
   }
 
 }
 
 static GstPadProbeReturn
-gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
-                               GstDetectionCrop *self) {
+gst_inference_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
+                               GstInferenceCrop *self) {
   GstBuffer *buffer;
   GstInferenceMeta *inference_meta;
-  gint num_detections;
+  gint num_inferences;
   gint crop_width_ratio;
   gint crop_height_ratio;
   BoundingBox box;
@@ -414,8 +414,8 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     goto out;
   }
 
-  num_detections = 0;
-  gst_detection_crop_find_predictions (self, &num_detections,
+  num_inferences = 0;
+  gst_inference_crop_find_predictions (self, &num_inferences,
                                        inference_meta, &list, inference_meta->prediction);
 
   for (iter = list; iter != NULL; iter = g_list_next(iter)) {
@@ -427,7 +427,7 @@ gst_detection_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     GST_LOG_OBJECT (self, "BBox: %dx%dx%dx%d", box.x, box.y, box.width,
                     box.height);
 
-    gst_detection_crop_new_buffer_size (self, box.x, box.y, box.width, box.height,
+    gst_inference_crop_new_buffer_size (self, box.x, box.y, box.width, box.height,
                                         crop_width_ratio, crop_height_ratio,
                                         &top, &bottom, &right, &left);
     self->element->SetCroppingSize ((gint) top, (gint) bottom, (gint) right,
@@ -470,8 +470,8 @@ plugin_init (GstPlugin *plugin) {
   gboolean ret = TRUE;
 
   ret =
-    gst_element_register (plugin, "detectioncrop", GST_RANK_NONE,
-			  GST_TYPE_DETECTION_CROP);
+    gst_element_register (plugin, "inferencecrop", GST_RANK_NONE,
+			  GST_TYPE_INFERENCE_CROP);
 
   return ret;
 }
