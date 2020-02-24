@@ -206,6 +206,8 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
   gdouble alpha = 0.5;
   cv::Mat alpha_overlay;
   gint width, height, x, y = 0;
+  cv::Size text = cv::Size(0,0);
+  cv::Size tmp_text_size = cv::Size(0,0);
 
   g_return_if_fail (pred != NULL);
 
@@ -227,6 +229,10 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
 
   box = pred->bbox;
 
+  if (TRUE == G_NODE_IS_ROOT (pred->predictions)) {
+    box.width = 0;
+  }
+
   for (iter = pred->classifications; iter != NULL; iter = g_list_next (iter)) {
     GstInferenceClassification *classification = (GstInferenceClassification *)
         iter->data;
@@ -245,10 +251,12 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
     cv::putText (cv_mat, label, cv::Point (box.x + box.width,
             box.y + classes * OVERLAY_WIDTH), cv::FONT_HERSHEY_PLAIN,
         font_scale, cv::Scalar::all (0), thickness);
-  }
-
-  cv::Size text = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
+    tmp_text_size = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
       thickness, 0);
+    if(tmp_text_size.width > text.width){
+      text = tmp_text_size;
+    }
+  }
 
   if ((box.x + box.width) < 0) {
     x = 0;
