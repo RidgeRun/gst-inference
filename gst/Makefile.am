@@ -1,4 +1,2 @@
 SUBDIRS =	\
-	inferencecrop	\
-	inferencefilter	\
-	inferencedebug
+	inferenceutils

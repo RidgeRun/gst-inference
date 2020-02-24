@@ -464,20 +464,3 @@ out:
 
   return ret;
 }
-
-static gboolean
-plugin_init (GstPlugin *plugin) {
-  gboolean ret = TRUE;
-
-  ret =
-    gst_element_register (plugin, "inferencecrop", GST_RANK_NONE,
-			  GST_TYPE_INFERENCE_CROP);
-
-  return ret;
-}
-
-GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
-                   GST_VERSION_MINOR,
-                   inferencecrop,
-                   "Crops an incoming image based on an inference prediction bounding box",
-                   plugin_init, VERSION, "LGPL", PACKAGE_NAME, GST_PACKAGE_ORIGIN)

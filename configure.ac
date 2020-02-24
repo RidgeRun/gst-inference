@@ -382,9 +382,7 @@ ext/Makefile
 ext/opencv/Makefile
 ext/r2inference/Makefile
 gst/Makefile
-gst/inferencecrop/Makefile
-gst/inferencefilter/Makefile
-gst/inferencedebug/Makefile
+gst/inferenceutils/Makefile
 gst-libs/Makefile
 gst-libs/gst/Makefile
 gst-libs/gst/opencv/Makefile
