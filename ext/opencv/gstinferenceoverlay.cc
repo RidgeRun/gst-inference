@@ -54,6 +54,8 @@ static const cv::Scalar colors[] = {
 #define CHOSEN_COLOR 14
 #define OVERLAY_HEIGHT 50
 #define OVERLAY_WIDTH 30
+#define OVERLAY_X_POSITION 0
+#define ALPHA_OVERLAY 0.98
 #define LINES_GAP 20
 
 GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
@@ -203,7 +205,7 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
   cv::String prob;
   BoundingBox box;
   gint classes = 0;
-  gdouble alpha = 0.5;
+  gdouble alpha = ALPHA_OVERLAY;
   cv::Mat alpha_overlay;
   gint width, height, x, y = 0;
   cv::Size text = cv::Size(0,0);
@@ -248,7 +250,7 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
       label = cv::format ("Label #%d : %0.3f", classification->class_id,
           classification->class_prob);
     }
-    cv::putText (cv_mat, label, cv::Point (box.x + box.width,
+    cv::putText (cv_mat, label, cv::Point (box.x + OVERLAY_X_POSITION,
             box.y + classes * OVERLAY_WIDTH), cv::FONT_HERSHEY_PLAIN,
         font_scale, cv::Scalar::all (0), thickness);
     tmp_text_size = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
@@ -258,15 +260,15 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
     }
   }
 
-  if ((box.x + box.width) < 0) {
+  if ((box.x + OVERLAY_X_POSITION) < 0) {
     x = 0;
-  } else if ((int) (box.x + box.width) >= cv_mat.cols) {
+  } else if ((int) (box.x + OVERLAY_X_POSITION) >= cv_mat.cols) {
     x = cv_mat.cols - 1;
   } else {
-    x = box.x + box.width;
+    x = box.x + OVERLAY_X_POSITION;
   }
 
-  if ((int) (x + box.width + text.width) >= cv_mat.cols) {
+  if ((int) (x + OVERLAY_X_POSITION + text.width) >= cv_mat.cols) {
     width = cv_mat.cols - x - 1;
   } else {
     width = text.width;
