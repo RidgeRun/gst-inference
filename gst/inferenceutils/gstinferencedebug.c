@@ -145,16 +145,3 @@ gst_inference_debug_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 
   return GST_FLOW_OK;
 }
-
-static gboolean
-plugin_init (GstPlugin * plugin)
-{
-  return gst_element_register (plugin, "inferencedebug", GST_RANK_NONE,
-      GST_TYPE_INFERENCE_DEBUG);
-}
-
-GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
-    GST_VERSION_MINOR,
-    inferencedebug,
-    "Print InferenceMeta Predictions",
-    plugin_init, VERSION, "LGPL", PACKAGE_NAME, GST_PACKAGE_ORIGIN)

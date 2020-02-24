@@ -1,36 +1,41 @@
-plugin_LTLIBRARIES = libgstinferencecrop.la
+plugin_LTLIBRARIES = libgstinferenceutils.la
 
-libgstinferencecrop_la_SOURCES =	\
+libgstinferenceutils_la_SOURCES =	\
+	gstinferenceutils.c		\
+	gstinferencefilter.c		\
+	gstinferencedebug.c		\
 	gstinferencecrop.cc		\
 	cropelement.cc			\
 	videocrop.cc
 
-libgstinferencecrop_la_CFLAGS =	\
+libgstinferenceutils_la_CFLAGS =	\
 	$(GST_CFLAGS)			\
 	$(GST_BASE_CFLAGS)		\
 	$(GST_PLUGINS_BASE_CFLAGS)	\
 	-I$(top_srcdir)/gst-libs
 
-libgstinferencecrop_la_CXXFLAGS =	\
+libgstinferenceutils_la_CXXFLAGS =	\
 	$(GST_CFLAGS)			\
 	$(GST_BASE_CFLAGS)		\
 	$(GST_PLUGINS_BASE_CFLAGS)	\
 	-I$(top_srcdir)/gst-libs	\
 	-std=c++11
 
-libgstinferencecrop_la_LIBADD =	\
+libgstinferenceutils_la_LIBADD =	\
 	$(GST_LIBS)			\
 	$(GST_BASE_LIBS)		\
 	$(GST_PLUGINS_BASE_LIBS)	\
 	$(top_builddir)/gst-libs/gst/r2inference/libgstinference-@GST_API_VERSION@.la
 
-libgstinferencecrop_la_LDFLAGS =	\
+libgstinferenceutils_la_LDFLAGS =	\
 	$(GST_PLUGIN_LDFLAGS)
 
-libgstinferencecrop_la_LIBTOOLFLAGS =	\
+libgstinferenceutils_la_LIBTOOLFLAGS =	\
 	$(GST_PLUGIN_LIBTOOLFLAGS)
 
 noinst_HEADERS =			\
+	gstinferencefilter.h		\
+	gstinferencedebug.h		\
 	gstinferencecrop.h		\
 	cropelement.h			\
 	videocrop.h

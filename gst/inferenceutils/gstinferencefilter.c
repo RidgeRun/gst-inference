@@ -271,17 +271,3 @@ gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
       filter, reset);
   return GST_FLOW_OK;
 }
-
-static gboolean
-plugin_init (GstPlugin * plugin)
-{
-  return gst_element_register (plugin, "inferencefilter", GST_RANK_NONE,
-      GST_TYPE_INFERENCEFILTER);
-}
-
-
-GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
-    GST_VERSION_MINOR,
-    inferencefilter,
-    "Enables/disables selected classes on inference meta to be processed",
-    plugin_init, VERSION, "LGPL", PACKAGE_NAME, GST_PACKAGE_ORIGIN)
