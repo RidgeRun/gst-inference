@@ -19,15 +19,15 @@
  *
  */
 
-#ifndef _GST_INFERENCEFILTER_H_
-#define _GST_INFERENCEFILTER_H_
+#ifndef _GST_INFERENCE_FILTER_H_
+#define _GST_INFERENCE_FILTER_H_
 
 #include <gst/base/gstbasetransform.h>
 
 G_BEGIN_DECLS
-#define GST_TYPE_INFERENCEFILTER   (gst_inferencefilter_get_type())
-G_DECLARE_FINAL_TYPE (GstInferencefilter, gst_inferencefilter, GST,
-    INFERENCEFILTER, GstBaseTransform)
+#define GST_TYPE_INFERENCE_FILTER   (gst_inference_filter_get_type())
+G_DECLARE_FINAL_TYPE (GstInferenceFilter, gst_inference_filter, GST,
+    INFERENCE_FILTER, GstBaseTransform)
 
 G_END_DECLS
 #endif

@@ -47,25 +47,25 @@
 #include <gst/base/gstbasetransform.h>
 
 
-GST_DEBUG_CATEGORY_STATIC (gst_inferencefilter_debug_category);
-#define GST_CAT_DEFAULT gst_inferencefilter_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_inference_filter_debug_category);
+#define GST_CAT_DEFAULT gst_inference_filter_debug_category
 
-#define GST_INFERENCEFILTER_PROPERTY_FLAGS (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)
+#define GST_INFERENCE_FILTER_PROPERTY_FLAGS (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)
 #define PROP_FILTER_CLASS_LABEL_DEFAULT -1
 #define PROP_FILTER_CLASS_LABEL_MIN -1
 #define PROP_RESET_ENABLE_DEFAULT FALSE
 
 /* prototypes */
 
-static void gst_inferencefilter_set_property (GObject * object,
+static void gst_inference_filter_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
-static void gst_inferencefilter_get_property (GObject * object,
+static void gst_inference_filter_get_property (GObject * object,
     guint property_id, GValue * value, GParamSpec * pspec);
-static void gst_inferencefilter_filter_enable (GstInferencefilter *
+static void gst_inference_filter_filter_enable (GstInferenceFilter *
     inferencefilter, GstInferencePrediction * rot, gint class_id,
     gboolean reset);
-static GstFlowReturn gst_inferencefilter_transform_ip (GstBaseTransform * trans,
-    GstBuffer * buf);
+static GstFlowReturn gst_inference_filter_transform_ip (GstBaseTransform *
+    trans, GstBuffer * buf);
 
 enum
 {
@@ -74,7 +74,7 @@ enum
   PROP_RESET_ENABLE,
 };
 
-struct _GstInferencefilter
+struct _GstInferenceFilter
 {
   GstBaseTransform base_inferencefilter;
   gint filter_class;
@@ -84,13 +84,13 @@ struct _GstInferencefilter
 
 /* pad templates */
 
-static GstStaticPadTemplate gst_inferencefilter_src_template =
+static GstStaticPadTemplate gst_inference_filter_src_template =
 GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS_ANY);
 
-static GstStaticPadTemplate gst_inferencefilter_sink_template =
+static GstStaticPadTemplate gst_inference_filter_sink_template =
 GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
@@ -99,13 +99,13 @@ GST_STATIC_PAD_TEMPLATE ("sink",
 
 /* class initialization */
 
-G_DEFINE_TYPE_WITH_CODE (GstInferencefilter, gst_inferencefilter,
+G_DEFINE_TYPE_WITH_CODE (GstInferenceFilter, gst_inference_filter,
     GST_TYPE_BASE_TRANSFORM,
-    GST_DEBUG_CATEGORY_INIT (gst_inferencefilter_debug_category,
+    GST_DEBUG_CATEGORY_INIT (gst_inference_filter_debug_category,
         "inferencefilter", 0, "debug category for inferencefilter element"));
 
 static void
-gst_inferencefilter_class_init (GstInferencefilterClass * klass)
+gst_inference_filter_class_init (GstInferenceFilterClass * klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstBaseTransformClass *base_transform_class =
@@ -114,42 +114,43 @@ gst_inferencefilter_class_init (GstInferencefilterClass * klass)
   /* Setting up pads and setting metadata should be moved to
      base_class_init if you intend to subclass this class. */
   gst_element_class_add_static_pad_template (GST_ELEMENT_CLASS (klass),
-      &gst_inferencefilter_src_template);
+      &gst_inference_filter_src_template);
   gst_element_class_add_static_pad_template (GST_ELEMENT_CLASS (klass),
-      &gst_inferencefilter_sink_template);
+      &gst_inference_filter_sink_template);
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "Inference Filter", "Generic",
       "Enables/disables specific classes contained on the inference metadata to be processed",
       "<carolina.trejos@ridgerun.com>");
 
-  gobject_class->set_property = gst_inferencefilter_set_property;
-  gobject_class->get_property = gst_inferencefilter_get_property;
+  gobject_class->set_property = gst_inference_filter_set_property;
+  gobject_class->get_property = gst_inference_filter_get_property;
 
   g_object_class_install_property (gobject_class, PROP_FILTER_CLASS_LABEL,
       g_param_spec_int ("filter-class", "filter-class",
           "Filter class (-1 = disabled)", PROP_FILTER_CLASS_LABEL_MIN, G_MAXINT,
-          PROP_FILTER_CLASS_LABEL_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
+          PROP_FILTER_CLASS_LABEL_DEFAULT,
+          GST_INFERENCE_FILTER_PROPERTY_FLAGS));
   g_object_class_install_property (gobject_class, PROP_RESET_ENABLE,
       g_param_spec_boolean ("reset-enable", "Reset enable",
           "Enables all inference meta to be processed",
-          PROP_RESET_ENABLE_DEFAULT, GST_INFERENCEFILTER_PROPERTY_FLAGS));
+          PROP_RESET_ENABLE_DEFAULT, GST_INFERENCE_FILTER_PROPERTY_FLAGS));
   base_transform_class->transform_ip =
-      GST_DEBUG_FUNCPTR (gst_inferencefilter_transform_ip);
+      GST_DEBUG_FUNCPTR (gst_inference_filter_transform_ip);
 }
 
 static void
-gst_inferencefilter_init (GstInferencefilter * inferencefilter)
+gst_inference_filter_init (GstInferenceFilter * inferencefilter)
 {
   inferencefilter->filter_class = -1;
   inferencefilter->reset_enable = FALSE;
 }
 
 void
-gst_inferencefilter_set_property (GObject * object, guint property_id,
+gst_inference_filter_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstInferencefilter *inferencefilter = GST_INFERENCEFILTER (object);
+  GstInferenceFilter *inferencefilter = GST_INFERENCE_FILTER (object);
 
   GST_DEBUG_OBJECT (inferencefilter, "set_property");
 
@@ -171,10 +172,10 @@ gst_inferencefilter_set_property (GObject * object, guint property_id,
 }
 
 void
-gst_inferencefilter_get_property (GObject * object, guint property_id,
+gst_inference_filter_get_property (GObject * object, guint property_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstInferencefilter *inferencefilter = GST_INFERENCEFILTER (object);
+  GstInferenceFilter *inferencefilter = GST_INFERENCE_FILTER (object);
 
   GST_DEBUG_OBJECT (inferencefilter, "get_property");
 
@@ -196,7 +197,7 @@ gst_inferencefilter_get_property (GObject * object, guint property_id,
 }
 
 static void
-gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
+gst_inference_filter_filter_enable (GstInferenceFilter * inferencefilter,
     GstInferencePrediction * root, gint class_id, gboolean reset)
 {
   GList *iter = NULL;
@@ -228,7 +229,7 @@ gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
       iter_child != NULL; iter_child = g_slist_next (iter_child)) {
     GstInferencePrediction *predict =
         (GstInferencePrediction *) iter_child->data;
-    gst_inferencefilter_filter_enable (inferencefilter, predict, class_id,
+    gst_inference_filter_filter_enable (inferencefilter, predict, class_id,
         reset);
   }
 
@@ -238,9 +239,9 @@ gst_inferencefilter_filter_enable (GstInferencefilter * inferencefilter,
 }
 
 static GstFlowReturn
-gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
+gst_inference_filter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 {
-  GstInferencefilter *inferencefilter = GST_INFERENCEFILTER (trans);
+  GstInferenceFilter *inferencefilter = GST_INFERENCE_FILTER (trans);
   gboolean reset = FALSE;
   gint filter = -1;
   GstInferenceMeta *meta;
@@ -267,7 +268,7 @@ gst_inferencefilter_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     return GST_FLOW_OK;
   }
 
-  gst_inferencefilter_filter_enable (inferencefilter, meta->prediction,
+  gst_inference_filter_filter_enable (inferencefilter, meta->prediction,
       filter, reset);
   return GST_FLOW_OK;
 }

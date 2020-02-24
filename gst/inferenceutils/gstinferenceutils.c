@@ -48,7 +48,7 @@ plugin_init (GstPlugin * plugin)
 
   ret =
       gst_element_register (plugin, "inferencefilter", GST_RANK_NONE,
-      GST_TYPE_INFERENCEFILTER);
+      GST_TYPE_INFERENCE_FILTER);
   if (!ret) {
     goto out;
   }
