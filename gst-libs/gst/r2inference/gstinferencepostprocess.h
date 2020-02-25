@@ -50,7 +50,8 @@ G_BEGIN_DECLS
  */
 gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
     gboolean * valid_prediction, BBox ** resulting_boxes,
-    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh, gdouble ** probabilities);
+    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh,
+    gdouble ** probabilities, gint num_classes);
 
 /**
  * \brief Fill all the detection meta with the boxes
@@ -67,7 +68,8 @@ gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
 gboolean gst_create_boxes_float (GstVideoInference * vi,
     const gpointer prediction, gboolean * valid_prediction,
     BBox ** resulting_boxes, gint * elements, gdouble obj_thresh,
-    gdouble prob_thresh, gdouble iou_thresh, gdouble ** probabilities);
+    gdouble prob_thresh, gdouble iou_thresh, gdouble ** probabilities,
+    gint num_classes);
 
 /**
  * \brief Create Prediction from box
