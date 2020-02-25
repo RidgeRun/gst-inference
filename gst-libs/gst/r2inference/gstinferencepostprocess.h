@@ -67,7 +67,7 @@ gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
 gboolean gst_create_boxes_float (GstVideoInference * vi,
     const gpointer prediction, gboolean * valid_prediction,
     BBox ** resulting_boxes, gint * elements, gdouble obj_thresh,
-    gdouble prob_thresh, gdouble iou_thresh);
+    gdouble prob_thresh, gdouble iou_thresh, gdouble ** probabilities);
 
 /**
  * \brief Create Prediction from box

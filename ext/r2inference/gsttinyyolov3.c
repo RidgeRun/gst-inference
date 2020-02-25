@@ -292,7 +292,7 @@ gst_tinyyolov3_postprocess_old (GstVideoInference * vi,
   detect_meta->num_boxes = 0;
   tinyyolov3 = GST_TINYYOLOV3 (vi);
 
-  gst_create_boxes (vi, prediction, valid_prediction,
+  gst_create_boxes_float (vi, prediction, valid_prediction,
       &detect_meta->boxes, &detect_meta->num_boxes, tinyyolov3->obj_thresh,
       tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, &probabilities);
 
@@ -325,7 +325,7 @@ gst_tinyyolov3_postprocess_new (GstVideoInference * vi,
   GST_LOG_OBJECT (tinyyolov3, "Postprocess Meta");
 
   /* Create boxes from prediction data */
-  gst_create_boxes (vi, prediction, valid_prediction,
+  gst_create_boxes_float (vi, prediction, valid_prediction,
       &boxes, &num_boxes, tinyyolov3->obj_thresh,
       tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, &probabilities);
 
