@@ -185,6 +185,7 @@ gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
 
   g_return_if_fail (boxes != NULL);
   g_return_if_fail (elements != NULL);
+  g_return_if_fail (probabilities != NULL);
 
   /* Iterate rows */
   for (i = 0; i < grid_h; i++) {
@@ -348,6 +349,7 @@ gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
 
   g_return_if_fail (boxes != NULL);
   g_return_if_fail (elements != NULL);
+  g_return_if_fail (probabilities != NULL);
 
   /* Iterate boxes */
   for (i = 0; i < total_boxes; i++) {
