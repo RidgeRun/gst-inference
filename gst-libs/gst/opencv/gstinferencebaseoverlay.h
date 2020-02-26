@@ -59,7 +59,8 @@ struct _GstInferenceBaseOverlayClass
 
   GstFlowReturn (* process_meta) (GstInferenceBaseOverlay * inference_base_overlay,
       cv::Mat &mat, GstVideoFrame * frame, GstMeta* meta, gdouble font_scale,
-      gint thickness, gchar **labels_list, gint num_labels, LineStyleBoundingBox style);
+      gint thickness, gchar **labels_list, gint num_labels, LineStyleBoundingBox style,
+      gdouble alpha_overlay);
 
   GType meta_type;
 };

@@ -55,7 +55,6 @@ static const cv::Scalar colors[] = {
 #define OVERLAY_HEIGHT 50
 #define OVERLAY_WIDTH 30
 #define OVERLAY_X_POSITION 0
-#define ALPHA_OVERLAY 0.98
 #define LINES_GAP 20
 
 GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
@@ -69,7 +68,7 @@ static void gst_inference_overlay_get_property (GObject * object,
 static GstFlowReturn gst_inference_overlay_process_meta (GstInferenceBaseOverlay
     * inference_overlay, cv::Mat & cv_mat, GstVideoFrame * frame,
     GstMeta * meta, gdouble font_scale, gint thickness, gchar ** labels_list,
-    gint num_labels, LineStyleBoundingBox style);
+    gint num_labels, LineStyleBoundingBox style, gdouble alpha_overlay);
 static void draw_line (cv::Mat & img, cv::Point pt1, cv::Point pt2,
     cv::Scalar color, gint thickness, LineStyleBoundingBox style, gint gap);
 
@@ -195,7 +194,7 @@ draw_line (cv::Mat & img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
 static void
 gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
     gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels,
-    LineStyleBoundingBox style)
+    LineStyleBoundingBox style, gdouble alpha_overlay)
 {
   cv::Size size;
   cv::String label;
@@ -205,8 +204,7 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
   cv::String prob;
   BoundingBox box;
   gint classes = 0;
-  gdouble alpha = ALPHA_OVERLAY;
-  cv::Mat alpha_overlay;
+  gdouble alpha = alpha_overlay;
   gint width, height, x, y = 0;
   cv::Size text = cv::Size(0,0);
   cv::Size tmp_text_size = cv::Size(0,0);
@@ -221,7 +219,7 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
         (GstInferencePrediction *) tree_iter->data;
 
     gst_get_meta (predict, cv_mat, font_scale, thickness,
-        labels_list, num_labels, style);
+        labels_list, num_labels, style, alpha_overlay);
   }
 
   if (!pred->enabled) {
@@ -325,7 +323,7 @@ static GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     cv::Mat & cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
     gint thickness, gchar ** labels_list, gint num_labels,
-    LineStyleBoundingBox style)
+    LineStyleBoundingBox style, gdouble alpha_overlay)
 {
   GstInferenceMeta *detect_meta;
 
@@ -336,7 +334,7 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
   detect_meta = (GstInferenceMeta *) meta;
 
   gst_get_meta (detect_meta->prediction, cv_mat, font_scale, thickness,
-      labels_list, num_labels, style);
+      labels_list, num_labels, style, alpha_overlay);
 
   return GST_FLOW_OK;
 }
