@@ -47,10 +47,13 @@ G_BEGIN_DECLS
  * \param obj_thresh Objectness threshold
  * \param prob_thresh Class probability threshold
  * \param iou_thresh Intersection over union threshold
+ * \param probabilities Probabilities of each classes
+ * \param num_classes The number of classes
  */
 gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
     gboolean * valid_prediction, BBox ** resulting_boxes,
-    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh, gdouble ** probabilities);
+    gint * elements, gfloat obj_thresh, gfloat prob_thresh, gfloat iou_thresh,
+    gdouble ** probabilities, gint num_classes);
 
 /**
  * \brief Fill all the detection meta with the boxes
@@ -63,11 +66,14 @@ gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
  * \param obj_thresh Objectness threshold
  * \param prob_thresh Class probability threshold
  * \param iou_thresh Intersection over union threshold
+ * \param probabilities Probabilities of each classes
+ * \param num_classes The number of classes
  */
 gboolean gst_create_boxes_float (GstVideoInference * vi,
     const gpointer prediction, gboolean * valid_prediction,
     BBox ** resulting_boxes, gint * elements, gdouble obj_thresh,
-    gdouble prob_thresh, gdouble iou_thresh);
+    gdouble prob_thresh, gdouble iou_thresh, gdouble ** probabilities,
+    gint num_classes);
 
 /**
  * \brief Create Prediction from box
@@ -76,6 +82,7 @@ gboolean gst_create_boxes_float (GstVideoInference * vi,
  * \param box Box used to fill Prediction
  * \param labels_list List with all possible lables
  * \param num_labels The number of posibble labels
+ * \param probabilities Probabilities of each classes
  */
 GstInferencePrediction *gst_create_prediction_from_box (GstVideoInference * vi,
     BBox * box, gchar **labels_list, gint num_labels, const gdouble * probabilities);
