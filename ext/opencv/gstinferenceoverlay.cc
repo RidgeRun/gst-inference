@@ -206,8 +206,8 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
   gint classes = 0;
   gdouble alpha = alpha_overlay;
   gint width, height, x, y = 0;
-  cv::Size text = cv::Size(0,0);
-  cv::Size tmp_text_size = cv::Size(0,0);
+  cv::Size max_size = cv::Size(0,0);
+  cv::Size current_size = cv::Size(0,0);
 
   g_return_if_fail (pred != NULL);
 
@@ -251,10 +251,10 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
     cv::putText (cv_mat, label, cv::Point (box.x + OVERLAY_X_POSITION,
             box.y + classes * OVERLAY_WIDTH), cv::FONT_HERSHEY_PLAIN,
         font_scale, cv::Scalar::all (0), thickness);
-    tmp_text_size = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
+    current_size = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
       thickness, 0);
-    if(tmp_text_size.width > text.width){
-      text = tmp_text_size;
+    if(current_size.width > max_size.width){
+      max_size = current_size;
     }
   }
 
@@ -266,10 +266,10 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
     x = box.x + OVERLAY_X_POSITION;
   }
 
-  if ((int) (x + OVERLAY_X_POSITION + text.width) >= cv_mat.cols) {
+  if ((int) (x + OVERLAY_X_POSITION + max_size.width) >= cv_mat.cols) {
     width = cv_mat.cols - x - 1;
   } else {
-    width = text.width;
+    width = max_size.width;
   }
 
   if ((int) (box.y + OVERLAY_HEIGHT * classes) >= cv_mat.rows) {
