@@ -31,6 +31,8 @@
 GST_DEBUG_CATEGORY_STATIC (gst_backend_debug_category);
 #define GST_CAT_DEFAULT gst_backend_debug_category
 
+#define DOUBLE_PROPERTY_DEFAULT_VALUE 0.5
+
 class InferenceProperty {
  private:
 
@@ -68,6 +70,11 @@ class InferenceProperty {
         GST_INFO_OBJECT (self, "Setting property: %s=%d\n", apspec->name,
                          g_value_get_int(avalue));
         error = params->Set(apspec->name, g_value_get_int(avalue));
+        break;
+      case G_TYPE_DOUBLE:
+        GST_INFO_OBJECT (self, "Setting property: %s=%f\n", apspec->name,
+                         g_value_get_double(avalue));
+        error = params->Set(apspec->name, g_value_get_double(avalue));
         break;
       default:
         GST_WARNING_OBJECT (self, "Invalid property type");
@@ -197,10 +204,18 @@ gst_backend_param_to_spec (r2i::ParameterMeta *param) {
                                   NULL, (GParamFlags) gst_backend_param_flags (param->flags));
       break;
     }
+    case (r2i::ParameterMeta::Type::DOUBLE): {
+      spec = g_param_spec_double (param->name.c_str (),
+                                 param->name.c_str (),
+                                 param->description.c_str (),
+                                 G_MINDOUBLE,
+                                 G_MAXDOUBLE, DOUBLE_PROPERTY_DEFAULT_VALUE,
+                                 (GParamFlags) gst_backend_param_flags (param->flags));
+      break;
+    }
     default:
       g_return_val_if_reached (NULL);
   }
-
   return spec;
 }
 
@@ -222,6 +237,9 @@ gst_backend_set_property (GObject *object, guint property_id,
       case G_TYPE_INT:
         priv->params->Set(pspec->name, g_value_get_int(value));
         break;
+      case G_TYPE_DOUBLE:
+        priv->params->Set(pspec->name, g_value_get_double(value));
+        break;
       default:
         GST_WARNING_OBJECT (self, "Invalid property type");
         break;
@@ -241,6 +259,7 @@ gst_backend_get_property (GObject *object, guint property_id,
   GstBackend *self = GST_BACKEND (object);
   GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
   int int_buffer;
+  double double_buffer;
   std::string string_buffer;
   GST_DEBUG_OBJECT (self, "get_property");
 
@@ -253,6 +272,10 @@ gst_backend_get_property (GObject *object, guint property_id,
       case G_TYPE_INT:
         priv->params->Get (pspec->name, int_buffer);
         g_value_set_int (value, int_buffer);
+        break;
+      case G_TYPE_DOUBLE:
+        priv->params->Get (pspec->name, double_buffer);
+        g_value_set_double (value, double_buffer);
         break;
     }
   }
