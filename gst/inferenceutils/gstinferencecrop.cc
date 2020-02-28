@@ -124,7 +124,7 @@ gst_inference_crop_class_init (GstInferenceCropClass *klass) {
                                       gst_static_pad_template_get (&src_template));
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
-                                         "inferencecrop", "Filter",
+                                         "Inference Crop", "Filter",
                                          "Crops an incoming image based on an inference prediction bounding box",
                                          "Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
                                          "   Lenin Torres <lenin.torres@ridgerun.com>");
