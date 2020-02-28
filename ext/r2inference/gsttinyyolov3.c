@@ -63,6 +63,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov3_debug_category);
 #define MIN_IOU_THRESH 0
 #define DEFAULT_IOU_THRESH 0.40
 
+#define TOTAL_CLASSES 80
+
 /* prototypes */
 static void gst_tinyyolov3_set_property (GObject * object,
     guint property_id, const GValue * value, GParamSpec * pspec);
@@ -292,9 +294,10 @@ gst_tinyyolov3_postprocess_old (GstVideoInference * vi,
   detect_meta->num_boxes = 0;
   tinyyolov3 = GST_TINYYOLOV3 (vi);
 
-  gst_create_boxes (vi, prediction, valid_prediction,
+  gst_create_boxes_float (vi, prediction, valid_prediction,
       &detect_meta->boxes, &detect_meta->num_boxes, tinyyolov3->obj_thresh,
-      tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, &probabilities);
+      tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, &probabilities,
+      TOTAL_CLASSES);
 
   gst_inference_print_boxes (vi, gst_tinyyolov3_debug_category, detect_meta);
 
@@ -325,9 +328,10 @@ gst_tinyyolov3_postprocess_new (GstVideoInference * vi,
   GST_LOG_OBJECT (tinyyolov3, "Postprocess Meta");
 
   /* Create boxes from prediction data */
-  gst_create_boxes (vi, prediction, valid_prediction,
+  gst_create_boxes_float (vi, prediction, valid_prediction,
       &boxes, &num_boxes, tinyyolov3->obj_thresh,
-      tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, &probabilities);
+      tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, &probabilities,
+      TOTAL_CLASSES);
 
   GST_LOG_OBJECT (tinyyolov3, "Number of predictions: %d", num_boxes);
 

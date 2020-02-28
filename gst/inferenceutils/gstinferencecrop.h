@@ -19,15 +19,17 @@
  *
  */
 
-#ifndef _GST_INFERENCEFILTER_H_
-#define _GST_INFERENCEFILTER_H_
+#ifndef _GST_INFERENCECROP_H_
+#define _GST_INFERENCECROP_H_
 
-#include <gst/base/gstbasetransform.h>
+#include <gst/r2inference/gstvideoinference.h>
 
 G_BEGIN_DECLS
-#define GST_TYPE_INFERENCEFILTER   (gst_inferencefilter_get_type())
-G_DECLARE_FINAL_TYPE (GstInferencefilter, gst_inferencefilter, GST,
-    INFERENCEFILTER, GstBaseTransform)
+
+#define GST_TYPE_INFERENCE_CROP gst_inference_crop_get_type ()
+G_DECLARE_FINAL_TYPE (GstInferenceCrop, gst_inference_crop, GST, INFERENCE_CROP,
+                      GstBin)
 
 G_END_DECLS
+
 #endif

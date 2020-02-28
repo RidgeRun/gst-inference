@@ -51,7 +51,7 @@ static void gst_embedding_overlay_finalize (GObject * object);
 static GstFlowReturn gst_embedding_overlay_process_meta (GstInferenceBaseOverlay
     * inference_overlay, cv::Mat & cv_mat, GstVideoFrame * frame,
     GstMeta * meta, gdouble font_scale, gint thickness, gchar ** labels_list,
-    gint num_labels, LineStyleBoundingBox style);
+    gint num_labels, LineStyleBoundingBox style, gdouble alpha_overlay);
 static gboolean gst_embedding_overlay_set_embeddings (GstEmbeddingOverlay *
     embedding_overlay, const GValue * value);
 
@@ -209,7 +209,7 @@ static GstFlowReturn
 gst_embedding_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     cv::Mat & cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
     gint thickness, gchar ** labels_list, gint num_labels,
-    LineStyleBoundingBox style)
+    LineStyleBoundingBox, gdouble alpha_overlay )
 {
   GstEmbeddingOverlay *embedding_overlay =
       GST_EMBEDDING_OVERLAY (inference_overlay);

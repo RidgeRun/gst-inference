@@ -54,6 +54,7 @@ static const cv::Scalar colors[] = {
 #define CHOSEN_COLOR 14
 #define OVERLAY_HEIGHT 50
 #define OVERLAY_WIDTH 30
+#define OVERLAY_X_POSITION 0
 #define LINES_GAP 20
 
 GST_DEBUG_CATEGORY_STATIC (gst_inference_overlay_debug_category);
@@ -67,7 +68,7 @@ static void gst_inference_overlay_get_property (GObject * object,
 static GstFlowReturn gst_inference_overlay_process_meta (GstInferenceBaseOverlay
     * inference_overlay, cv::Mat & cv_mat, GstVideoFrame * frame,
     GstMeta * meta, gdouble font_scale, gint thickness, gchar ** labels_list,
-    gint num_labels, LineStyleBoundingBox style);
+    gint num_labels, LineStyleBoundingBox style, gdouble alpha_overlay);
 static void draw_line (cv::Mat & img, cv::Point pt1, cv::Point pt2,
     cv::Scalar color, gint thickness, LineStyleBoundingBox style, gint gap);
 
@@ -193,7 +194,7 @@ draw_line (cv::Mat & img, cv::Point pt1, cv::Point pt2, cv::Scalar color,
 static void
 gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
     gdouble font_scale, gint thickness, gchar ** labels_list, gint num_labels,
-    LineStyleBoundingBox style)
+    LineStyleBoundingBox style, gdouble alpha_overlay)
 {
   cv::Size size;
   cv::String label;
@@ -203,9 +204,10 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
   cv::String prob;
   BoundingBox box;
   gint classes = 0;
-  gdouble alpha = 0.5;
-  cv::Mat alpha_overlay;
+  gdouble alpha = alpha_overlay;
   gint width, height, x, y = 0;
+  cv::Size max_size = cv::Size(0,0);
+  cv::Size current_size = cv::Size(0,0);
 
   g_return_if_fail (pred != NULL);
 
@@ -217,7 +219,7 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
         (GstInferencePrediction *) tree_iter->data;
 
     gst_get_meta (predict, cv_mat, font_scale, thickness,
-        labels_list, num_labels, style);
+        labels_list, num_labels, style, alpha_overlay);
   }
 
   if (!pred->enabled) {
@@ -226,6 +228,10 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
   }
 
   box = pred->bbox;
+
+  if (TRUE == G_NODE_IS_ROOT (pred->predictions)) {
+    box.width = 0;
+  }
 
   for (iter = pred->classifications; iter != NULL; iter = g_list_next (iter)) {
     GstInferenceClassification *classification = (GstInferenceClassification *)
@@ -242,26 +248,28 @@ gst_get_meta (GstInferencePrediction * pred, cv::Mat & cv_mat,
       label = cv::format ("Label #%d : %0.3f", classification->class_id,
           classification->class_prob);
     }
-    cv::putText (cv_mat, label, cv::Point (box.x + box.width,
+    cv::putText (cv_mat, label, cv::Point (box.x + OVERLAY_X_POSITION,
             box.y + classes * OVERLAY_WIDTH), cv::FONT_HERSHEY_PLAIN,
         font_scale, cv::Scalar::all (0), thickness);
+    current_size = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
+      thickness, 0);
+    if(current_size.width > max_size.width){
+      max_size = current_size;
+    }
   }
 
-  cv::Size text = cv::getTextSize (label, cv::FONT_HERSHEY_PLAIN, font_scale,
-      thickness, 0);
-
-  if ((box.x + box.width) < 0) {
+  if ((box.x + OVERLAY_X_POSITION) < 0) {
     x = 0;
-  } else if ((int) (box.x + box.width) >= cv_mat.cols) {
+  } else if ((int) (box.x + OVERLAY_X_POSITION) >= cv_mat.cols) {
     x = cv_mat.cols - 1;
   } else {
-    x = box.x + box.width;
+    x = box.x + OVERLAY_X_POSITION;
   }
 
-  if ((int) (x + box.width + text.width) >= cv_mat.cols) {
+  if ((int) (x + OVERLAY_X_POSITION + max_size.width) >= cv_mat.cols) {
     width = cv_mat.cols - x - 1;
   } else {
-    width = text.width;
+    width = max_size.width;
   }
 
   if ((int) (box.y + OVERLAY_HEIGHT * classes) >= cv_mat.rows) {
@@ -315,7 +323,7 @@ static GstFlowReturn
 gst_inference_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
     cv::Mat & cv_mat, GstVideoFrame * frame, GstMeta * meta, gdouble font_scale,
     gint thickness, gchar ** labels_list, gint num_labels,
-    LineStyleBoundingBox style)
+    LineStyleBoundingBox style, gdouble alpha_overlay)
 {
   GstInferenceMeta *detect_meta;
 
@@ -326,7 +334,7 @@ gst_inference_overlay_process_meta (GstInferenceBaseOverlay * inference_overlay,
   detect_meta = (GstInferenceMeta *) meta;
 
   gst_get_meta (detect_meta->prediction, cv_mat, font_scale, thickness,
-      labels_list, num_labels, style);
+      labels_list, num_labels, style, alpha_overlay);
 
   return GST_FLOW_OK;
 }
