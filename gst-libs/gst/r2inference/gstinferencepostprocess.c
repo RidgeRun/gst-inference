@@ -37,7 +37,7 @@ static void gst_box_to_pixels (BBox * normalized_box, gint row, gint col,
 static gdouble gst_sigmoid (gdouble x);
 static void gst_get_boxes_from_prediction (gfloat obj_thresh,
     gfloat prob_thresh, gpointer prediction, BBox * boxes, gint * elements,
-    gint grid_h, gint grid_w, gint boxes_size, gdouble * probabilities,
+    gint grid_h, gint grid_w, gint boxes_size, gdouble ** probabilities,
     gint num_classes);
 static void gst_get_boxes_from_prediction_float (gfloat obj_thresh,
     gfloat prob_thresh, gpointer prediction, BBox * boxes, gint * elements,
@@ -170,7 +170,7 @@ gst_box_to_pixels (BBox * normalized_box, gint row, gint col, gint box)
 static void
 gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
     gpointer prediction, BBox * boxes, gint * elements, gint grid_h,
-    gint grid_w, gint boxes_size, gdouble * probabilities, gint num_classes)
+    gint grid_w, gint boxes_size, gdouble ** probabilities, gint num_classes)
 {
   gint i, j, c, b;
   gint index;
@@ -194,11 +194,12 @@ gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
         obj_prob = ((gfloat *) prediction)[index + 4];
         /* If the Objectness score is over the threshold add it to the boxes list */
         if (obj_prob > obj_thresh) {
+          double *actual_probs = g_malloc (num_classes * sizeof (gdouble));
           max_class_prob = 0;
           max_class_prob_index = 0;
           for (c = 0; c < num_classes; c++) {
             cur_class_prob = ((gfloat *) prediction)[index + box_dim + c];
-            probabilities[c] = cur_class_prob;
+            actual_probs[c] = cur_class_prob;
             if (cur_class_prob > max_class_prob) {
               max_class_prob = cur_class_prob;
               max_class_prob_index = c;
@@ -217,6 +218,7 @@ gst_get_boxes_from_prediction (gfloat obj_thresh, gfloat prob_thresh,
             result.y = result.y - result.height * 0.5;
             boxes[counter] = result;
             counter = counter + 1;
+            probabilities[counter - 1] = actual_probs;
           }
         }
       }
@@ -244,10 +246,9 @@ gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
   g_return_val_if_fail (probabilities != NULL, FALSE);
 
   *elements = 0;
-  *probabilities = g_malloc (num_classes * sizeof (gdouble));
 
   gst_get_boxes_from_prediction (obj_thresh, prob_thresh, prediction, boxes,
-      elements, grid_h, grid_w, boxes_size, *probabilities, num_classes);
+      elements, grid_h, grid_w, boxes_size, probabilities, num_classes);
   gst_remove_duplicated_boxes (iou_thresh, boxes, elements);
 
   *resulting_boxes = g_malloc (*elements * sizeof (BBox));
