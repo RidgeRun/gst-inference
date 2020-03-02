@@ -41,7 +41,7 @@ static void gst_get_boxes_from_prediction (gfloat obj_thresh,
     gint num_classes);
 static void gst_get_boxes_from_prediction_float (gfloat obj_thresh,
     gfloat prob_thresh, gpointer prediction, BBox * boxes, gint * elements,
-    gint total_boxes, gdouble * probabilities, gint num_classes);
+    gint total_boxes, gdouble ** probabilities, gint num_classes);
 
 gboolean
 gst_fill_classification_meta (GstClassificationMeta * class_meta,
@@ -331,7 +331,7 @@ gst_create_class_from_prediction (GstVideoInference * vi,
 static void
 gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
     gpointer prediction, BBox * boxes, gint * elements, gint total_boxes,
-    gdouble * probabilities, gint num_classes)
+    gdouble ** probabilities, gint num_classes)
 {
   gint i, c;
   gint index;
@@ -354,6 +354,7 @@ gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
 
     /* If the objectness score is over the threshold add it to the boxes list */
     if (obj_prob > obj_thresh) {
+      double *actual_probs = g_malloc (num_classes * sizeof (gdouble));
       max_class_prob = 0;
       max_class_prob_index = 0;
       box_class_base = index + box_dim;
@@ -361,7 +362,7 @@ gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
       /* Iterate each class probability */
       for (c = 0; c < num_classes; c++) {
         cur_class_prob = ((gfloat *) prediction)[box_class_base + c];
-        probabilities[c] = cur_class_prob;
+        actual_probs[c] = cur_class_prob;
         if (cur_class_prob > max_class_prob) {
           max_class_prob = cur_class_prob;
           max_class_prob_index = c;
@@ -378,6 +379,7 @@ gst_get_boxes_from_prediction_float (gfloat obj_thresh, gfloat prob_thresh,
         result.height = ((gfloat *) prediction)[index + 3] - result.y;
         boxes[counter] = result;
         counter = counter + 1;
+        probabilities[counter - 1] = actual_probs;
       }
     }
     *elements = counter;
@@ -390,7 +392,6 @@ gst_create_boxes_float (GstVideoInference * vi, const gpointer prediction,
     gint * elements, gdouble obj_thresh, gdouble prob_thresh,
     gdouble iou_thresh, gdouble ** probabilities, gint num_classes)
 {
-  gint total_boxes = 2535;
   BBox boxes[TOTAL_BOXES_15];
 
   g_return_val_if_fail (vi != NULL, FALSE);
@@ -400,10 +401,9 @@ gst_create_boxes_float (GstVideoInference * vi, const gpointer prediction,
   g_return_val_if_fail (elements != NULL, FALSE);
 
   *elements = 0;
-  *probabilities = g_malloc (num_classes * sizeof (gdouble));
 
   gst_get_boxes_from_prediction_float (obj_thresh, prob_thresh, prediction,
-      boxes, elements, total_boxes, *probabilities, num_classes);
+      boxes, elements, TOTAL_BOXES_15, probabilities, num_classes);
   gst_remove_duplicated_boxes (iou_thresh, boxes, elements);
 
   *resulting_boxes = g_malloc (*elements * sizeof (BBox));

@@ -64,6 +64,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov3_debug_category);
 #define DEFAULT_IOU_THRESH 0.40
 
 #define TOTAL_CLASSES 80
+#define TOTAL_BOXES 2535
 
 /* prototypes */
 static void gst_tinyyolov3_set_property (GObject * object,
@@ -284,7 +285,7 @@ gst_tinyyolov3_postprocess_old (GstVideoInference * vi,
     GstVideoInfo * info_model, gboolean * valid_prediction)
 {
   GstTinyyolov3 *tinyyolov3;
-  gdouble *probabilities = NULL;
+  gdouble *probabilities[TOTAL_CLASSES];
 
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
 
@@ -296,7 +297,7 @@ gst_tinyyolov3_postprocess_old (GstVideoInference * vi,
 
   gst_create_boxes_float (vi, prediction, valid_prediction,
       &detect_meta->boxes, &detect_meta->num_boxes, tinyyolov3->obj_thresh,
-      tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, &probabilities,
+      tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, probabilities,
       TOTAL_CLASSES);
 
   gst_inference_print_boxes (vi, gst_tinyyolov3_debug_category, detect_meta);
@@ -316,8 +317,7 @@ gst_tinyyolov3_postprocess_new (GstVideoInference * vi,
   GstInferenceMeta *imeta = NULL;
   BBox *boxes = NULL;
   gint num_boxes, i;
-  gdouble *probabilities = NULL;
-
+  gdouble *probabilities[TOTAL_BOXES];
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (meta_model != NULL, FALSE);
   g_return_val_if_fail (info_model != NULL, FALSE);
@@ -330,7 +330,7 @@ gst_tinyyolov3_postprocess_new (GstVideoInference * vi,
   /* Create boxes from prediction data */
   gst_create_boxes_float (vi, prediction, valid_prediction,
       &boxes, &num_boxes, tinyyolov3->obj_thresh,
-      tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, &probabilities,
+      tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, probabilities,
       TOTAL_CLASSES);
 
   GST_LOG_OBJECT (tinyyolov3, "Number of predictions: %d", num_boxes);
@@ -344,7 +344,7 @@ gst_tinyyolov3_postprocess_new (GstVideoInference * vi,
   for (i = 0; i < num_boxes; i++) {
     GstInferencePrediction *pred =
         gst_create_prediction_from_box (vi, &boxes[i], labels_list, num_labels,
-        probabilities);
+        probabilities[i]);
     gst_inference_prediction_append (imeta->prediction, pred);
   }
 
