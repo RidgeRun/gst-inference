@@ -285,7 +285,8 @@ gst_tinyyolov3_postprocess_old (GstVideoInference * vi,
     GstVideoInfo * info_model, gboolean * valid_prediction)
 {
   GstTinyyolov3 *tinyyolov3;
-  gdouble *probabilities[TOTAL_CLASSES];
+  gdouble **probabilities = g_malloc (sizeof (gdouble) * TOTAL_BOXES);
+  gint i;
 
   GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
 
@@ -299,6 +300,12 @@ gst_tinyyolov3_postprocess_old (GstVideoInference * vi,
       &detect_meta->boxes, &detect_meta->num_boxes, tinyyolov3->obj_thresh,
       tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, probabilities,
       TOTAL_CLASSES);
+
+  /* Free probabilities */
+  for (i = 0; i < detect_meta->num_boxes; i++) {
+    g_free (probabilities[i]);
+  }
+  g_free (probabilities);
 
   gst_inference_print_boxes (vi, gst_tinyyolov3_debug_category, detect_meta);
 
@@ -317,7 +324,8 @@ gst_tinyyolov3_postprocess_new (GstVideoInference * vi,
   GstInferenceMeta *imeta = NULL;
   BBox *boxes = NULL;
   gint num_boxes, i;
-  gdouble *probabilities[TOTAL_BOXES];
+  gdouble **probabilities = g_malloc (sizeof (gdouble) * TOTAL_BOXES);
+
   g_return_val_if_fail (vi != NULL, FALSE);
   g_return_val_if_fail (meta_model != NULL, FALSE);
   g_return_val_if_fail (info_model != NULL, FALSE);
@@ -351,6 +359,7 @@ gst_tinyyolov3_postprocess_new (GstVideoInference * vi,
 
   /* Free boxes after creation */
   g_free (boxes);
+  g_free (probabilities);
 
   /* Log predictions */
   gst_inference_print_predictions (vi, gst_tinyyolov3_debug_category, imeta);
