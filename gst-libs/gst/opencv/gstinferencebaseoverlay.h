@@ -26,6 +26,8 @@
 #include <gst/video/video.h>
 #ifdef OCV_VERSION_LT_3_2
 #include "opencv2/highgui/highgui.hpp"
+#ifdef OCV_VERSION_LT_4_0
+#include "opencv4/opencv2/highgui.hpp"
 #else
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"

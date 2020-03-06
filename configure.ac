@@ -287,6 +287,22 @@ if test "$USE_OPENCV" = "yes"; then
   AC_MSG_NOTICE([OpenCV version: $OCV_VERSION_MAJOR.$OCV_VERSION_MINOR])
 fi
 
+if test "$USE_OPENCV" = "no"; then
+  translit(dnm, m, l) AM_CONDITIONAL(USE_OPENCV, true)
+  AG_GST_CHECK_FEATURE(OPENCV4, [OpenCV computer vision library], opencv4, [
+    AG_GST_PKG_CHECK_MODULES(OPENCV4, opencv4 >= $OPENCV_REQ )
+  ])
+  dnl define conditional for opencv versions >= 4.0
+  if test "$USE_OPENCV" = "yes"; then
+    OCV_BASE_VERSION_MAJOR=4
+    OCV_BASE_VERSION_MINOR=0
+    OCV_VERSION_MAJOR=$(pkg-config --modversion opencv4 | awk -F. '{print $1}')
+    OCV_VERSION_MINOR=$(pkg-config --modversion opencv4 | awk -F. '{print $2}')
+    AC_DEFINE([OCV_VERSION_LT_4_0], [1], [Defined if OpenCV version is >= 4.0 ])
+    AC_MSG_NOTICE([OpenCV version: $OCV_VERSION_MAJOR.$OCV_VERSION_MINOR])
+  fi
+fi
+
 dnl *** r2inference ***
 R2INFERENCE_REQ=0.5.0
 AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun\'s Inference Framework], r2inference, [
