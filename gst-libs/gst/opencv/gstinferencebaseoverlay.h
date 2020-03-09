@@ -22,10 +22,13 @@
 #ifndef __GST_INFERENCE_BASE_OVERLAY_H__
 #define __GST_INFERENCE_BASE_OVERLAY_H__
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/gst.h>
 #include <gst/video/video.h>
-#ifdef OCV_VERSION_LT_3_2
-#include "opencv2/highgui/highgui.hpp"
+
 #ifdef OCV_VERSION_LT_4_0
 #include "opencv4/opencv2/highgui.hpp"
 #else

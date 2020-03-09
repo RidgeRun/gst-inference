@@ -13,6 +13,7 @@ libgstinferenceoverlayplugin_la_CFLAGS =	\
 	$(GST_PLUGINS_BASE_CFLAGS)	\
 	$(GST_VIDEO_CFLAGS)		\
 	$(R2INFERENCE_CFLAGS)		\
+	$(OPENCV_CFLAGS)		\
 	-I$(top_srcdir)/gst-libs
 
 
