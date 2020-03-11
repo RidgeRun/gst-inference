@@ -29,7 +29,7 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
-#ifdef OCV_VERSION_LT_4_0
+#ifdef OCV_VERSION_4_0
 #include "opencv4/opencv2/highgui.hpp"
 #include "opencv4/opencv2/imgproc.hpp"
 #elif OCV_VERSION_LT_3_2

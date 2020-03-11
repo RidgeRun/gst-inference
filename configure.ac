@@ -296,7 +296,7 @@ if test "$USE_OPENCV" = "yes"; then
   OCV_BASE_VERSION_MAJOR=3
   OCV_BASE_VERSION_MINOR=2
   if test "$HAVE_OPENCV4" = "yes"; then
-    AC_DEFINE([OCV_VERSION_LT_4_0], [1], [Defined if OpenCV version is 4])
+    AC_DEFINE([OCV_VERSION_4_0], [1], [Defined if OpenCV version is 4])
     OCV_VERSION_MAJOR=$(pkg-config --modversion opencv4 | awk -F. '{print $1}')
     OCV_VERSION_MINOR=$(pkg-config --modversion opencv4 | awk -F. '{print $2}')
   else
