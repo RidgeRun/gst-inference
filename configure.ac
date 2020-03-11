@@ -268,7 +268,8 @@ echo
 dnl *** opencv ***
 OPENCV_REQ=2.3.1
 translit(dnm, m, l) AM_CONDITIONAL(USE_OPENCV, true)
-AG_GST_CHECK_FEATURE(OPENCV, [OpenCV computer vision library], opencv, [
+AG_GST_CHECK_FEATURE(OPENCV, [OpenCV computer vision library], opencv,
+  [
     PKG_CHECK_MODULES(OPENCV, opencv4,
     [
       HAVE_OPENCV="yes"
@@ -277,28 +278,19 @@ AG_GST_CHECK_FEATURE(OPENCV, [OpenCV computer vision library], opencv, [
     [
       HAVE_OPENCV="no"
       HAVE_OPENCV4="no"
-      required=ifelse(,,"no",)
-      if test "x$required" = "xyes"; then
-        AC_MSG_ERROR($OPENCV_PKG_ERRORS)
-      else
-        AC_MSG_NOTICE($OPENCV_PKG_ERRORS)
-      fi
+      AC_MSG_NOTICE($OPENCV_PKG_ERRORS)
       PKG_CHECK_MODULES(OPENCV, opencv >= OPENCV_REQ ,
-    [
-      HAVE_OPENCV="yes"
-      HAVE_OPENCV4="no"
-    ],
-    [
-      HAVE_OPENCV="no"
-      required=ifelse(,,"no",)
-      if test "x$required" = "xyes"; then
-        AC_MSG_ERROR($OPENCV_PKG_ERRORS)
-      else
+      [
+        HAVE_OPENCV="yes"
+        HAVE_OPENCV4="no"
+      ],
+      [
+        HAVE_OPENCV="no"
         AC_MSG_NOTICE($OPENCV_PKG_ERRORS)
-      fi
+      ])
     ])
-    ])
-])
+  ])
+
 dnl define conditional for opencv versions 2.3.1 to 4.0.0
 if test "$USE_OPENCV" = "yes"; then
   OCV_BASE_VERSION_MAJOR=3
@@ -307,18 +299,18 @@ if test "$USE_OPENCV" = "yes"; then
     AC_DEFINE([OCV_VERSION_LT_4_0], [1], [Defined if OpenCV version is 4])
     OCV_VERSION_MAJOR=$(pkg-config --modversion opencv4 | awk -F. '{print $1}')
     OCV_VERSION_MINOR=$(pkg-config --modversion opencv4 | awk -F. '{print $2}')
-    else
-      if test "$HAVE_OPENCV4" = "no"; then
-        OCV_VERSION_MAJOR=$(pkg-config --modversion opencv | awk -F. '{print $1}')
-        OCV_VERSION_MINOR=$(pkg-config --modversion opencv | awk -F. '{print $2}')
-        if test "$OCV_VERSION_MAJOR" -lt "$OCV_BASE_VERSION_MAJOR"; then
+  else
+    if test "$HAVE_OPENCV4" = "no"; then
+      OCV_VERSION_MAJOR=$(pkg-config --modversion opencv | awk -F. '{print $1}')
+      OCV_VERSION_MINOR=$(pkg-config --modversion opencv | awk -F. '{print $2}')
+      if test "$OCV_VERSION_MAJOR" -lt "$OCV_BASE_VERSION_MAJOR"; then
+        AC_DEFINE([OCV_VERSION_LT_3_2], [1], [Defined if OpenCV version is less than 3.2])
+      else
+        if test "$OCV_VERSION_MINOR" -lt "$OCV_BASE_VERSION_MINOR"; then
           AC_DEFINE([OCV_VERSION_LT_3_2], [1], [Defined if OpenCV version is less than 3.2])
-        else
-          if test "$OCV_VERSION_MINOR" -lt "$OCV_BASE_VERSION_MINOR"; then
-            AC_DEFINE([OCV_VERSION_LT_3_2], [1], [Defined if OpenCV version is less than 3.2])
-          fi
         fi
       fi
+    fi
   fi
   AC_MSG_NOTICE([OpenCV version: $OCV_VERSION_MAJOR.$OCV_VERSION_MINOR])
 fi
