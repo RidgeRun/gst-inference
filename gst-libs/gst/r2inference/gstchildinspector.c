@@ -62,8 +62,8 @@ static GstChildInspectorType types[] = {
 static gchar *
 gst_child_inspector_type_string_to_string (GParamSpec * pspec, GValue * value)
 {
-  return g_strdup_printf ("String. Default: \"%s\"",
-      g_value_get_string (value));
+  GParamSpecString *pstring = G_PARAM_SPEC_STRING (pspec);
+  return g_strdup_printf ("String. Default: \"%s\"", pstring->default_value);
 }
 
 static gchar *
@@ -72,7 +72,7 @@ gst_child_inspector_type_int_to_string (GParamSpec * pspec, GValue * value)
   GParamSpecInt *pint = G_PARAM_SPEC_INT (pspec);
 
   return g_strdup_printf ("Integer. Range: %d - %d Default: %d",
-      pint->minimum, pint->maximum, g_value_get_int (value));
+      pint->minimum, pint->maximum, pint->default_value);
 }
 
 static gchar *
