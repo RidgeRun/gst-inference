@@ -349,39 +349,72 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
   GST_OBJECT_UNLOCK (self);
 }
 
+static gchar *
+gst_inference_bin_build_pipe (GstInferenceBin * self)
+{
+  GString *desc = NULL;
+  const gchar *crop = NULL;
+
+  g_return_val_if_fail (self, FALSE);
+
+  crop = self->crop ? "true" : "false";
+
+  desc = g_string_new (NULL);
+
+  g_string_append_printf (desc, "inferencefilter filter-class=%d name=filter "
+      "! ", self->filter);
+  g_string_append (desc, "inferencedebug name=debug_before ! ");
+  g_string_append_printf (desc, "%s name=converter_before ! ", self->converter);
+  g_string_append (desc, "tee name=tee ");
+  g_string_append (desc,
+      "tee. ! queue max-size-buffers=3 name=queue_bypass ! arch.sink_bypass ");
+  g_string_append_printf (desc, "tee. ! queue max-size-buffers=3 "
+      "name=queue_sink ! inferencecrop enable=%s name=crop ! ", crop);
+  g_string_append_printf (desc, "%s name=scaler ! arch.sink_model ",
+      self->scaler);
+  g_string_append_printf (desc, "%s name=arch model-location=%s ", self->arch,
+      self->model_location);
+
+  if (self->labels) {
+    g_string_append_printf (desc, "labels=%s ", self->labels);
+  }
+
+  if (self->input_layer) {
+    g_string_append_printf (desc, "backend::input-layer=%s ",
+        self->input_layer);
+  }
+
+  if (self->output_layer) {
+    g_string_append_printf (desc, "backend::output-layer=%s ",
+        self->output_layer);
+  }
+
+  g_string_append (desc, "arch.src_bypass ! queue name=queue_output ! "
+      "inferencedebug name=debug_after ! inferenceoverlay name=overlay ");
+
+  return g_string_free (desc, FALSE);
+}
+
 static gboolean
 gst_inference_bin_start (GstInferenceBin * self)
 {
   gboolean ret = FALSE;
-  const gchar *template =
-      "inferencefilter filter-class=%d ! inferencedebug name=before ! "
-      "%s ! tee name=tee "
-      "tee. ! queue max-size-buffers=3 ! arch.sink_bypass "
-      "tee. ! queue max-size-buffers=3 ! inferencecrop enable=%s ! "
-      "%s ! arch.sink_model %s name=arch model-location=%s labels=%s "
-      "backend::input-layer=%s backend::output-layer=%s "
-      "arch.src_bypass ! queue ! inferencedebug name=after ! inferenceoverlay ";
-
-  gchar *desc = NULL;
   GstElement *bin = NULL;
   GError *error = NULL;
   GstPad *sinkpad = NULL;
   GstPad *srcpad = NULL;
-  const gchar *crop = self->crop ? "true" : "false";
+  gchar *pipe = NULL;
 
   g_return_val_if_fail (self, FALSE);
 
-  desc =
-      g_strdup_printf (template, self->filter, self->converter, crop,
-      self->scaler, self->arch, self->model_location, self->labels,
-      self->input_layer, self->output_layer);
-  GST_INFO_OBJECT (self, "Attempting to build \"%s\"", desc);
+  pipe = gst_inference_bin_build_pipe (self);
+  GST_INFO_OBJECT (self, "Attempting to build \"%s\"", pipe);
 
   bin =
-      gst_parse_bin_from_description_full (desc, TRUE, NULL,
+      gst_parse_bin_from_description_full (pipe, TRUE, NULL,
       GST_PARSE_FLAG_FATAL_ERRORS, &error);
 
-  g_free (desc);
+  g_free (pipe);
 
   if (!bin) {
     GST_ERROR_OBJECT (self, "Unable to create bin: %s", error->message);
