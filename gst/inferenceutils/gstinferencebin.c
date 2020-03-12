@@ -358,10 +358,10 @@ gst_inference_bin_start (GstInferenceBin * self)
       "%s ! tee name=tee "
       "tee. ! queue max-size-buffers=3 ! arch.sink_bypass "
       "tee. ! queue max-size-buffers=3 ! inferencecrop enable=%s ! "
-      "%s ! arch.sink_model "
-      "arch.src_bypass ! queue ! inferencedebug name=after ! inferenceoverlay "
-      "%s name=arch model-location=%s labels=%s "
-      "backend::input-layer=%s backend::output-layer=%s";
+      "%s ! arch.sink_model %s name=arch model-location=%s labels=%s "
+      "backend::input-layer=%s backend::output-layer=%s "
+      "arch.src_bypass ! queue ! inferencedebug name=after ! inferenceoverlay ";
+
   gchar *desc = NULL;
   GstElement *bin = NULL;
   GError *error = NULL;
