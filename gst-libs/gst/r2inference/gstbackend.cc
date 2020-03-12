@@ -31,7 +31,7 @@
 GST_DEBUG_CATEGORY_STATIC (gst_backend_debug_category);
 #define GST_CAT_DEFAULT gst_backend_debug_category
 
-#define DOUBLE_PROPERTY_DEFAULT_VALUE 0.5
+#define DOUBLE_PROPERTY_DEFAULT_VALUE 0.0
 
 class InferenceProperty {
  private:
@@ -208,7 +208,7 @@ gst_backend_param_to_spec (r2i::ParameterMeta *param) {
       spec = g_param_spec_double (param->name.c_str (),
                                  param->name.c_str (),
                                  param->description.c_str (),
-                                 G_MINDOUBLE,
+                                 -G_MAXDOUBLE,
                                  G_MAXDOUBLE, DOUBLE_PROPERTY_DEFAULT_VALUE,
                                  (GParamFlags) gst_backend_param_flags (param->flags));
       break;
