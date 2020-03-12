@@ -32,7 +32,6 @@
 #include "gstfacenetv1.h"
 #include "gstresnet50v1.h"
 #include "gstmobilenetv2.h"
-#include "gstinferencebin.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
@@ -92,12 +91,6 @@ plugin_init (GstPlugin * plugin)
 
   ret = gst_element_register (plugin, "facenetv1", GST_RANK_NONE,
       GST_TYPE_FACENETV1);
-  if (!ret) {
-    goto out;
-  }
-
-  ret = gst_element_register (plugin, "inferencebin", GST_RANK_NONE,
-      GST_TYPE_INFERENCE_BIN);
   if (!ret) {
     goto out;
   }

@@ -357,7 +357,7 @@ gst_inference_bin_start (GstInferenceBin * self)
       "inferencefilter filter-class=%d ! inferencedebug name=before ! "
       "%s ! tee name=tee "
       "tee. ! queue max-size-buffers=3 ! arch.sink_bypass "
-      "tee. ! queue max-size-buffers=3 ! detectioncrop enable=%s ! "
+      "tee. ! queue max-size-buffers=3 ! inferencecrop enable=%s ! "
       "%s ! arch.sink_model "
       "arch.src_bypass ! queue ! inferencedebug name=after ! inferenceoverlay "
       "%s name=arch model-location=%s labels=%s "

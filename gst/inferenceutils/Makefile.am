@@ -1,12 +1,13 @@
 plugin_LTLIBRARIES = libgstinferenceutils.la
 
 libgstinferenceutils_la_SOURCES =	\
-	gstinferenceutils.c		\
-	gstinferencefilter.c		\
-	gstinferencedebug.c		\
-	gstinferencecrop.cc		\
-	cropelement.cc			\
-	videocrop.cc
+        gstinferenceutils.c		\
+        gstinferencefilter.c		\
+        gstinferencedebug.c		\
+        gstinferencecrop.cc		\
+        cropelement.cc			\
+        videocrop.cc                    \
+        gstinferencebin.c
 
 libgstinferenceutils_la_CFLAGS =	\
 	$(GST_CFLAGS)			\
@@ -34,8 +35,9 @@ libgstinferenceutils_la_LIBTOOLFLAGS =	\
 	$(GST_PLUGIN_LIBTOOLFLAGS)
 
 noinst_HEADERS =			\
-	gstinferencefilter.h		\
-	gstinferencedebug.h		\
-	gstinferencecrop.h		\
-	cropelement.h			\
-	videocrop.h
+        gstinferencefilter.h		\
+        gstinferencedebug.h		\
+        gstinferencecrop.h		\
+        cropelement.h			\
+        videocrop.h                     \
+        gstinferencebin.h
