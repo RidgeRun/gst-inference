@@ -31,6 +31,8 @@ static gchar *gst_child_inspector_type_int_to_string (GParamSpec * pspec,
     GValue * value);
 static gchar *gst_child_inspector_type_string_to_string (GParamSpec * pspec,
     GValue * value);
+static gchar *gst_child_inspector_type_double_to_string (GParamSpec * pspec,
+    GValue * value);
 
 struct _GstChildInspectorFlag
 {
@@ -53,14 +55,15 @@ static GstChildInspectorFlag flags[] = {
 static GstChildInspectorType types[] = {
   {G_TYPE_INT, gst_child_inspector_type_int_to_string},
   {G_TYPE_STRING, gst_child_inspector_type_string_to_string},
+  {G_TYPE_DOUBLE, gst_child_inspector_type_double_to_string},
   {}
 };
 
 static gchar *
 gst_child_inspector_type_string_to_string (GParamSpec * pspec, GValue * value)
 {
-  return g_strdup_printf ("String. Default: \"%s\"",
-      g_value_get_string (value));
+  GParamSpecString *pstring = G_PARAM_SPEC_STRING (pspec);
+  return g_strdup_printf ("String. Default: \"%s\"", pstring->default_value);
 }
 
 static gchar *
@@ -69,7 +72,16 @@ gst_child_inspector_type_int_to_string (GParamSpec * pspec, GValue * value)
   GParamSpecInt *pint = G_PARAM_SPEC_INT (pspec);
 
   return g_strdup_printf ("Integer. Range: %d - %d Default: %d",
-      pint->minimum, pint->maximum, g_value_get_int (value));
+      pint->minimum, pint->maximum, pint->default_value);
+}
+
+static gchar *
+gst_child_inspector_type_double_to_string (GParamSpec * pspec, GValue * value)
+{
+  GParamSpecDouble *pdouble = G_PARAM_SPEC_DOUBLE (pspec);
+
+  return g_strdup_printf ("Double. Range: %03.03e - %03.03e Default: %03.03e",
+      pdouble->minimum, pdouble->maximum, pdouble->default_value);
 }
 
 static const gchar *
