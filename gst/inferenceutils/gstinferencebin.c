@@ -384,8 +384,9 @@ gst_inference_bin_build_pipe (GstInferenceBin * self)
   g_string_append_printf (desc, "%s name=converter_before ! ", self->converter);
   g_string_append (desc, "tee name=tee ");
   g_string_append (desc,
-      "tee. ! queue max-size-buffers=3 name=queue_bypass ! arch.sink_bypass ");
-  g_string_append_printf (desc, "tee. ! queue max-size-buffers=3 "
+      "tee. ! queue max-size-buffers=3 leaky=no name=queue_bypass ! "
+      "arch.sink_bypass ");
+  g_string_append_printf (desc, "tee. ! queue max-size-buffers=3 leaky=no "
       "name=queue_sink ! inferencecrop enable=%s name=crop ! ", crop);
   g_string_append_printf (desc, "%s name=scaler ! arch.sink_model ",
       self->scaler);
