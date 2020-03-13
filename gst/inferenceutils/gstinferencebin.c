@@ -428,7 +428,10 @@ gst_inference_bin_start (GstInferenceBin * self)
 
   g_return_val_if_fail (self, FALSE);
 
+  GST_OBJECT_LOCK (self);
   pipe = gst_inference_bin_build_pipe (self);
+  GST_OBJECT_UNLOCK (self);
+
   GST_INFO_OBJECT (self, "Attempting to build \"%s\"", pipe);
 
   bin =
