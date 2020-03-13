@@ -8,15 +8,16 @@ libgstinferencebaseoverlay_@GST_API_VERSION@_la_CFLAGS=	\
 	$(GST_CFLAGS)				\
 	$(GST_BASE_CFLAGS)			\
 	$(GST_PLUGINS_BASE_CFLAGS)		\
-	$(OPENCV_CFLAGS)		\
+	$(OPENCV_CFLAGS)			\
 	$(R2INFERENCE_CFLAGS)
 
 libgstinferencebaseoverlay_@GST_API_VERSION@_la_CXXFLAGS=	\
 	$(GST_CFLAGS)				\
 	$(GST_BASE_CFLAGS)			\
 	$(GST_PLUGINS_BASE_CFLAGS)		\
-	$(OPENCV_CFLAGS)		\
-	$(R2INFERENCE_CFLAGS)
+	$(OPENCV_CFLAGS)			\
+	$(R2INFERENCE_CFLAGS)			\
+	-std=c++11
 
 libgstinferencebaseoverlay_@GST_API_VERSION@_la_LIBADD=	\
 	$(GST_LIBS)				\

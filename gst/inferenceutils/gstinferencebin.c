@@ -77,6 +77,7 @@ enum
   PROP_OUTPUT_LAYER,
   PROP_LABELS,
   PROP_CROP,
+  PROP_OVERLAY,
   PROP_FILTER,
   PROP_SCALER,
   PROP_CONVERTER,
@@ -88,6 +89,7 @@ enum
 #define PROP_OUTPUT_LAYER_DEFAULT NULL
 #define PROP_LABELS_DEFAULT NULL
 #define PROP_CROP_DEFAULT FALSE
+#define PROP_OVERLAY_DEFAULT TRUE
 #define PROP_FILTER_MIN -1
 #define PROP_FILTER_MAX G_MAXINT32
 #define PROP_FILTER_DEFAULT PROP_FILTER_MIN
@@ -104,6 +106,7 @@ struct _GstInferenceBin
   gchar *output_layer;
   gchar *labels;
   gboolean crop;
+  gboolean overlay;
   guint filter;
   gchar *scaler;
   gchar *converter;
@@ -177,6 +180,11 @@ gst_inference_bin_class_init (GstInferenceBinClass * klass)
           "Whether or not to crop out objects in the current prediction",
           PROP_CROP_DEFAULT, G_PARAM_READWRITE));
 
+  g_object_class_install_property (object_class, PROP_OVERLAY,
+      g_param_spec_boolean ("overlay", "Overlay",
+          "Whether or not to overlay predictions on the buffers",
+          PROP_OVERLAY_DEFAULT, G_PARAM_READWRITE));
+
   g_object_class_install_property (object_class, PROP_FILTER,
       g_param_spec_int ("filter", "Inference Filter",
           "The filter to apply to the inference (-1 disables).",
@@ -203,6 +211,7 @@ gst_inference_bin_init (GstInferenceBin * self)
   self->output_layer = g_strdup (PROP_OUTPUT_LAYER_DEFAULT);
   self->labels = g_strdup (PROP_LABELS_DEFAULT);
   self->crop = PROP_CROP_DEFAULT;
+  self->overlay = PROP_OVERLAY_DEFAULT;
   self->filter = PROP_FILTER_DEFAULT;
   self->scaler = g_strdup (PROP_SCALER_DEFAULT);
   self->converter = g_strdup (PROP_CONVERTER_DEFAULT);
@@ -284,6 +293,9 @@ gst_inference_bin_set_property (GObject * object, guint property_id,
     case PROP_CROP:
       self->crop = g_value_get_boolean (value);
       break;
+    case PROP_OVERLAY:
+      self->overlay = g_value_get_boolean (value);
+      break;
     case PROP_FILTER:
       self->filter = g_value_get_int (value);
       break;
@@ -332,6 +344,9 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
     case PROP_CROP:
       g_value_set_boolean (value, self->crop);
       break;
+    case PROP_OVERLAY:
+      g_value_set_boolean (value, self->overlay);
+      break;
     case PROP_FILTER:
       g_value_set_int (value, self->filter);
       break;
@@ -354,10 +369,12 @@ gst_inference_bin_build_pipe (GstInferenceBin * self)
 {
   GString *desc = NULL;
   const gchar *crop = NULL;
+  const gchar *overlay = NULL;
 
   g_return_val_if_fail (self, FALSE);
 
   crop = self->crop ? "true" : "false";
+  overlay = self->overlay ? "true" : "false";
 
   desc = g_string_new (NULL);
 
@@ -390,7 +407,10 @@ gst_inference_bin_build_pipe (GstInferenceBin * self)
   }
 
   g_string_append (desc, "arch.src_bypass ! queue name=queue_output ! "
-      "inferencedebug name=debug_after ! inferenceoverlay name=overlay ");
+      "inferencedebug name=debug_after ");
+
+  g_string_append_printf (desc, "! inferenceoverlay enable=%s name=overlay ",
+      overlay);
 
   return g_string_free (desc, FALSE);
 }

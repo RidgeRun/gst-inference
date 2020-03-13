@@ -40,6 +40,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_inference_base_overlay_debug_category);
 #define MAX_THICKNESS 100
 #define DEFAULT_LABELS NULL
 #define DEFAULT_NUM_LABELS 0
+#define DEFAULT_ENABLE TRUE
 
 #define MIN_STYLE CLASSIC
 #define DEFAULT_STYLE CLASSIC
@@ -56,7 +57,8 @@ enum
   PROP_THICKNESS,
   PROP_LABELS,
   PROP_STYLE,
-  PROP_ALPHA_OVERLAY
+  PROP_ALPHA_OVERLAY,
+  PROP_ENABLE,
 };
 
 GType
@@ -85,6 +87,7 @@ struct _GstInferenceBaseOverlayPrivate
   gint num_labels;
   LineStyleBoundingBox style;
   gdouble alpha_overlay;
+  gboolean enable;
 };
 /* prototypes */
 static void gst_inference_base_overlay_set_property (GObject * object,
@@ -149,8 +152,14 @@ gst_inference_base_overlay_class_init (GstInferenceBaseOverlayClass * klass)
           "Line style to draw the bounding box", LINE_STYLE_BOUNDING_BOX,
           DEFAULT_STYLE, G_PARAM_READWRITE));
   g_object_class_install_property (gobject_class, PROP_ALPHA_OVERLAY,
-      g_param_spec_double ("alpha_overlay", "alpha", "Overlay transparency", MIN_ALPHA_OVERLAY,
-          MAX_ALPHA_OVERLAY, DEFAULT_ALPHA_OVERLAY, G_PARAM_READWRITE));
+      g_param_spec_double ("alpha_overlay", "alpha", "Overlay transparency",
+          MIN_ALPHA_OVERLAY, MAX_ALPHA_OVERLAY, DEFAULT_ALPHA_OVERLAY,
+          G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_ENABLE,
+      g_param_spec_boolean ("enable", "Enable",
+          "Whether or not to overlay predictions on the buffers",
+          DEFAULT_ENABLE, G_PARAM_READWRITE));
 
   base_transform_class->start =
       GST_DEBUG_FUNCPTR (gst_inference_base_overlay_start);
@@ -173,6 +182,7 @@ gst_inference_base_overlay_init (GstInferenceBaseOverlay * inference_overlay)
   priv->num_labels = DEFAULT_NUM_LABELS;
   priv->style = DEFAULT_STYLE;
   priv->alpha_overlay = DEFAULT_ALPHA_OVERLAY;
+  priv->enable = DEFAULT_ENABLE;
 }
 
 void
@@ -217,8 +227,11 @@ gst_inference_base_overlay_set_property (GObject * object, guint property_id,
       break;
     case PROP_ALPHA_OVERLAY:
       priv->alpha_overlay = g_value_get_double (value);
-      GST_DEBUG_OBJECT (inference_overlay, "Changed overlay transparency to %lf",
-          priv->alpha_overlay);
+      GST_DEBUG_OBJECT (inference_overlay,
+          "Changed overlay transparency to %lf", priv->alpha_overlay);
+      break;
+    case PROP_ENABLE:
+      priv->enable = g_value_get_boolean (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -252,6 +265,9 @@ gst_inference_base_overlay_get_property (GObject * object, guint property_id,
       break;
     case PROP_ALPHA_OVERLAY:
       g_value_set_double (value, priv->alpha_overlay);
+      break;
+    case PROP_ENABLE:
+      g_value_set_boolean (value, priv->enable);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -336,6 +352,12 @@ gst_inference_base_overlay_transform_frame_ip (GstVideoFilter * trans,
   gchar *data = NULL;
 
   g_return_val_if_fail (io_class->process_meta != NULL, GST_FLOW_ERROR);
+
+  if (FALSE == priv->enable) {
+    GST_LOG_OBJECT (trans, "Overlay disabled");
+    ret = GST_FLOW_OK;
+    goto out;
+  }
 
   meta = gst_buffer_get_meta (frame->buffer, io_class->meta_type);
   if (NULL == meta) {
