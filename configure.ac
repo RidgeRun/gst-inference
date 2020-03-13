@@ -316,7 +316,7 @@ if test "$USE_OPENCV" = "yes"; then
 fi
 
 dnl *** r2inference ***
-R2INFERENCE_REQ=0.5.0
+R2INFERENCE_REQ=0.5.2
 AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun\'s Inference Framework], r2inference, [
   AG_GST_PKG_CHECK_MODULES(R2INFERENCE, r2inference-0.0 >= $R2INFERENCE_REQ)
 ],[],[],[
