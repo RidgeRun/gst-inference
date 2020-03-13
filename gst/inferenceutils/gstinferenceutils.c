@@ -23,6 +23,7 @@
 #include "config.h"
 #endif
 
+#include "gstinferencebin.h"
 #include "gstinferencecrop.h"
 #include "gstinferencedebug.h"
 #include "gstinferencefilter.h"
@@ -31,6 +32,13 @@ static gboolean
 plugin_init (GstPlugin * plugin)
 {
   gboolean ret = TRUE;
+
+  ret =
+      gst_element_register (plugin, "inferencebin", GST_RANK_NONE,
+      GST_TYPE_INFERENCE_BIN);
+  if (!ret) {
+    goto out;
+  }
 
   ret =
       gst_element_register (plugin, "inferencecrop", GST_RANK_NONE,
