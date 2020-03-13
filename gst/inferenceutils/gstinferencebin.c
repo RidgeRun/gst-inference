@@ -22,15 +22,16 @@
 /**
  * SECTION:element-gstinferencebin
  *
- * Helper element that simplifies inference by creating a bin with the
- * required elements in the typical inference configuration.
+ * Helper element that simplifies inference pipelines by creating a
+ * bin with the required elements in the typical inference
+ * configuration.
  *
  * <refsect2>
  * <title>Example launch line</title>
  * |[
  * gst-launch-1.0 v4l2src device=$CAMERA ! inferencebin arch=tinyyolov2 \
- * model-location=$MODEL_LOCATION ! backend=tensorflow input-layer=$INPUT_LAYER \
- * output-layer=OUTPUT_LAYER labels="`cat labels.txt`" arch::iou-threshold=0.3 ! \
+ * model-location=$MODEL_LOCATION backend=tensorflow input-layer=$INPUT_LAYER \
+ * output-layer=$OUTPUT_LAYER labels="`cat labels.txt`" arch::iou-threshold=0.3 ! \
  * videoconvert ! ximagesink sync=false
  * ]|
  * Detects object in a camera stream
