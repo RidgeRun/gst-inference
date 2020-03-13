@@ -89,7 +89,6 @@ plugin_init (GstPlugin * plugin)
     goto out;
   }
 
-
   ret = gst_element_register (plugin, "facenetv1", GST_RANK_NONE,
       GST_TYPE_FACENETV1);
   if (!ret) {

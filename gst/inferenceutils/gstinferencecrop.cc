@@ -82,13 +82,15 @@ static void gst_inference_crop_find_predictions (GstInferenceCrop *self,
     gint *num_inferences, GstInferenceMeta *meta, GList **list,
     GstInferencePrediction *pred);
 
-
 #define PROP_CROP_RATIO_DEFAULT_WIDTH 1
 #define PROP_CROP_RATIO_DEFAULT_HEIGHT 1
+#define PROP_ENABLE_DEFAULT TRUE
 
-enum {
+enum
+{
   PROP_0,
   PROP_CROP_ASPECT_RATIO,
+  PROP_ENABLE,
 };
 
 struct _GstInferenceCrop {
@@ -100,6 +102,7 @@ struct _GstInferenceCrop {
   gint height_ratio;
   gint width;
   gint height;
+  gboolean enable;
 };
 
 struct _GstInferenceCropClass {
@@ -119,9 +122,9 @@ gst_inference_crop_class_init (GstInferenceCropClass *klass) {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   gst_element_class_add_pad_template (element_class,
-                                      gst_static_pad_template_get (&sink_template));
+      gst_static_pad_template_get (&sink_template));
   gst_element_class_add_pad_template (element_class,
-                                      gst_static_pad_template_get (&src_template));
+      gst_static_pad_template_get (&src_template));
 
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
                                          "Inference Crop", "Filter",
@@ -143,6 +146,11 @@ gst_inference_crop_class_init (GstInferenceCropClass *klass) {
                                        G_MAXINT, 1,
                                        PROP_CROP_RATIO_DEFAULT_WIDTH, PROP_CROP_RATIO_DEFAULT_HEIGHT,
                                        G_PARAM_READWRITE ));
+
+  g_object_class_install_property (object_class, PROP_ENABLE,
+      g_param_spec_boolean ("enable", "Enable Crop",
+          "Whether or not no crop out subpredictions",
+          PROP_ENABLE_DEFAULT, G_PARAM_READWRITE));
 }
 
 static void
@@ -154,6 +162,8 @@ gst_inference_crop_init (GstInferenceCrop *self) {
   self->element = new VideoCrop ();
   self->width_ratio = PROP_CROP_RATIO_DEFAULT_WIDTH;
   self->height_ratio = PROP_CROP_RATIO_DEFAULT_HEIGHT;
+  self->enable = PROP_ENABLE;
+
   if (FALSE == self->element->Validate ()) {
     const std::string factory = self->element->GetFactory ();
     GST_ERROR_OBJECT (self, "Unable to find element %s", factory.c_str ());
@@ -166,7 +176,7 @@ gst_inference_crop_init (GstInferenceCrop *self) {
   sinkpad = self->element->GetSinkPad ();
   g_return_if_fail (sinkpad);
 
-  self->sinkpad = GST_PAD(gst_object_ref(sinkpad));
+  self->sinkpad = GST_PAD (gst_object_ref (sinkpad));
 
   sinkgpad = gst_ghost_pad_new ("sink", sinkpad);
   gst_pad_set_active (sinkgpad, TRUE);
@@ -180,7 +190,7 @@ gst_inference_crop_init (GstInferenceCrop *self) {
   srcpad = self->element->GetSrcPad ();
   g_return_if_fail (srcpad);
 
-  self->srcpad = GST_PAD(gst_object_ref(srcpad));
+  self->srcpad = GST_PAD (gst_object_ref (srcpad));
 
   srcgpad = gst_ghost_pad_new ("src", srcpad);
   gst_pad_set_active (srcgpad, TRUE);
@@ -194,7 +204,7 @@ static void
 gst_inference_crop_finalize (GObject *object) {
   GstInferenceCrop *self = GST_INFERENCE_CROP (object);
 
-  g_return_if_fail(self);
+  g_return_if_fail (self);
 
   delete (self->element);
   gst_object_unref (self->sinkpad);
@@ -221,6 +231,11 @@ gst_inference_crop_set_property (GObject *object, guint property_id,
       }
       GST_OBJECT_UNLOCK (self);
       break;
+    case PROP_ENABLE:
+      GST_OBJECT_LOCK (self);
+      self->enable = g_value_get_boolean (value);
+      GST_OBJECT_UNLOCK (self);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -238,6 +253,11 @@ gst_inference_crop_get_property (GObject *object, guint property_id,
     case PROP_CROP_ASPECT_RATIO:
       GST_OBJECT_LOCK (self);
       gst_value_set_fraction (value, self->width_ratio, self->height_ratio);
+      GST_OBJECT_UNLOCK (self);
+      break;
+    case PROP_ENABLE:
+      GST_OBJECT_LOCK (self);
+      g_value_set_boolean (value, self->enable);
       GST_OBJECT_UNLOCK (self);
       break;
     default:
@@ -301,7 +321,7 @@ gst_inference_crop_set_caps (GstPad *pad, GParamSpec *unused,
   GST_INFO_OBJECT (self, "Set new caps to %" GST_PTR_FORMAT, caps);
   self->width = width;
   self->height = height;
-  gst_caps_unref(caps);
+  gst_caps_unref (caps);
 }
 
 static void
@@ -315,10 +335,10 @@ gst_inference_crop_new_buffer_size (GstInferenceCrop *self, gint x, gint y,
   *right = self->width - x - width;
 
   if (width_ratio > 0 && height_ratio > 0) {
-    gint top_bottom_modify = round(((height_ratio * width) / width_ratio - height) /
-                                   2);
-    gint left_right_modify = round(((width_ratio * height) / height_ratio - width) /
-                                   2);
+    gint top_bottom_modify =
+        round (((height_ratio * width) / width_ratio - height) / 2);
+    gint left_right_modify =
+        round (((width_ratio * height) / height_ratio - width) / 2);
     if (width_ratio <= height_ratio) {
       if (width > height) {
         *top = *top - top_bottom_modify;
@@ -369,15 +389,15 @@ gst_inference_crop_find_predictions (GstInferenceCrop *self,
   g_return_if_fail (list);
   g_return_if_fail (pred);
 
-  children_list = gst_inference_prediction_get_children(pred);
+  children_list = gst_inference_prediction_get_children (pred);
 
-  for (iter = children_list; iter != NULL; iter = g_slist_next(iter)) {
-    GstInferencePrediction *predict = (GstInferencePrediction *)iter->data;
+  for (iter = children_list; iter != NULL; iter = g_slist_next (iter)) {
+    GstInferencePrediction *predict = (GstInferencePrediction *) iter->data;
 
     gst_inference_crop_find_predictions (self, num_inferences, meta, list,
                                          predict );
   }
-  if (FALSE == G_NODE_IS_ROOT(pred->predictions) && TRUE == pred->enabled ) {
+  if (FALSE == G_NODE_IS_ROOT (pred->predictions) && TRUE == pred->enabled) {
     *list = g_list_append (*list, pred);
     *num_inferences = *num_inferences + 1;
   }
@@ -397,19 +417,28 @@ gst_inference_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   GList *list = NULL;
   GList *iter = NULL;
   gboolean gap = TRUE;
+  gboolean enable = FALSE;
 
   GST_OBJECT_LOCK (self);
   crop_width_ratio = self->width_ratio;
   crop_height_ratio = self->height_ratio;
+  enable = self->enable;
   GST_OBJECT_UNLOCK (self);
+
+  if (FALSE == enable) {
+    GST_LOG_OBJECT (self, "Cropping disabled, forwarding buffer");
+    gap = FALSE;
+    ret = GST_PAD_PROBE_OK;
+    goto out;
+  }
 
   buffer = gst_pad_probe_info_get_buffer (info);
 
   inference_meta =
-    (GstInferenceMeta *) gst_buffer_get_meta (buffer,
-        GST_INFERENCE_META_API_TYPE);
+      (GstInferenceMeta *) gst_buffer_get_meta (buffer,
+      GST_INFERENCE_META_API_TYPE);
 
-  if (NULL == inference_meta ) {
+  if (NULL == inference_meta) {
     GST_LOG_OBJECT (self, "No meta found, dropping buffer");
     goto out;
   }
@@ -418,20 +447,20 @@ gst_inference_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
   gst_inference_crop_find_predictions (self, &num_inferences,
                                        inference_meta, &list, inference_meta->prediction);
 
-  for (iter = list; iter != NULL; iter = g_list_next(iter)) {
-    GstInferencePrediction *pred = (GstInferencePrediction *)iter->data;
+  for (iter = list; iter != NULL; iter = g_list_next (iter)) {
+    GstInferencePrediction *pred = (GstInferencePrediction *) iter->data;
     GstBuffer *croped_buffer;
     GstInferenceMeta *dmeta;
     gint top, bottom, right, left = 0;
     box = pred->bbox;
     GST_LOG_OBJECT (self, "BBox: %dx%dx%dx%d", box.x, box.y, box.width,
-                    box.height);
+        box.height);
 
     gst_inference_crop_new_buffer_size (self, box.x, box.y, box.width, box.height,
                                         crop_width_ratio, crop_height_ratio,
                                         &top, &bottom, &right, &left);
     self->element->SetCroppingSize ((gint) top, (gint) bottom, (gint) right,
-                                    (gint) left);
+        (gint) left);
 
     croped_buffer = gst_buffer_copy (buffer);
 
@@ -447,9 +476,9 @@ gst_inference_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
     dmeta->prediction->bbox.width = self->width - right - left;
     dmeta->prediction->bbox.height = self->height - top - bottom;
 
-    if (GST_FLOW_OK != gst_pad_chain(self->sinkpad, croped_buffer)) {
-      GST_ELEMENT_ERROR(self, CORE, FAILED,
-                        ("Failed to push a new buffer into crop element"), (NULL));
+    if (GST_FLOW_OK != gst_pad_chain (self->sinkpad, croped_buffer)) {
+      GST_ELEMENT_ERROR (self, CORE, FAILED,
+          ("Failed to push a new buffer into crop element"), (NULL));
     }
     gap = FALSE;
   }
@@ -458,8 +487,9 @@ gst_inference_crop_new_buffer (GstPad *pad, GstPadProbeInfo *info,
 
 out:
   if (gap) {
-    gst_pad_push_event (self->srcpad, gst_event_new_gap (GST_BUFFER_TIMESTAMP (buffer),
-							 GST_BUFFER_DURATION (buffer)));
+    gst_pad_push_event (self->srcpad,
+        gst_event_new_gap (GST_BUFFER_TIMESTAMP (buffer),
+            GST_BUFFER_DURATION (buffer)));
   }
 
   return ret;
