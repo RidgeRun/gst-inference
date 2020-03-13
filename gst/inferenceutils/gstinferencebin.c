@@ -72,6 +72,7 @@ enum
 {
   PROP_0,
   PROP_ARCH,
+  PROP_BACKEND,
   PROP_MODEL_LOCATION,
   PROP_INPUT_LAYER,
   PROP_OUTPUT_LAYER,
@@ -84,6 +85,7 @@ enum
 };
 
 #define PROP_ARCH_DEFAULT "tinyyolov2"
+#define PROP_BACKEND_DEFAULT "tensorflow"
 #define PROP_MODEL_LOCATION_DEFAULT NULL
 #define PROP_INPUT_LAYER_DEFAULT NULL
 #define PROP_OUTPUT_LAYER_DEFAULT NULL
@@ -101,6 +103,7 @@ struct _GstInferenceBin
   GstBin parent;
 
   gchar *arch;
+  gchar *backend;
   gchar *model_location;
   gchar *input_layer;
   gchar *output_layer;
@@ -155,6 +158,11 @@ gst_inference_bin_class_init (GstInferenceBinClass * klass)
           "The factory name of the network architecture to use for inference",
           PROP_ARCH_DEFAULT, G_PARAM_READWRITE));
 
+  g_object_class_install_property (object_class, PROP_BACKEND,
+      g_param_spec_string ("backend", "Backend",
+          "The backend to use as the inference engine",
+          PROP_BACKEND_DEFAULT, G_PARAM_READWRITE));
+
   g_object_class_install_property (object_class, PROP_MODEL_LOCATION,
       g_param_spec_string ("model-location", "Model location",
           "The location of the model to use for the inference",
@@ -206,6 +214,7 @@ static void
 gst_inference_bin_init (GstInferenceBin * self)
 {
   self->arch = g_strdup (PROP_ARCH_DEFAULT);
+  self->backend = g_strdup (PROP_BACKEND_DEFAULT);
   self->model_location = g_strdup (PROP_MODEL_LOCATION_DEFAULT);
   self->input_layer = g_strdup (PROP_INPUT_LAYER_DEFAULT);
   self->output_layer = g_strdup (PROP_OUTPUT_LAYER_DEFAULT);
@@ -237,6 +246,9 @@ gst_inference_bin_finalize (GObject * object)
 
   g_free (self->arch);
   self->arch = NULL;
+
+  g_free (self->backend);
+  self->backend = NULL;
 
   g_free (self->model_location);
   self->model_location = NULL;
@@ -273,6 +285,10 @@ gst_inference_bin_set_property (GObject * object, guint property_id,
     case PROP_ARCH:
       g_free (self->arch);
       self->arch = g_value_dup_string (value);
+      break;
+    case PROP_BACKEND:
+      g_free (self->backend);
+      self->backend = g_value_dup_string (value);
       break;
     case PROP_MODEL_LOCATION:
       g_free (self->model_location);
@@ -328,6 +344,9 @@ gst_inference_bin_get_property (GObject * object, guint property_id,
   switch (property_id) {
     case PROP_ARCH:
       g_value_set_string (value, self->arch);
+      break;
+    case PROP_BACKEND:
+      g_value_set_string (value, self->backend);
       break;
     case PROP_MODEL_LOCATION:
       g_value_set_string (value, self->model_location);
@@ -390,8 +409,8 @@ gst_inference_bin_build_pipe (GstInferenceBin * self)
       "name=queue_sink ! inferencecrop enable=%s name=crop ! ", crop);
   g_string_append_printf (desc, "%s name=scaler ! arch.sink_model ",
       self->scaler);
-  g_string_append_printf (desc, "%s name=arch model-location=%s ", self->arch,
-      self->model_location);
+  g_string_append_printf (desc, "%s name=arch backend=%s model-location=%s ",
+      self->arch, self->backend, self->model_location);
 
   if (self->labels) {
     g_string_append_printf (desc, "labels=%s ", self->labels);
