@@ -9,6 +9,7 @@ libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gstbackend.cc				\
 	gstncsdk.cc				\
 	gsttensorflow.cc			\
+	gsttensorrt.cc   			\
 	gsttflite.cc				\
 	gstinferencepreprocess.c		\
 	gstinferencepostprocess.c		\
@@ -46,6 +47,7 @@ gstinferenceinclude_HEADERS=		\
 	gstbackendsubclass.h		\
 	gstncsdk.h			\
 	gsttensorflow.h			\
+	gsttensorrt.h			\
 	gsttflite.h			\
 	gstinferencepreprocess.h	\
 	gstinferencepostprocess.h	\

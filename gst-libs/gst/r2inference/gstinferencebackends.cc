@@ -23,6 +23,7 @@
 #include "gstchildinspector.h"
 #include "gstncsdk.h"
 #include "gsttensorflow.h"
+#include "gsttensorrt.h"
 #include "gsttflite.h"
 #include "gstbackend.h"
 #include <r2i/r2i.h>
@@ -35,6 +36,7 @@ static std::unordered_map <int,GType>
 backend_types ({
   {r2i::FrameworkCode::NCSDK, GST_TYPE_NCSDK},
   {r2i::FrameworkCode::TENSORFLOW, GST_TYPE_TENSORFLOW},
+  {r2i::FrameworkCode::TENSORRT, GST_TYPE_TENSORRT},
   {r2i::FrameworkCode::TFLITE, GST_TYPE_TFLITE},
   {r2i::FrameworkCode::MAX_FRAMEWORK, G_TYPE_INVALID}
 });
@@ -53,6 +55,8 @@ gst_inference_backends_get_type (void)
     {r2i::FrameworkCode::NCSDK, "Intel Movidius Neural Compute SDK", "ncsdk"},
     {r2i::FrameworkCode::TENSORFLOW, "TensorFlow Machine Learning Framework",
           "tensorflow"},
+    {r2i::FrameworkCode::TENSORRT, "TensorRT Machine Learning Framework",
+          "tensorrt"},
     {r2i::FrameworkCode::TFLITE, "Tensorflow Lite Machine Learning Framework",
           "tflite"},
     {0, NULL, NULL}
