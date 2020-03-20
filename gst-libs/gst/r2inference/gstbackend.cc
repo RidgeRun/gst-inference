@@ -358,7 +358,7 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
           priv->property_list->erase(property_it--);
           if (error.IsError ()) {
             GST_ERROR_OBJECT (self, "Failed to set backend parameters");
-            goto error;
+	    goto start_error;
           }
         }
         break;
@@ -379,7 +379,7 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
     priv->property_list->pop_front();
     if (error.IsError ()) {
       GST_ERROR_OBJECT (self, "Failed to set backend parameters");
-      goto error;
+      goto start_error;
     }
   }
   priv->backend_started = true;
