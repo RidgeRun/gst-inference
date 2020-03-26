@@ -3,8 +3,8 @@
 #
 # GstInference benchmark script
 #
-# Run: ./run_benchmark.sh $BACKEND $MODELS_PATH
-# E.g ./run_benchmark.sh tensorflow /home/user/models/tensorflow_models
+# Run: ./run_benchmark.sh $BACKEND $MODELS_PATH $VIDEO_PATH
+# E.g ./run_benchmark.sh tensorflow /home/user/models/tensorflow_models /home/users/test_benchmark_video.mp4
 #
 # BACKEND could be tensorflow or tflite
 #
@@ -64,13 +64,13 @@
 #
 # The output of this script is a CSV (results.csv) with the following structure
 # 
-#    Name       FPS   CPU
-# InceptionV1   11    56
-# InceptionV2   12    57
-# InceptionV3   14    61
-# InceptionV4   16    72
-# TinyyoloV2    11    52
-# TinyyoloV3    12    62
+#    Name    , FPS ,  CPU
+# InceptionV1 , 11 ,  56
+# InceptionV2 , 12 ,  57
+# InceptionV3 , 14 ,  61
+# InceptionV4 , 16 ,  72
+# TinyyoloV2  , 11 ,  52
+# TinyyoloV3  , 12 ,  62
 #
 
 MODELS_PATH=""
@@ -84,106 +84,73 @@ set -e
 #Script to run each model
 run_all_models(){
 
-    mkdir -p logs/
-    rm -f logs/*
+  model_array=(inceptionv1 inceptionv2 inceptionv3 inceptionv4 tinyyolov2 tinyyolov3)
+  model_upper_array=(InceptionV1 InceptionV2 InceptionV3 InceptionV4 TinyYoloV2 TinyYoloV3)
+  input_array=(input input input input input/Placeholder inputs )
+  output_array=(InceptionV1/Logits/Predictions/Reshape_1 Softmax InceptionV3/Predictions/Reshape_1 
+  InceptionV4/Logits/Predictions add_8 output_boxes )
 
-    #inceptionv1
-    echo Perf inceptionv1
-    gst-launch-1.0 \
-    filesrc location=/home/ltorres/Downloads/small.mp4 num-buffers=600 ! decodebin ! videoconvert ! \
-    perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-    inceptionv1 backend=$BACKEND name=net backend::input-layer=input backend::output-layer=InceptionV1/Logits/Predictions/Reshape_1 \
-    model-location="${MODELS_PATH}InceptionV1_${INTERNAL_PATH}/graph_inceptionv1${EXTENSION}" \
-    net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/inceptionv1.log
+  mkdir -p logs/
+  rm -f logs/*
 
-    #inceptionv2
-    echo Perf inceptionv2
+  for ((i=0;i<${#model_array[@]};++i)); do
+    echo Perf ${model_array[i]}
     gst-launch-1.0 \
-    filesrc location=/home/ltorres/Downloads/small.mp4 num-buffers=600 ! decodebin ! videoconvert ! \
+    filesrc location=$VIDEO_PATH num-buffers=600 ! decodebin ! videoconvert ! \
     perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-    inceptionv2 backend=$BACKEND name=net backend::input-layer=input backend::output-layer=Softmax \
-    model-location="${MODELS_PATH}InceptionV2_${INTERNAL_PATH}/graph_inceptionv2${EXTENSION}" \
-    net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/inceptionv2.log
-
-    #inceptionv3
-    echo Perf inceptionv3
-    gst-launch-1.0 \
-    filesrc location=/home/ltorres/Downloads/small.mp4 num-buffers=600 ! decodebin ! videoconvert ! \
-    perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-    inceptionv3 backend=$BACKEND name=net backend::input-layer=input backend::output-layer=InceptionV3/Predictions/Reshape_1 \
-    model-location="${MODELS_PATH}InceptionV3_${INTERNAL_PATH}/graph_inceptionv3${EXTENSION}" \
-    net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/inceptionv3.log
-
-    #inceptionv4
-    echo Perf inceptionv4
-    gst-launch-1.0 \
-    filesrc location=/home/ltorres/Downloads/small.mp4 num-buffers=600 ! decodebin ! videoconvert ! \
-    perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-    inceptionv4 backend=$BACKEND name=net backend::input-layer=input backend::output-layer=InceptionV4/Logits/Predictions \
-    model-location="${MODELS_PATH}InceptionV4_${INTERNAL_PATH}/graph_inceptionv4${EXTENSION}" \
-    net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/inceptionv4.log
-
-    #tinyyolov2
-    echo Perf tinyyolov2
-    gst-launch-1.0 \
-    filesrc location=/home/ltorres/Downloads/small.mp4 num-buffers=600 ! decodebin ! videoconvert ! \
-    perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-    tinyyolov2 backend=$BACKEND name=net backend::input-layer=input/Placeholder backend::output-layer=add_8 \
-    model-location="${MODELS_PATH}TinyYoloV2_${INTERNAL_PATH}/graph_tinyyolov2${EXTENSION}" \
-    net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/tinyyolov2.log
-
-    #tinyyolov3
-    echo Perf tinyyolov3
-    gst-launch-1.0 \
-    filesrc location=/home/ltorres/Downloads/small.mp4 num-buffers=600 ! decodebin ! videoconvert ! \
-    perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-    tinyyolov3 backend=$BACKEND name=net backend::input-layer=inputs backend::output-layer=output_boxes \
-    model-location="${MODELS_PATH}TinyYoloV3_${INTERNAL_PATH}/graph_tinyyolov3${EXTENSION}" \
-    net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/tinyyolov3.log
+    ${model_array[i]} backend=$BACKEND name=net backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} \
+    model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
+    net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/${model_array[i]}.log
+  done
 }
 
 #Script to get data from perf log
 get_perf () {
 
-myvar=$1
-name=$2
+  myvar=$1
+  name=$2
 
-#Read log and filter perf element
-awk '/'$myvar'/&&/timestamp/' logs/${name}.log >  perf.log
-cp perf.log  perf0.log 
-#Filter only the perf that I want
-awk '{gsub(/^.*'$myvar'/,"'$myvar'");print}' perf0.log > perf1.log
-rm perf0.log
-#Filter the columns needed
-awk '{print  $11 "\t" $13}' perf1.log > perf0.log
-rm perf1.log
-#Remove unnecessary characters
-awk '{gsub(/\\/,"");gsub(/\;/,"");gsub(/\"/,"");gsub(/,/,".")}1' perf0.log > perf1.log
-#Save in the directory
-awk 'END{printf "%s", $0}' perf1.log > $myvar/$name.log
-#Get data to save it in the CSV table
-fps=`awk '{printf "%s", $1}' $myvar/$name.log`
-cpu=`awk '{printf "%s", $2}' $myvar/$name.log`
+  #Read log and filter perf element
+  awk '/'$myvar'/&&/timestamp/' logs/${name}.log >  perf.log
+  cp perf.log  perf0.log 
+  #Filter only the perf that I want
+  awk '{gsub(/^.*'$myvar'/,"'$myvar'");print}' perf0.log > perf1.log
+  rm perf0.log
+  #Filter the columns needed
+  awk '{print  $11 "\t" $13}' perf1.log > perf0.log
+  rm perf1.log
+  #Remove unnecessary characters
+  awk '{gsub(/\\/,"");gsub(/\;/,"");gsub(/\"/,"");gsub(/,/,".")}1' perf0.log > perf1.log
+  #Save in the directory
+  awk 'END{printf "%s", $0}' perf1.log > $myvar/$name.log
+  #Get data to save it in the CSV table
+  fps=`awk '{printf "%s", $1}' $myvar/$name.log`
+  cpu=`awk '{printf "%s", $2}' $myvar/$name.log`
 
-echo $name, $fps, $cpu >> results.csv
+  echo $name, $fps, $cpu >> results.csv
 
-#Remove unnecessary files
-rm perf.log
-rm perf0.log
-rm perf1.log
+  #Remove unnecessary files
+  rm perf.log
+  rm perf0.log
+  rm perf1.log
 }
 
 
 #Main
 
-if test "$#" -ne 2; then
+if test "$#" -ne 3; then
+  if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+    echo Usage: ./run_benchmark.sh $BACKEND $MODELS_PATH
+    echo E.g: ./run_benchmark.sh tensorflow /home/user/models/tensorflow_models /home/user/test_benchmark_video.mp4
+    exit 0
+  fi
   if [ "$1" == clean ]
   then
   rm -rf inputperf/
   rm -rf outputperf/
   rm -rf logs/
   else
-    echo "No arguments supplied"
+    echo "Wrong number of parameters"
   fi
   exit 1
 fi
@@ -198,10 +165,10 @@ then
   EXTENSION=".tflite"
   INTERNAL_PATH="TensorFlow-Lite"
 else
-    echo "Invalid Backend"
-    exit 1
+  echo "Invalid Backend"
+  exit 1
 fi
-
+VIDEO_PATH="$3"
 MODELS_PATH="$2"
 BACKEND="$1"
 
