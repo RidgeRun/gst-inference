@@ -1,0 +1,34 @@
+name: Gst-Inference CI
+
+on:
+  push:
+    branches:
+      - master
+      - dev-*
+      - feature/ci-testing
+  pull_request:
+    branches:
+      - dev-*
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    container: ridgerun/r2inference:v0.1.1
+    env: 
+      PREFIX: /usr/lib/x86_64-linux-gnu/
+    steps:
+    - uses: actions/checkout@master
+      with:
+        repository: RidgeRun/r2inference
+    - name: Install backend version
+      run: |
+        tar -C /usr/local -xzf /root/r2inference/backends/tensorflow/v1.15.0/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz
+        ldconfig
+    - name: Configure the project
+      run: |
+        NOCONFIGURE=1 ./autogen.sh
+        ./configure --disable-docs --enable-tensorflow
+    - name: Build
+      run: make
+    - name: Run tests
+      run: make check
