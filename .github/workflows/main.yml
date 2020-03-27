@@ -17,18 +17,24 @@ jobs:
     env: 
       PREFIX: /usr/lib/x86_64-linux-gnu/
     steps:
-    - uses: actions/checkout@master
-      with:
-        repository: RidgeRun/r2inference
-    - name: Install backend version
+    - uses: actions/checkout@v2        
+    - name: Build backend
       run: |
         tar -C /usr/local -xzf /root/r2inference/backends/tensorflow/v1.15.0/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz
         ldconfig
-    - name: Configure the project
+    - name: Checkout r2i repo
+      uses: actions/checkout@master
+      with:
+        repository: RidgeRun/r2inference
+    - name: Build r2i
       run: |
         NOCONFIGURE=1 ./autogen.sh
         ./configure --disable-docs --enable-tensorflow
-    - name: Build
-      run: make
-    - name: Run tests
-      run: make check
+        make
+        make install
+    - name: Build Gst-Inference
+      run: |
+        NOCONFIGURE=1 ./autogen.sh
+        ./configure --prefix $PREFIX
+        make
+      
