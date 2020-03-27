@@ -37,3 +37,5 @@ jobs:
         NOCONFIGURE=1 ./autogen.sh
         ./configure --prefix $PREFIX --disable-docs
         make
+    - name: Check Gst-Inference
+      run: make check
