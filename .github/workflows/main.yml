@@ -1,4 +1,4 @@
-name: Gst-Inference CI
+name: gst-inference CI
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-18.04
-    container: ridgerun/r2inference:v0.1.1
+    container: ridgerun/r2inference:v0.1.2
     env: 
       PREFIX: /usr/lib/x86_64-linux-gnu/
     steps:
@@ -32,10 +32,16 @@ jobs:
         ./configure --disable-docs --enable-tensorflow
         make
         make install
-    - name: Build Gst-Inference
+        ldconfig
+    - name: Checkout gst-inference repo
+      uses: actions/checkout@v2
+      with:
+        remote: true
+        submodules: true
+    - name: Build gst-inference
       run: |
         NOCONFIGURE=1 ./autogen.sh
-        ./configure --prefix $PREFIX --disable-docs
+        ./configure  --disable-docs --prefix $PREFIX 
         make
-    - name: Check Gst-Inference
-      run: make check
+    - name: Check gst-inference
+      run: make check VERBOSE=1
