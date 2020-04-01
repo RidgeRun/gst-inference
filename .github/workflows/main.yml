@@ -39,6 +39,9 @@ jobs:
         remote: true
         submodules: true
     - name: Build gst-inference
+      env:
+        CFLAGS: -Werror
+        CXXFLAGS: -Werror
       run: |
         NOCONFIGURE=1 ./autogen.sh
         ./configure  --disable-docs --prefix $PREFIX 
