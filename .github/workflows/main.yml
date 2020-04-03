@@ -15,6 +15,8 @@ jobs:
     container: ridgerun/r2inference:v0.1.2
     env: 
       PREFIX: /usr/lib/x86_64-linux-gnu/
+      CFLAGS: -Werror
+      CXXFLAGS: -Werror
     steps:
     - uses: actions/checkout@v2        
     - name: Build backend
@@ -37,9 +39,6 @@ jobs:
         remote: true
         submodules: true
     - name: Build gst-inference
-      env:
-        CFLAGS: -Werror
-        CXXFLAGS: -Werror
       run: |
         NOCONFIGURE=1 ./autogen.sh
         ./configure  --disable-docs --prefix $PREFIX 
