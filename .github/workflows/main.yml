@@ -31,7 +31,6 @@ jobs:
         ./configure --disable-docs --enable-tensorflow
         make
         make install
-        ldconfig
     - name: Checkout gst-inference repo
       uses: actions/checkout@v2
       with:
@@ -46,4 +45,6 @@ jobs:
         ./configure  --disable-docs --prefix $PREFIX 
         make
     - name: Check gst-inference
+      env:
+        LD_LIBRARY_PATH: /usr/local/lib/
       run: make check VERBOSE=1
