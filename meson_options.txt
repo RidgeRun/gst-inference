@@ -1,0 +1,11 @@
+# Feature options
+option('enable-tests', type : 'feature', value : 'auto', yield : true, description : 'Build tests')
+option('enable-examples', type : 'feature', value : 'auto', yield : true, description : 'Build examples')
+option('enable-gtk-doc', type : 'boolean', value : false, description : 'Use gtk-doc to build documentation')
+option('enable-profiling', type : 'feature', value : 'disabled', yield : true, description: 'Enable profiling building')
+
+# Common options
+option('package-name', type : 'string', yield : true,
+       description : 'Package name to use in plugins')
+option('package-origin', type : 'string', value : 'Unknown package origin', yield : true,
+       description : 'Package origin URL to use in plugins')
