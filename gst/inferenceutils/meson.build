@@ -5,6 +5,7 @@ inferenceutils_sources = [
 	'gstinferencedebug.c',
 	'gstinferencefilter.c',
 	'videocrop.cc',
+	'gstinferenceutils.c'
 ]
 
 inferenceutils_headers = [
@@ -18,6 +19,8 @@ inferenceutils_headers = [
 
 gstinferenceutils = library('gstinferenceutils',
   inferenceutils_sources,
+  c_args : c_args,
+  cpp_args : cpp_args,
   include_directories : [configinc, inference_inc_dir],
   dependencies : [gst_base_dep, gst_video_dep, gstinference_dep],
   install : true,
