@@ -35,7 +35,7 @@ plugin_deps = [gst_dep, gst_base_dep]
 # Examples dependencies
 example_deps = [gst_dep, gst_base_dep]
 # Define test dependencies
-test_deps=[gst_dep, gst_base_dep, gst_check_dep]
+test_deps=[gst_dep, gst_base_dep, gst_video_dep, gst_check_dep]
 
 # Verify if profiling was enabled
 if get_option('enable-profiling').enabled()
