@@ -3,7 +3,7 @@ opencv_sources = [
 ]
 
 opencv_headers = [
-  'gstinferencebaseoverlay.cc'
+  'gstinferencebaseoverlay.h'
 ]
 
 gstinference_headers = [
@@ -28,7 +28,7 @@ if opencv_dep.found()
     c_args : c_args,
     cpp_args: cpp_args,
     include_directories : [configinc, inference_inc_dir],
-    version : api_version, # TODO verify this version number
+    version : '0.0.0', # TODO verify this version number
     install : true,
     dependencies : opencv_all_dependencies,
   )

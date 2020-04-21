@@ -57,7 +57,7 @@ configinc = include_directories('.')
 
 # Define compiler args and include directories
 c_args = ['-DHAVE_CONFIG_H', '-DBUILDING_GST_OPENCV']
-cpp_args = ['-DBUILDING_GST_OPENCV']
+cpp_args = ['-DHAVE_CONFIG_H', '-DBUILDING_GST_OPENCV']
 
 # Define installation directories
 plugins = []
