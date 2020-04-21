@@ -18,7 +18,6 @@ inferenceutils_headers = [
 
 gstinferenceutils = library('gstinferenceutils',
   inferenceutils_sources,
-  #link_args : noseh_link_args,
   include_directories : [configinc, inference_inc_dir],
   dependencies : [gst_base_dep, gst_video_dep, gstinference_dep],
   install : true,

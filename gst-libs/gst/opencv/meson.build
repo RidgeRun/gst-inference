@@ -25,8 +25,8 @@ if opencv_dep.found()
 	endif
   gstopencv = library('gstinferencebaseoverlay-@0@'.format(api_version),
     opencv_all_sources,
-    c_args : c_args,
-    cpp_args: cpp_args,
+    c_args : c_args + ['-DBUILDING_GST_OPENCV']+ ['-DBUILDING_GST_INFERENCE'],
+    cpp_args: cpp_args + ['-DBUILDING_GST_OPENCV']+ ['-DBUILDING_GST_INFERENCE'],
     include_directories : [configinc, inference_inc_dir],
     version : '0.0.0', # TODO verify this version number
     install : true,

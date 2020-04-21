@@ -87,7 +87,6 @@ endif
 if opencv_found
   gstopencv = library('gstinferenceoverlayplugin',
     gst_opencv_all_sources,
-    c_args : c_args,
     cpp_args : cpp_args + gstopencv_cargs ,
     include_directories : [configinc, inference_inc_dir],
     dependencies : gst_opencv_all_dependencies,

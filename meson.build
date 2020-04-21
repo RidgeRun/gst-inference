@@ -56,8 +56,8 @@ inference_inc_dir = include_directories('gst-libs/')
 configinc = include_directories('.')
 
 # Define compiler args and include directories
-c_args = ['-DHAVE_CONFIG_H', '-DBUILDING_GST_OPENCV']
-cpp_args = ['-DHAVE_CONFIG_H', '-DBUILDING_GST_OPENCV']
+c_args = ['-DHAVE_CONFIG_H']
+cpp_args = ['-DHAVE_CONFIG_H']
 
 # Define installation directories
 plugins = []
