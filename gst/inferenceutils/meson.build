@@ -1,6 +1,6 @@
 inferenceutils_sources = [
 	'cropelement.cc',
-    'gstinferencebin.c',
+	'gstinferencebin.c',
 	'gstinferencecrop.cc',
 	'gstinferencedebug.c',
 	'gstinferencefilter.c',

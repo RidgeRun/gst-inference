@@ -11,18 +11,6 @@ gstinference_sources = [
 	'gsttinyyolov3.c'
 ]
 
-gstinference_headers = [
-	'gstfacenetv1.h',
-	'gstinceptionv1.h',
-	'gstinceptionv2.h',
-	'gstinceptionv3.h',
-	'gstinceptionv4.h',
-	'gstmobilenetv2.h',
-	'gstresnet50v1.h',
-	'gsttinyyolov2.h',
-	'gsttinyyolov3.h'
-]
-
 gstinference = library('gstinference',
   gstinference_sources,
   c_args : c_args,

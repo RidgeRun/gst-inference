@@ -1,5 +1,5 @@
 project('GStreamer Inference', ['c', 'cpp'],
-  version : '0.9.1.1',
+  version : '0.10.0.1',
   meson_version : '>= 0.50',)
 
 project_name = meson.project_name()
@@ -18,15 +18,27 @@ gst_inference_version_is_dev = gst_inference_version_minor % 2 == 1 and gst_infe
 api_version = '1.0'
 
 # Required versions
-gst_req = '>= 1.0.0'
+gst_req = '>= 1.8.0.1'
 r2i_req = '>= 0.5.2'
-ocv_req = '>= 2.3.1'
 
 # Find external dependencies
 gst_dep       = dependency('gstreamer-1.0',      version : gst_req)
 gst_base_dep  = dependency('gstreamer-base-1.0', version : gst_req)
 gst_check_dep = dependency('gstreamer-check-1.0',version : gst_req)
 gst_video_dep = dependency('gstreamer-video-1.0', version : gst_req)
+
+opencv_dep = dependency('opencv', version : ['>= 3.0.0', '< 3.2.0'], required : false)
+opencv_lt_32 = opencv_dep.found()
+opencv4 = false
+
+if not opencv_dep.found()
+  opencv_dep = dependency('opencv', version : ['>= 3.2.0', '< 3.5.0'], required : false)
+
+  if not opencv_dep.found()
+    opencv_dep = dependency('opencv4', version : ['>= 4.0.0', '< 4.3.0'], required : false)
+    opencv4 = opencv_dep.found()
+  endif
+endif
 
 
 ## Dependencies
@@ -47,7 +59,7 @@ if get_option('enable-profiling').enabled()
     # Update test test_deps to include profiler dependency
     test_deps += [profiler_dep]
   else
-    error('MESON_FAIL gperftools profiling library not found.')
+    message('MESON_FAIL gperftools profiling library not found.')
   endif
 endif
 
@@ -120,6 +132,10 @@ cdata.set_quoted('PACKAGE_URL', plugin_url)
 cdata.set_quoted('PACKAGE_VERSION', gst_inference_version)
 cdata.set_quoted('PLUGINDIR', plugin_url)
 cdata.set_quoted('VERSION', gst_inference_version)
+
+# Set OpenCV version
+cdata.set('OCV_VERSION_4_0', opencv4)
+cdata.set('OCV_VERSION_LT_3_2', opencv_lt_32)
 
 if gst_inference_version_nano > 0
     # Have GST_ERROR message printed when running from git
