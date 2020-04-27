@@ -31,7 +31,6 @@ gstinference_headers = [
 	'gstvideoinference.h'
 ]
 
-r2inference_dep = dependency('r2inference-0.0', required : true)
 if r2inference_dep.found()
   gstinference = library('gstinference-1.0',
     gstinference_sources,

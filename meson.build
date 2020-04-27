@@ -22,10 +22,11 @@ gst_req = '>= 1.8.0.1'
 r2i_req = '>= 0.5.2'
 
 # Find external dependencies
-gst_dep       = dependency('gstreamer-1.0',      version : gst_req)
-gst_base_dep  = dependency('gstreamer-base-1.0', version : gst_req)
-gst_check_dep = dependency('gstreamer-check-1.0',version : gst_req)
-gst_video_dep = dependency('gstreamer-video-1.0', version : gst_req)
+gst_dep         = dependency('gstreamer-1.0',      version : gst_req)
+gst_base_dep    = dependency('gstreamer-base-1.0', version : gst_req)
+gst_check_dep   = dependency('gstreamer-check-1.0',version : gst_req)
+gst_video_dep   = dependency('gstreamer-video-1.0', version : gst_req)
+r2inference_dep = dependency('r2inference-0.0', required : true)
 
 opencv_dep = dependency('opencv', version : ['>= 3.0.0', '< 3.2.0'], required : false)
 opencv_lt_32 = opencv_dep.found()

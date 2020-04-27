@@ -6,8 +6,6 @@ opencv_headers = [
   'gstinferencebaseoverlay.h'
 ]
 
-r2inference_dep = dependency('r2inference-0.0', required : true)
-
 if opencv_dep.found()
 	opencv_all_sources = opencv_sources
 	opencv_all_headers = opencv_headers
