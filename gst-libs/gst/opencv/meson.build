@@ -14,14 +14,14 @@ if opencv_dep.found()
 	  opencv_all_dependencies += r2inference_dep
   else
     error('R2Inference dependency not found.')
-	endif
+  endif
 
   gstopencv = library('gstinferencebaseoverlay-@0@'.format(api_version),
     opencv_all_sources,
     c_args : c_args + ['-DBUILDING_GST_INFERENCE'],
     cpp_args: cpp_args + ['-DBUILDING_GST_INFERENCE'],
     include_directories : [configinc, inference_inc_dir],
-    version : '0.0.0',
+    version : api_version,
     install : true,
     dependencies : opencv_all_dependencies,
   )
@@ -32,5 +32,5 @@ if opencv_dep.found()
 
   install_headers(opencv_all_headers, subdir : 'gstreamer-1.0/gst/opencv')
 else
-  error('OpenCV dependencies were not found.')
+  warning('OpenCV dependencies were not found for gstinferencebaseoverlay.')
 endif
