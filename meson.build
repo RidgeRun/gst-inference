@@ -88,6 +88,7 @@ cxx = meson.get_compiler('cpp')
 # If the flags is availale for the compiler it wiil be used in all compiler
 # invocations with the exception of compile tests.
 warning_flags = [
+  '-Werror',
   '-Wmissing-declarations',
   '-Wmissing-prototypes',
   '-Wredundant-decls',
