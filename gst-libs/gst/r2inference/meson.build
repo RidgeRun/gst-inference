@@ -48,5 +48,5 @@ if r2inference_dep.found()
   install_headers(gstinference_headers, subdir : 'gstreamer-1.0/gst/r2inference')
   pkgconfig.generate(gstinference, install_dir : plugins_pkgconfig_install_dir)
 else
-  error('r2inference dependencies were not found.')
+  error('r2inference not found. Please install before proceeding with the installation.')
 endif

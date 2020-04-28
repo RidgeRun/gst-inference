@@ -21,5 +21,5 @@ if opencv_dep.found()
 
   plugins += [gstinferenceoverlay]
 else
-  warning('OpenCV dependencies were not found for gstinferenceoverlayplugin.')
+  warning('OpenCV not found in this system. Overlay plug-ins will not be build.')
 endif
