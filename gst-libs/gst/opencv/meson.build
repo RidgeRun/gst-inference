@@ -7,14 +7,9 @@ opencv_headers = [
 ]
 
 if opencv_dep.found()
-	opencv_all_sources = opencv_sources
-	opencv_all_headers = opencv_headers
-	opencv_all_dependencies = [gst_base_dep, gst_video_dep, opencv_dep]
-	if r2inference_dep.found()
-	  opencv_all_dependencies += r2inference_dep
-  else
-    error('R2Inference dependency not found.')
-  endif
+  opencv_all_sources = opencv_sources
+  opencv_all_headers = opencv_headers
+  opencv_all_dependencies = [gst_base_dep, gst_video_dep, opencv_dep]
 
   gstopencv = library('gstinferencebaseoverlay-@0@'.format(api_version),
     opencv_all_sources,
@@ -32,5 +27,5 @@ if opencv_dep.found()
 
   install_headers(opencv_all_headers, subdir : 'gstreamer-1.0/gst/opencv')
 else
-  warning('OpenCV dependencies were not found for gstinferencebaseoverlay.')
+  warning('OpenCV was not found in this system. Base overlay utils will not be built.')
 endif

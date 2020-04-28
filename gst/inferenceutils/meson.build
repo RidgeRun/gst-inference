@@ -22,7 +22,7 @@ gstinferenceutils = library('gstinferenceutils',
   c_args : c_args,
   cpp_args : cpp_args,
   include_directories : [configinc, inference_inc_dir],
-  dependencies : [gst_base_dep, gst_video_dep, gstinference_dep, r2inference_dep],
+  dependencies : [gst_base_dep, gst_video_dep, gstinference_dep],
   install : true,
   install_dir : plugins_install_dir,
 )
