@@ -21,7 +21,7 @@ if opencv_dep.found()
     c_args : c_args + ['-DBUILDING_GST_INFERENCE'],
     cpp_args: cpp_args + ['-DBUILDING_GST_INFERENCE'],
     include_directories : [configinc, inference_inc_dir],
-    version : api_version,
+    version : version_arr[0],
     install : true,
     dependencies : opencv_all_dependencies,
   )

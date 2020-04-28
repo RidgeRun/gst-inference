@@ -36,7 +36,7 @@ if r2inference_dep.found()
     gstinference_sources,
     c_args : c_args,
     include_directories : [configinc, inference_inc_dir],
-    version : api_version,
+    version : version_arr[0],
     install : true,
     dependencies : [gst_base_dep, gst_video_dep, r2inference_dep],
   )
