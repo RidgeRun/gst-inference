@@ -50,7 +50,8 @@ jobs:
       run: make check VERBOSE=1
     - name: Install gst-inference
       run: |
-        sudo make install
+        make install
+        ldconfig
         gst-inspect-1.0 inference
   build_meson:
     runs-on: ubuntu-18.04
@@ -90,5 +91,6 @@ jobs:
       run: ninja -C build test -v
     - name: Install gst-inference
       run: |
-        sudo ninja -C build install
+        ninja -C build install
+        ldconfig
         gst-inspect-1.0 inference
