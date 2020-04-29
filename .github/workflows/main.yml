@@ -47,8 +47,10 @@ jobs:
     - name: Check gst-inference
       env:
         LD_LIBRARY_PATH: /usr/local/lib/
+      run: make check VERBOSE=1
+      name: Install gst-inference
       run: |
-        make check VERBOSE=1
+        sudo make install
         gst-inspect-1.0 inference
   build_meson:
     runs-on: ubuntu-18.04
@@ -85,6 +87,8 @@ jobs:
     - name: Check gst-inference
       env:
         LD_LIBRARY_PATH: /usr/local/lib/
+      run: ninja -C build test -v
+      name: Install gst-inference
       run: |
-        ninja -C build test -v
+        sudo ninja -C build install
         gst-inspect-1.0 inference
