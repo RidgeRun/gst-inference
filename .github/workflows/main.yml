@@ -10,7 +10,7 @@ on:
       - dev-*
 
 jobs:
-  build:
+  build_autotools:
     runs-on: ubuntu-18.04
     container: ridgerun/r2inference:v0.1.2
     env: 
@@ -41,9 +41,56 @@ jobs:
     - name: Build gst-inference
       run: |
         NOCONFIGURE=1 ./autogen.sh
-        ./configure  --disable-docs --prefix $PREFIX 
+        ./configure  --disable-docs --prefix $PREFIX --libdir $PREFIX
         make
     - name: Check gst-inference
       env:
         LD_LIBRARY_PATH: /usr/local/lib/
       run: make check VERBOSE=1
+    - name: Install gst-inference
+      run: |
+        make install
+        ldconfig
+        gst-inspect-1.0 inference
+  build_meson:
+    runs-on: ubuntu-18.04
+    container: ridgerun/r2inference:v0.1.4
+    env: 
+      PREFIX: /usr
+      CFLAGS: -Werror
+      CXXFLAGS: -Werror
+    steps:
+    - uses: actions/checkout@v2        
+    - name: Build backend
+      run: |
+        tar -C /usr/local -xzf /root/r2inference/backends/tensorflow/v1.15.0/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz
+        ldconfig
+    - name: Checkout r2i repo
+      uses: actions/checkout@master
+      with:
+        repository: RidgeRun/r2inference
+    - name: Build r2i
+      run: |
+        NOCONFIGURE=1 ./autogen.sh
+        ./configure --disable-docs --enable-tensorflow
+        make
+        make install
+    - name: Checkout gst-inference repo
+      uses: actions/checkout@v2
+      with:
+        remote: true
+        submodules: true
+    - name: Build gst-inference
+      run: |
+        meson build --prefix $PREFIX -Denable-gtk-doc=false
+        ninja -C build
+    - name: Check gst-inference
+      env:
+        LD_LIBRARY_PATH: /usr/local/lib/
+      run: ninja -C build test -v
+    - name: Install gst-inference
+      run: |
+        ninja -C build install
+        ldconfig
+        gst-inspect-1.0 inference
+        
