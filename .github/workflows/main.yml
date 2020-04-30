@@ -5,7 +5,6 @@ on:
     branches:
       - master
       - dev-*
-      - feature/meson-ci-job
   pull_request:
     branches:
       - dev-*
