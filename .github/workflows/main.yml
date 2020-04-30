@@ -42,7 +42,7 @@ jobs:
     - name: Build gst-inference
       run: |
         NOCONFIGURE=1 ./autogen.sh
-        ./configure  --disable-docs --prefix $PREFIX 
+        ./configure  --disable-docs --prefix $PREFIX --libdir $PREFIX
         make
     - name: Check gst-inference
       env:
@@ -83,7 +83,7 @@ jobs:
         submodules: true
     - name: Build gst-inference
       run: |
-        meson build --prefix $PREFIX 
+        meson build --prefix $PREFIX -Denable-gtk-doc=false
         ninja -C build
     - name: Check gst-inference
       env:
