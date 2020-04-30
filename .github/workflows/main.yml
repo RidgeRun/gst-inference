@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - dev-*
+      - feature/meson-ci-job
   pull_request:
     branches:
       - dev-*
@@ -93,4 +94,3 @@ jobs:
         ninja -C build install
         ldconfig
         gst-inspect-1.0 inference
-        
