@@ -1,4 +1,4 @@
-project('GStreamer Inference', ['c', 'cpp'], default_options : ['c_std=c11', 'cpp_std=c++11'],
+project('GStreamer Inference', ['c', 'cpp'], default_options : ['cpp_std=c++11'],
   version : '0.10.0.1',
   meson_version : '>= 0.50',)
 
