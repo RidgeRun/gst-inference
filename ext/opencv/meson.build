@@ -6,10 +6,9 @@ gstinference_sources = [
   'gstembeddingoverlay.cc'
 ]
 
-opencv_all_sources = []
-opencv_all_dependencies = [gst_base_dep, gst_video_dep, opencv_dep, gstopencv_dep, gstinference_dep]
-
 if opencv_dep.found()
+  opencv_all_dependencies = [gst_base_dep, gst_video_dep, opencv_dep, inferencebaseoverlay_dep, gstinference_dep]
+
   gstinferenceoverlay = library('gstinferenceoverlayplugin',
     gstinference_sources,
     cpp_args : cpp_args,
