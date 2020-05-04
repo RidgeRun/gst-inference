@@ -50,8 +50,10 @@ jobs:
     - name: Install gst-inference
       run: |
         make install
-        ldconfig
-        gst-inspect-1.0 inference
+    - name: Check gst-inference install
+      env:
+        LD_LIBRARY_PATH: /usr/local/lib/
+      run: gst-inspect-1.0 inference
   build_meson:
     runs-on: ubuntu-18.04
     container: ridgerun/r2inference:v0.1.4
@@ -78,7 +80,6 @@ jobs:
     - name: Checkout gst-inference repo
       uses: actions/checkout@v2
       with:
-        remote: true
         submodules: true
     - name: Build gst-inference
       run: |
@@ -91,5 +92,7 @@ jobs:
     - name: Install gst-inference
       run: |
         ninja -C build install
-        ldconfig
-        gst-inspect-1.0 inference
+    - name: Check gst-inference install
+      env:
+        LD_LIBRARY_PATH: /usr/local/lib/
+      run: gst-inspect-1.0 inference
