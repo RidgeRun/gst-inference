@@ -24,6 +24,7 @@
 #include "gstncsdk.h"
 #include "gsttensorflow.h"
 #include "gsttflite.h"
+#include "gsttensorrt.h"
 #include "gstbackend.h"
 #include <r2i/r2i.h>
 #include <unordered_map>
@@ -36,6 +37,7 @@ backend_types ({
   {r2i::FrameworkCode::NCSDK, GST_TYPE_NCSDK},
   {r2i::FrameworkCode::TENSORFLOW, GST_TYPE_TENSORFLOW},
   {r2i::FrameworkCode::TFLITE, GST_TYPE_TFLITE},
+  {r2i::FrameworkCode::TENSORRT, GST_TYPE_TENSORRT},
   {r2i::FrameworkCode::MAX_FRAMEWORK, G_TYPE_INVALID}
 });
 
@@ -55,6 +57,8 @@ gst_inference_backends_get_type (void)
           "tensorflow"},
     {r2i::FrameworkCode::TFLITE, "Tensorflow Lite Machine Learning Framework",
           "tflite"},
+    {r2i::FrameworkCode::TENSORRT, "NVIDIA's TensorRT Framework",
+          "tensorrt"},
     {0, NULL, NULL}
   };
   if (!backend_type) {

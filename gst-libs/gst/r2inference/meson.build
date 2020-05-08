@@ -11,6 +11,7 @@ gstinference_sources = [
 	'gstncsdk.cc',
 	'gsttensorflow.cc',
 	'gsttflite.cc',
+	'gsttensorrt.cc',
 	'gstvideoinference.c'
 ]
 
@@ -28,6 +29,7 @@ gstinference_headers = [
 	'gstncsdk.h',
 	'gsttensorflow.h',
 	'gsttflite.h',
+	'gsttensorrt.h',
 	'gstvideoinference.h'
 ]
 
