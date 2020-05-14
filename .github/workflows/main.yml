@@ -98,9 +98,9 @@ jobs:
       run: gst-inspect-1.0 inference
     - name: Run GStreamer pipeline
       env:
-        ROOT: "/root/r2inference/resources/InceptionV1_TensorFlow"
+        ROOT: /root/r2inference/resources/InceptionV1_TensorFlow
+        LD_LIBRARY_PATH: /usr/local/lib/
       run: |
-        ROOT="${{ env.ROOT }}"
         gst-launch-1.0 inceptionv1 name=net model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
         backend=tensorflow labels="$(cat $ROOT/imagenet_labels.txt)" backend::input-layer=input \
         backend::output-layer=InceptionV1/Logits/Predictions/Reshape_1 multifilesrc \
