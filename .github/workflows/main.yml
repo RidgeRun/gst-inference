@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - dev-*
+      - feature/extend-ci-to-run-gst-pipeline
   pull_request:
     branches:
       - dev-*
@@ -13,12 +14,12 @@ jobs:
   build_autotools:
     runs-on: ubuntu-18.04
     container: ridgerun/r2inference:v0.1.2
-    env: 
+    env:
       PREFIX: /usr/lib/x86_64-linux-gnu/
       CFLAGS: -Werror
       CXXFLAGS: -Werror
     steps:
-    - uses: actions/checkout@v2        
+    - uses: actions/checkout@v2
     - name: Build backend
       run: |
         tar -C /usr/local -xzf /root/r2inference/backends/tensorflow/v1.15.0/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz
@@ -56,12 +57,12 @@ jobs:
   build_meson:
     runs-on: ubuntu-18.04
     container: ridgerun/r2inference:v0.1.4
-    env: 
+    env:
       PREFIX: /usr
       CFLAGS: -Werror
       CXXFLAGS: -Werror
     steps:
-    - uses: actions/checkout@v2        
+    - uses: actions/checkout@v2
     - name: Build backend
       run: |
         tar -C /usr/local -xzf /root/r2inference/backends/tensorflow/v1.15.0/libtensorflow-cpu-linux-x86_64-1.15.0.tar.gz
@@ -95,3 +96,16 @@ jobs:
       env:
         LD_LIBRARY_PATH: /usr/local/lib/
       run: gst-inspect-1.0 inference
+    - name: Run GStreamer pipeline
+      env:
+        ROOT: "/root/r2inference/resources/InceptionV1_TensorFlow"
+      run: |
+        ROOT="${{ env.ROOT }}"
+        gst-launch-1.0 inceptionv1 name=net model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
+        backend=tensorflow labels="$(cat $ROOT/imagenet_labels.txt)" backend::input-layer=input \
+        backend::output-layer=InceptionV1/Logits/Predictions/Reshape_1 multifilesrc \
+        location=$ROOT/Egyptian_cat.jpg start-index=0 stop-index=0 ! jpegparse ! jpegdec ! \
+        videoconvert ! videoscale ! queue ! tee name=t t. ! queue ! videoconvert ! videoscale ! \
+        net.sink_model t. ! queue ! videoconvert ! net.sink_bypass  net.src_model ! fakesink \
+        net.src_bypass ! queue ! inferenceoverlay thickness=2 font-scale=1 style=1 ! videoconvert ! \
+        fakesink silent=false sync=false async=false -v
