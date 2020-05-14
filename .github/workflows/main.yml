@@ -56,7 +56,7 @@ jobs:
       run: gst-inspect-1.0 inference
   build_meson:
     runs-on: ubuntu-18.04
-    container: ridgerun/r2inference:v0.1.4
+    container: ridgerun/r2inference:v0.1.5
     env:
       PREFIX: /usr
       CFLAGS: -Werror
