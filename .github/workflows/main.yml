@@ -58,13 +58,10 @@ jobs:
         ROOT: /root/r2inference/resources/InceptionV1_TensorFlow
         LD_LIBRARY_PATH: /usr/local/lib/
       run: |
-        gst-launch-1.0 inceptionv1 name=net model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
-        backend=tensorflow labels="$(cat $ROOT/imagenet_labels.txt)" backend::input-layer=input \
-        backend::output-layer=InceptionV1/Logits/Predictions/Reshape_1 multifilesrc \
-        location=$ROOT/Egyptian_cat.jpg start-index=0 stop-index=0 ! jpegparse ! jpegdec ! \
-        videoconvert ! videoscale ! queue ! tee name=t t. ! queue ! videoconvert ! videoscale ! \
-        net.sink_model t. ! queue ! videoconvert ! net.sink_bypass  net.src_model ! fakesink \
-        net.src_bypass ! queue ! inferenceoverlay thickness=2 font-scale=1 style=1 ! videoconvert ! \
+        GST_DEBUG=2,inferencebin:6 gst-launch-1.0 filesrc location=$ROOT/Egyptian_cat.jpg ! jpegparse ! jpegdec ! \
+        videoconvert ! inferencebin arch='inceptionv1' model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
+        backend='tensorflow' input-layer='input' output-layer='InceptionV1/Logits/Predictions/Reshape_1' \
+        labels=$ROOT/imagenet_labels.txt crop=false overlay=true filter=-1 ! \
         fakesink silent=false sync=false async=false -v
   build_meson:
     runs-on: ubuntu-18.04
