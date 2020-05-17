@@ -114,7 +114,7 @@ jobs:
         LD_LIBRARY_PATH: /usr/local/lib/
       run: |
         GST_DEBUG=2,inferencebin:6 gst-launch-1.0 filesrc location=$ROOT/Egyptian_cat.jpg ! jpegparse ! jpegdec ! \
-        videoconvert ! inferencebin arch='inceptionv1' model-location='graph_inceptionv1_tensorflow.pb' \
+        videoconvert ! inferencebin arch='inceptionv1' model-location='$ROOT/graph_inceptionv1_tensorflow.pb' \
         backend='tensorflow' input-layer='input' output-layer='InceptionV1/Logits/Predictions/Reshape_1' \
-        labels='$ROOT/imagenet_labels.txt)' crop=false overlay=true filter=-1 ! \
+        labels='$ROOT/imagenet_labels.txt' crop=false overlay=true filter=-1 ! \
         fakesink silent=false sync=false async=false -v
