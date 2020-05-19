@@ -5,14 +5,20 @@ on:
     branches:
       - master
       - dev-*
+      - feature/extend-ci-ubuntu-16.04
   pull_request:
     branches:
       - dev-*
 
 jobs:
   build_autotools:
-    runs-on: ubuntu-18.04
-    container: ridgerun/r2inference:v0.1.5
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+       os: [ubuntu-18.04]
+       container: ["ridgerun/r2inference:v0.1.4", "ridgerun/r2inference-ubuntu-16.04:v0.1.0"]
+    container:
+      image: ${{ matrix.container }}
     env:
       PREFIX: /usr/lib/x86_64-linux-gnu/
       CFLAGS: -Werror
@@ -59,13 +65,18 @@ jobs:
         LD_LIBRARY_PATH: /usr/local/lib/
       run: |
         GST_DEBUG=2,inferencebin:6 gst-launch-1.0 filesrc location=$ROOT/Egyptian_cat.jpg ! jpegparse ! jpegdec ! \
-        videoconvert ! inferencebin arch='inceptionv1' model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
+        inferencebin arch='inceptionv1' model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
         backend='tensorflow' input-layer='input' output-layer='InceptionV1/Logits/Predictions/Reshape_1' \
         labels=$ROOT/imagenet_labels.txt crop=false overlay=true filter=-1 ! \
         fakesink silent=false sync=false async=false -v
   build_meson:
-    runs-on: ubuntu-18.04
-    container: ridgerun/r2inference:v0.1.5
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+       os: [ubuntu-18.04]
+       container: ["ridgerun/r2inference:v0.1.4", "ridgerun/r2inference-ubuntu-16.04:v0.1.0"]
+    container:
+      image: ${{ matrix.container }}
     env:
       PREFIX: /usr
       CFLAGS: -Werror
@@ -111,7 +122,7 @@ jobs:
         LD_LIBRARY_PATH: /usr/local/lib/
       run: |
         GST_DEBUG=2,inferencebin:6 gst-launch-1.0 filesrc location=$ROOT/Egyptian_cat.jpg ! jpegparse ! jpegdec ! \
-        videoconvert ! inferencebin arch='inceptionv1' model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
+        inferencebin arch='inceptionv1' model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
         backend='tensorflow' input-layer='input' output-layer='InceptionV1/Logits/Predictions/Reshape_1' \
         labels=$ROOT/imagenet_labels.txt crop=false overlay=true filter=-1 ! \
         fakesink silent=false sync=false async=false -v
