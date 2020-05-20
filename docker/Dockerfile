@@ -1,49 +1,9 @@
-FROM scratch
-ADD ubuntu-xenial-core-cloudimg-amd64-root.tar.gz /
-# delete all the apt list files since they're big and get stale quickly
-RUN rm -rf /var/lib/apt/lists/*
-# this forces "apt-get update" in dependent images, which is also good
-# (see also https://bugs.launchpad.net/cloud-images/+bug/1699913)
-
-# a few minor docker-specific tweaks
-# see https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap
-RUN set -xe \
-	\
-# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L40-L48
-	&& echo '#!/bin/sh' > /usr/sbin/policy-rc.d \
-	&& echo 'exit 101' >> /usr/sbin/policy-rc.d \
-	&& chmod +x /usr/sbin/policy-rc.d \
-	\
-# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L54-L56
-	&& dpkg-divert --local --rename --add /sbin/initctl \
-	&& cp -a /usr/sbin/policy-rc.d /sbin/initctl \
-	&& sed -i 's/^exit.*/exit 0/' /sbin/initctl \
-	\
-# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L71-L78
-	&& echo 'force-unsafe-io' > /etc/dpkg/dpkg.cfg.d/docker-apt-speedup \
-	\
-# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L85-L105
-	&& echo 'DPkg::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' > /etc/apt/apt.conf.d/docker-clean \
-	&& echo 'APT::Update::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' >> /etc/apt/apt.conf.d/docker-clean \
-	&& echo 'Dir::Cache::pkgcache ""; Dir::Cache::srcpkgcache "";' >> /etc/apt/apt.conf.d/docker-clean \
-	\
-# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L109-L115
-	&& echo 'Acquire::Languages "none";' > /etc/apt/apt.conf.d/docker-no-languages \
-	\
-# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L118-L130
-	&& echo 'Acquire::GzipIndexes "true"; Acquire::CompressionTypes::Order:: "gz";' > /etc/apt/apt.conf.d/docker-gzip-indexes \
-	\
-# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L134-L151
-	&& echo 'Apt::AutoRemove::SuggestsImportant "false";' > /etc/apt/apt.conf.d/docker-autoremove-suggests
-
-# make systemd-detect-virt return "docker"
-# See: https://github.com/systemd/systemd/blob/aa0c34279ee40bce2f9681b496922dedbadfca19/src/basic/virt.c#L434
-RUN mkdir -p /run/systemd && echo 'docker' > /run/systemd/container
+FROM ubuntu:16.04
 
 # Install all needed packages
 RUN apt-get update && apt-get install -y \
     build-essential checkinstall yasm gfortran \
-    apt-utils git \
+    apt-utils software-properties-common \
     python3-pip python3-dev \
     libgstreamer1.0-0 gstreamer1.0-plugins-base \
     libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
@@ -64,6 +24,11 @@ RUN apt-get update && apt-get install -y \
  && rm -rf /var/lib/apt/lists/* \
  && pip3 install meson ninja numpy
 
+# Install latest git version
+RUN apt-add-repository ppa:git-core/ppa \
+    && apt-get update \
+    && apt-get install -y git
+
 # Download and build OpenCV 3.4.10
 RUN cd \
     && wget https://github.com/opencv/opencv/archive/3.4.10.zip \
@@ -82,7 +47,7 @@ RUN cd \
             -DBUILD_opencv_python2=OFF \
             -DBUILD_opencv_python3=OFF \
             -DINSTALL_PYTHON_EXAMPLES=OFF \
-            -D BUILD_opencv_java=OFF \
+            -DBUILD_opencv_java=OFF \
             -DWITH_TBB=ON \
             -DWITH_V4L=OFF \
             -DWITH_QT=OFF \
@@ -94,9 +59,9 @@ RUN cd \
     && cd
 
 # Copy tar package with tensorflow and tensorflow lite dependencies
-COPY r2inference.tar.gz /root
+COPY r2inference-dependencies-v0.1.0.tar.gz /root
 
-RUN tar -C /root -xzf /root/r2inference.tar.gz \
- && rm /root/r2inference.tar.gz
+RUN tar -C /root -xzf /root/r2inference-dependencies-v0.1.0.tar.gz \
+ && rm /root/r2inference-dependencies-v0.1.0.tar.gz
 
 CMD ["/bin/bash"]
