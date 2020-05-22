@@ -59,9 +59,9 @@ RUN cd \
     && cd
 
 # Copy tar package with tensorflow and tensorflow lite dependencies
-COPY r2inference-dependencies-v0.1.0.tar.gz /root
+COPY r2inference-dependencies-linux-x86_64-v0.1.0.tar.gz /root
 
-RUN tar -C /root -xzf /root/r2inference-dependencies-v0.1.0.tar.gz \
- && rm /root/r2inference-dependencies-v0.1.0.tar.gz
+RUN tar -C /root -xzf /root/r2inference-dependencies-linux-x86_64-v0.1.0.tar.gz \
+ && rm /root/r2inference-dependencies-linux-x86_64-v0.1.0.tar.gz
 
 CMD ["/bin/bash"]
