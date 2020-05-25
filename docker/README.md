@@ -35,7 +35,7 @@ r2inference
 ```
 
 ## Build instructions
-`sudo docker build -t r2inference-ubuntu-16.04 .`
+`sudo docker build -t r2inference-ubuntu-16.04 -f Dockerfile-Ubuntu-16.04 .`
 
 ## Run a container from the image
 `sudo docker run -ti -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix r2inference-ubuntu-16.04`
