@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-       container: ["ridgerun/r2inference:v0.1.5", "ridgerun/r2inference-ubuntu-16.04:v0.3.0"]
+       container: ["ridgerun/r2inference-ubuntu-18.04:v0.1.5", "ridgerun/r2inference-ubuntu-16.04:v0.3.0"]
     container:
       image: ${{ matrix.container }}
     env:
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-       container: ["ridgerun/r2inference:v0.1.5", "ridgerun/r2inference-ubuntu-16.04:v0.3.0"]
+       container: ["ridgerun/r2inference-ubuntu-18.04:v0.1.5", "ridgerun/r2inference-ubuntu-16.04:v0.3.0"]
     container:
       image: ${{ matrix.container }}
     env:
