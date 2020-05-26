@@ -32,7 +32,6 @@ r2inference_dep = dependency('r2inference-0.0', required : true)
 
 opencv_dep = dependency('opencv', version : ['>= 2.3.1', '< 2.4.13'], required : false)
 if opencv_dep.found()
-  message ('OpenCV version found less than 3.2')
   cdata.set('OCV_VERSION_LT_3_2', 1)
 endif
 
@@ -41,7 +40,9 @@ if not opencv_dep.found()
 
   if not opencv_dep.found()
     opencv_dep = dependency('opencv4', version : ['>= 4.0.0', '< 4.3.0'], required : false)
-    cdata.set('OCV_VERSION_4_0', 1)
+    if opencv_dep.found()
+        cdata.set('OCV_VERSION_4_0', 1)
+    endif
   endif
 endif
 
