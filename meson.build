@@ -3,6 +3,8 @@ project('GStreamer Inference', ['c', 'cpp'], default_options : ['cpp_std=c++11']
   meson_version : '>= 0.50',)
 
 project_name = meson.project_name()
+# Create an empty configuration object to set config.h information
+cdata = configuration_data()
 gst_inference_version = meson.project_version()
 version_arr = gst_inference_version.split('.')
 gst_inference_version_major = version_arr[0].to_int()
@@ -28,19 +30,21 @@ gst_check_dep   = dependency('gstreamer-check-1.0',version : gst_req)
 gst_video_dep   = dependency('gstreamer-video-1.0', version : gst_req)
 r2inference_dep = dependency('r2inference-0.0', required : true)
 
-opencv_dep = dependency('opencv', version : ['>= 3.0.0', '< 3.2.0'], required : false)
-opencv_lt_32 = opencv_dep.found()
-opencv4 = false
+opencv_dep = dependency('opencv', version : ['>= 2.3.1', '< 2.4.13'], required : false)
+if opencv_dep.found()
+  cdata.set('OCV_VERSION_LT_3_2', 1)
+endif
 
 if not opencv_dep.found()
   opencv_dep = dependency('opencv', version : ['>= 3.2.0', '< 3.5.0'], required : false)
 
   if not opencv_dep.found()
     opencv_dep = dependency('opencv4', version : ['>= 4.0.0', '< 4.3.0'], required : false)
-    opencv4 = opencv_dep.found()
+    if opencv_dep.found()
+        cdata.set('OCV_VERSION_4_0', 1)
+    endif
   endif
 endif
-
 
 ## Dependencies
 # Define plugin dependencies
@@ -115,9 +119,6 @@ foreach extra_arg : warning_flags
   endif
 endforeach
 
-# Create an empty configuration object to set config.h information
-cdata = configuration_data()
-
 plugin_url='http://developer.ridgerun.com/wiki/index.php?title=GstInference'
 # Set config.h information
 cdata.set_quoted('GST_API_VERSION', api_version)
@@ -134,10 +135,6 @@ cdata.set_quoted('PACKAGE_URL', plugin_url)
 cdata.set_quoted('PACKAGE_VERSION', gst_inference_version)
 cdata.set_quoted('PLUGINDIR', plugin_url)
 cdata.set_quoted('VERSION', gst_inference_version)
-
-# Set OpenCV version
-cdata.set('OCV_VERSION_4_0', opencv4)
-cdata.set('OCV_VERSION_LT_3_2', opencv_lt_32)
 
 if gst_inference_version_nano > 0
     # Have GST_ERROR message printed when running from git

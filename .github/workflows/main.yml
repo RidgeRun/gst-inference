@@ -12,7 +12,11 @@ on:
 jobs:
   build_autotools:
     runs-on: ubuntu-18.04
-    container: ridgerun/r2inference:v0.1.5
+    strategy:
+      matrix:
+       container: ["ridgerun/r2inference-ubuntu-18.04:v0.1.5", "ridgerun/r2inference-ubuntu-16.04:v0.3.1"]
+    container:
+      image: ${{ matrix.container }}
     env:
       PREFIX: /usr/lib/x86_64-linux-gnu/
       CFLAGS: -Werror
@@ -39,6 +43,8 @@ jobs:
         submodules: true
     - name: Build gst-inference
       run: |
+        CFLAGS="${{ env.CFLAGS }}"
+        CXXFLAGS="${{ env.CXXFLAGS }}"
         NOCONFIGURE=1 ./autogen.sh
         ./configure  --disable-docs --prefix $PREFIX --libdir $PREFIX
         make
@@ -59,13 +65,17 @@ jobs:
         LD_LIBRARY_PATH: /usr/local/lib/
       run: |
         GST_DEBUG=2,inferencebin:6 gst-launch-1.0 filesrc location=$ROOT/Egyptian_cat.jpg ! jpegparse ! jpegdec ! \
-        videoconvert ! inferencebin arch='inceptionv1' model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
+        inferencebin arch='inceptionv1' model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
         backend='tensorflow' input-layer='input' output-layer='InceptionV1/Logits/Predictions/Reshape_1' \
         labels=$ROOT/imagenet_labels.txt crop=false overlay=true filter=-1 ! \
         fakesink silent=false sync=false async=false -v
   build_meson:
     runs-on: ubuntu-18.04
-    container: ridgerun/r2inference:v0.1.5
+    strategy:
+      matrix:
+       container: ["ridgerun/r2inference-ubuntu-18.04:v0.1.5", "ridgerun/r2inference-ubuntu-16.04:v0.3.1"]
+    container:
+      image: ${{ matrix.container }}
     env:
       PREFIX: /usr
       CFLAGS: -Werror
@@ -82,6 +92,8 @@ jobs:
         repository: RidgeRun/r2inference
     - name: Build r2i
       run: |
+        CFLAGS="${{ env.CFLAGS }}"
+        CXXFLAGS="${{ env.CXXFLAGS }}"
         NOCONFIGURE=1 ./autogen.sh
         ./configure --disable-docs --enable-tensorflow
         make
@@ -111,7 +123,7 @@ jobs:
         LD_LIBRARY_PATH: /usr/local/lib/
       run: |
         GST_DEBUG=2,inferencebin:6 gst-launch-1.0 filesrc location=$ROOT/Egyptian_cat.jpg ! jpegparse ! jpegdec ! \
-        videoconvert ! inferencebin arch='inceptionv1' model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
+        inferencebin arch='inceptionv1' model-location=$ROOT/graph_inceptionv1_tensorflow.pb \
         backend='tensorflow' input-layer='input' output-layer='InceptionV1/Logits/Predictions/Reshape_1' \
         labels=$ROOT/imagenet_labels.txt crop=false overlay=true filter=-1 ! \
         fakesink silent=false sync=false async=false -v
