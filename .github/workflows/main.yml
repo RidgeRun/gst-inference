@@ -103,6 +103,8 @@ jobs:
       with:
         submodules: true
     - name: Build gst-inference
+      env:
+        LD_LIBRARY_PATH: /usr/local/lib/
       run: |
         meson build --prefix $PREFIX -Denable-gtk-doc=false
         ninja -C build
