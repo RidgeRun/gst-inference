@@ -155,8 +155,8 @@ gst_backend_install_properties (GstBackendClass *klass,
                                 r2i::FrameworkCode code) {
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
   r2i::RuntimeError error;
-  static std::vector < r2i::ParameterMeta > params;
-  static gint nprop = 1;
+  std::vector < r2i::ParameterMeta > params;
+  gint nprop = 1;
 
   auto factory = r2i::IFrameworkFactory::MakeFactory (code, error);
   auto pfactory = factory->MakeParameters (error);
