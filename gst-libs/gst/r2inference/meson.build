@@ -1,6 +1,7 @@
 gstinference_sources = [
 	'gstbackend.cc',
 	'gstchildinspector.c',
+	'gstinferencebackend.cc',
 	'gstinferencebackends.cc',
 	'gstinferencedebug.c',
 	'gstinferenceclassification.c',
@@ -8,11 +9,6 @@ gstinference_sources = [
 	'gstinferenceprediction.c',
 	'gstinferencepostprocess.c',
 	'gstinferencepreprocess.c',
-	'gstedgetpu.cc',
-	'gstncsdk.cc',
-	'gsttensorflow.cc',
-	'gsttflite.cc',
-	'gsttensorrt.cc',
 	'gstvideoinference.c'
 ]
 
@@ -27,11 +23,6 @@ gstinference_headers = [
 	'gstinferencepreprocess.h',
 	'gstinferenceclassification.h',
 	'gstinferenceprediction.h',
-	'gstedgetpu.h',
-	'gstncsdk.h',
-	'gsttensorflow.h',
-	'gsttflite.h',
-	'gsttensorrt.h',
 	'gstvideoinference.h'
 ]
 
