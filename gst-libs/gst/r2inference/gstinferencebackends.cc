@@ -19,14 +19,11 @@
  *
  */
 
-#include "gstinferencebackends.h"
-#include "gstchildinspector.h"
-#include "gstedgetpu.h"
-#include "gstncsdk.h"
-#include "gsttensorflow.h"
-#include "gsttflite.h"
-#include "gsttensorrt.h"
 #include "gstbackend.h"
+#include "gstbackendsubclass.h"
+#include "gstchildinspector.h"
+#include "gstinferencebackends.h"
+
 #include <r2i/r2i.h>
 #include <unordered_map>
 #include <string>
@@ -43,10 +40,12 @@ backend_types ({
   {r2i::FrameworkCode::MAX_FRAMEWORK, G_TYPE_INVALID}
 });
 
+const gchar *gst_inference_backends_search_type_name (guint id);
+
 static void
 gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
-    gchar ** backends_parameters, r2i::RuntimeError error,
-    guint alignment);
+    gchar ** backends_parameters, r2i::RuntimeError error, guint alignment);
+
 
 GType
 gst_inference_backends_get_type (void)
@@ -57,7 +56,7 @@ gst_inference_backends_get_type (void)
     {r2i::FrameworkCode::EDGETPU, "TensorFlow Lite with EdgeTPU support", "edgetpu"},
     {r2i::FrameworkCode::NCSDK, "Intel Movidius Neural Compute SDK", "ncsdk"},
     {r2i::FrameworkCode::TENSORFLOW, "TensorFlow Machine Learning Framework",
-          "tensorflow"},
+        "tensorflow"},
     {r2i::FrameworkCode::TFLITE, "Tensorflow Lite Machine Learning Framework",
           "tflite"},
     {r2i::FrameworkCode::TENSORRT, "NVIDIA's TensorRT Framework",
@@ -72,8 +71,9 @@ gst_inference_backends_get_type (void)
   return backend_type;
 }
 
-GType
-gst_inference_backends_search_type (guint id)
+
+const gchar *
+gst_inference_backends_search_type_name (guint id)
 {
   auto search = backend_types.find (id);
   if (backend_types.end () == search) {
@@ -82,23 +82,42 @@ gst_inference_backends_search_type (guint id)
   return search->second;
 }
 
-static void
-gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
-    gchar ** backends_parameters, r2i::RuntimeError error,
-    guint alignment)
+
+GType
+gst_inference_backends_search_type (guint id)
 {
-  GstBackend * backend = NULL;
-  gchar * parameters, * backend_name;
+  const gchar *backend_type_name;
   GType backend_type;
 
-  backend_type = gst_inference_backends_search_type (meta.code);
+  backend_type_name = gst_inference_backends_search_type_name (id);
 
-  if (G_TYPE_INVALID == backend_type) {
+  if (!backend_type_name) {
+    backend_type = G_TYPE_INVALID;
+  } else {
+    backend_type = g_type_from_name (backend_type_name);
+  }
+
+  return backend_type;
+}
+
+static void
+gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
+    gchar ** backends_parameters, r2i::RuntimeError error, guint alignment)
+{
+  GstBackend *backend = NULL;
+  gchar *parameters, *backend_name;
+  const gchar *backend_type_name;
+  GType backend_type;
+
+  backend_type_name = gst_inference_backends_search_type_name (meta.code);
+  if (NULL == backend_type_name) {
     GST_ERROR_OBJECT (backend, "Failed to find Backend type: %s",
         meta.name.c_str ());
     return;
   }
 
+  gst_inference_backend_register (backend_type_name, meta.code);
+  backend_type = g_type_from_name (backend_type_name);
   backend = (GstBackend *) g_object_new (backend_type, NULL);
 
   backend_name =
