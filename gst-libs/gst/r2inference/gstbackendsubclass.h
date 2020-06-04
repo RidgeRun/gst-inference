@@ -37,5 +37,7 @@ void gst_backend_install_properties (GstBackendClass * klass,
 gboolean gst_backend_set_framework_code (GstBackend * backend,
                                          r2i::FrameworkCode code);
 
+gboolean gst_inference_backend_register (const gchar* type_name, r2i::FrameworkCode code);
+
 G_END_DECLS
 #endif //__GST_BACKENDSUBCLASS_H__
