@@ -61,6 +61,32 @@
 #    ├── graph_tinyyolov3_info.txt
 #    ├── graph_tinyyolov3.tflite
 #    └── labels.txt
+# For edgetpu Follow the next PATH structure
+#.
+#├── InceptionV1_edgetpu
+#│   ├── graph_inceptionv1_info.txt
+#│   ├── graph_inceptionv1.tflite
+#│   └── labels.txt
+#├── InceptionV2_edgetpu
+#│   ├── graph_inceptionv2_info.txt
+#│   ├── graph_inceptionv2.tflite
+#│   └── labels.txt
+#├── InceptionV3_edgetpu
+#│   ├── graph_inceptionv3_info.txt
+#│   ├── graph_inceptionv3.tflite
+#│   └── labels.txt
+#├── InceptionV4_edgetpu
+#│   ├── graph_inceptionv4_info.txt
+#│   ├── graph_inceptionv4.tflite
+#│   └── labels.txt
+#├── TinyYoloV2_edgetpu
+#│   ├── graph_tinyyolov2_info.txt
+#│   ├── graph_tinyyolov2.tflite
+#│   └── labels.txt
+#└── TinyYoloV3_edgetpu
+#    ├── graph_tinyyolov3_info.txt
+#    ├── graph_tinyyolov3.tflite
+#    └── labels.txt
 #
 # The output of this script is a CSV (results.csv) with the following structure
 # 
@@ -164,6 +190,10 @@ elif [ "$1" == tflite ]
 then
   EXTENSION=".tflite"
   INTERNAL_PATH="TensorFlow-Lite"
+elif [ "$1" == edgetpu ]
+then
+  EXTENSION="_edgetpu.tflite"
+  INTERNAL_PATH="edgetpu"
 else
   echo "Invalid Backend"
   exit 1
