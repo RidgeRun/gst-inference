@@ -21,6 +21,7 @@
 
 #include "gstinferencebackends.h"
 #include "gstchildinspector.h"
+#include "gstedgetpu.h"
 #include "gstncsdk.h"
 #include "gsttensorflow.h"
 #include "gsttflite.h"
@@ -33,6 +34,7 @@
 
 static std::unordered_map <int,GType>
 backend_types ({
+  {r2i::FrameworkCode::EDGETPU, GST_TYPE_EDGETPU},
   {r2i::FrameworkCode::NCSDK, GST_TYPE_NCSDK},
   {r2i::FrameworkCode::TENSORFLOW, GST_TYPE_TENSORFLOW},
   {r2i::FrameworkCode::TFLITE, GST_TYPE_TFLITE},
@@ -50,6 +52,7 @@ gst_inference_backends_get_type (void)
   static GType backend_type = 0;
   static const GEnumValue
       backend_desc[] = {
+    {r2i::FrameworkCode::EDGETPU, "TensorFlow Lite with EdgeTPU support", "edgetpu"},
     {r2i::FrameworkCode::NCSDK, "Intel Movidius Neural Compute SDK", "ncsdk"},
     {r2i::FrameworkCode::TENSORFLOW, "TensorFlow Machine Learning Framework",
           "tensorflow"},
