@@ -46,31 +46,48 @@ static void
 gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
     gchar ** backends_parameters, r2i::RuntimeError error, guint alignment);
 
+static void
+gst_inference_backends_enum_register_item (const guint id,
+    const gchar * desc, const gchar * shortname);
+
+static GEnumValue *backend_enum_desc = NULL;
 
 GType
 gst_inference_backends_get_type (void)
 {
   static GType backend_type = 0;
-  static const GEnumValue
-      backend_desc[] = {
-    {r2i::FrameworkCode::EDGETPU, "TensorFlow Lite with EdgeTPU support", "edgetpu"},
-    {r2i::FrameworkCode::NCSDK, "Intel Movidius Neural Compute SDK", "ncsdk"},
-    {r2i::FrameworkCode::TENSORFLOW, "TensorFlow Machine Learning Framework",
-        "tensorflow"},
-    {r2i::FrameworkCode::TFLITE, "Tensorflow Lite Machine Learning Framework",
-          "tflite"},
-    {r2i::FrameworkCode::TENSORRT, "NVIDIA's TensorRT Framework",
-          "tensorrt"},
-    {0, NULL, NULL}
-  };
   if (!backend_type) {
     backend_type =
         g_enum_register_static ("GstInferenceBackends",
-        (GEnumValue *) backend_desc);
+        (GEnumValue *) backend_enum_desc);
   }
   return backend_type;
 }
 
+static void
+gst_inference_backends_enum_register_item (const guint id,
+    const gchar * desc, const gchar * shortname)
+{
+  static guint backend_enum_count = 0;
+  GEnumValue *backend_desc;
+
+  backend_enum_desc =
+      (GEnumValue *) g_realloc_n (backend_enum_desc, backend_enum_count + 2,
+      sizeof (GEnumValue));
+
+  backend_desc = &backend_enum_desc[backend_enum_count];
+  backend_desc->value = id;
+  backend_desc->value_name = g_strdup (desc);
+  backend_desc->value_nick = g_strdup (shortname);
+
+  backend_enum_count++;
+
+  /* Sentinel */
+  backend_desc = &backend_enum_desc[backend_enum_count];
+  backend_desc->value = 0;
+  backend_desc->value_name = NULL;
+  backend_desc->value_nick = NULL;
+}
 
 const gchar *
 gst_inference_backends_search_type_name (guint id)
@@ -109,13 +126,15 @@ gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
   const gchar *backend_type_name;
   GType backend_type;
 
-  backend_type_name = gst_inference_backends_search_type_name (meta.code);
+  gst_inference_backends_enum_register_item (meta.code,
+      meta.description.c_str (), meta.name.c_str ());
+
+  backend_type_name = g_strdup_printf ("Gst%s", meta.name.c_str ());
   if (NULL == backend_type_name) {
     GST_ERROR_OBJECT (backend, "Failed to find Backend type: %s",
         meta.name.c_str ());
     return;
   }
-
   gst_inference_backend_register (backend_type_name, meta.code);
   backend_type = g_type_from_name (backend_type_name);
   backend = (GstBackend *) g_object_new (backend_type, NULL);
