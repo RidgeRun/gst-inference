@@ -6,7 +6,7 @@ libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gstchildinspector.c			\
 	gstinferencemeta.c			\
 	gstinferencebackends.cc			\
-	gstbackend.cc				\
+	gstbasebackend.cc				\
 	gstinferencepreprocess.c		\
 	gstinferencepostprocess.c		\
 	gstinferencedebug.c			\
@@ -40,8 +40,8 @@ gstinferenceinclude_HEADERS=		\
 	gstvideoinference.h		\
 	gstchildinspector.h		\
 	gstinferencebackends.h		\
-	gstbackend.h			\
-	gstbackendsubclass.h		\
+	gstbasebackend.h			\
+	gstbasebackendsubclass.h		\
 	gstinferencepreprocess.h	\
 	gstinferencepostprocess.h	\
 	gstinferencedebug.h		\

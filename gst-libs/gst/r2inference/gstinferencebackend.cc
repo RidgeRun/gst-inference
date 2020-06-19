@@ -19,8 +19,8 @@
  *
  */
 
-#include "gstbackend.h"
-#include "gstbackendsubclass.h"
+#include "gstbasebackend.h"
+#include "gstbasebackendsubclass.h"
 
 #include <glib-object.h>
 #include <r2i/r2i.h>
@@ -28,37 +28,37 @@
 typedef struct _GstInferenceBackend GstInferenceBackend;
 struct _GstInferenceBackend
 {
-  GstBackend parent;
+  GstBaseBackend parent;
 };
 
 typedef struct _GstInferenceBackendClass GstInferenceBackendClass;
 struct _GstInferenceBackendClass
 {
-  GstBackendClass parent_class;
+  GstBaseBackendClass parent_class;
     r2i::FrameworkCode code;
 };
 
 #define GST_BACKEND_CODE_QDATA g_quark_from_static_string("backend-code")
 
-static GstBackendClass *parent_class = NULL;
+static GstBaseBackendClass *parent_class = NULL;
 
 static void
 gst_inference_backend_class_init (GstInferenceBackendClass * klass)
 {
-  GstBackendClass *bclass = GST_BACKEND_CLASS (klass);
+  GstBaseBackendClass *bclass = GST_BASE_BACKEND_CLASS (klass);
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
 
   guint code;
-  parent_class = GST_BACKEND_CLASS (g_type_class_peek_parent (klass));
+  parent_class = GST_BASE_BACKEND_CLASS (g_type_class_peek_parent (klass));
 
   code =
       GPOINTER_TO_UINT (g_type_get_qdata (G_OBJECT_CLASS_TYPE (klass),
           GST_BACKEND_CODE_QDATA));
 
   klass->code = (r2i::FrameworkCode) code;
-  oclass->set_property = gst_backend_set_property;
-  oclass->get_property = gst_backend_get_property;
-  gst_backend_install_properties (bclass, klass->code);
+  oclass->set_property = gst_base_backend_set_property;
+  oclass->get_property = gst_base_backend_get_property;
+  gst_base_backend_install_properties (bclass, klass->code);
 }
 
 static void
@@ -66,7 +66,7 @@ gst_inference_backend_init (GstInferenceBackend * self)
 {
   GstInferenceBackendClass *klass =
       (GstInferenceBackendClass *) G_OBJECT_GET_CLASS (self);
-  gst_backend_set_framework_code (GST_BACKEND (self), klass->code);
+  gst_base_backend_set_framework_code (GST_BASE_BACKEND (self), klass->code);
 }
 
 gboolean
@@ -88,7 +88,7 @@ gst_inference_backend_register (const gchar * type_name,
 
   type = g_type_from_name (type_name);
   if (!type) {
-    type = g_type_register_static (GST_TYPE_BACKEND,
+    type = g_type_register_static (GST_TYPE_BASE_BACKEND,
         type_name, &typeinfo, (GTypeFlags) 0);
 
     g_type_set_qdata (type, GST_BACKEND_CODE_QDATA, GUINT_TO_POINTER (code));

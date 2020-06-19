@@ -19,8 +19,8 @@
  *
  */
 
-#include "gstbackend.h"
-#include "gstbackendsubclass.h"
+#include "gstbasebackend.h"
+#include "gstbasebackendsubclass.h"
 #include "gstchildinspector.h"
 #include "gstinferencebackends.h"
 
@@ -114,7 +114,7 @@ static void
 gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
     gchar ** backends_parameters, r2i::RuntimeError error, guint alignment)
 {
-  GstBackend *backend = NULL;
+  GstBaseBackend *backend = NULL;
   gchar *parameters, *backend_name;
   gchar *backend_type_name;
   GType backend_type;
@@ -130,7 +130,7 @@ gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
   }
   gst_inference_backend_register (backend_type_name, meta.code);
   backend_type = g_type_from_name (backend_type_name);
-  backend = (GstBackend *) g_object_new (backend_type, NULL);
+  backend = (GstBaseBackend *) g_object_new (backend_type, NULL);
   g_free (backend_type_name);
 
   backend_name =

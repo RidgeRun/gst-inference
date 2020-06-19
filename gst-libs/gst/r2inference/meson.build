@@ -1,5 +1,5 @@
 gstinference_sources = [
-	'gstbackend.cc',
+	'gstbasebackend.cc',
 	'gstchildinspector.c',
 	'gstinferencebackend.cc',
 	'gstinferencebackends.cc',
@@ -13,8 +13,8 @@ gstinference_sources = [
 ]
 
 gstinference_headers = [
-	'gstbackend.h',
-	'gstbackendsubclass.h',
+	'gstbasebackend.h',
+	'gstbasebackendsubclass.h',
 	'gstchildinspector.h',
 	'gstinferencebackends.h',
 	'gstinferencedebug.h',

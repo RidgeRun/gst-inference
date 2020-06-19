@@ -19,25 +19,25 @@
  *
  */
 
-#ifndef __GST_BACKENDSUBCLASS_H__
-#define __GST_BACKENDSUBCLASS_H__
+#ifndef __GST_BASE_BACKEND_SUBCLASS_H__
+#define __GST_BASE_BACKEND_SUBCLASS_H__
 
-#include "gstbackend.h"
+#include "gstbasebackend.h"
 
 #include <r2i/r2i.h>
 
 G_BEGIN_DECLS
 
-void gst_backend_get_property (GObject * object, guint property_id,
+void gst_base_backend_get_property (GObject * object, guint property_id,
                                GValue * value, GParamSpec * pspec);
-void gst_backend_set_property (GObject * object, guint property_id,
+void gst_base_backend_set_property (GObject * object, guint property_id,
                                const GValue * value, GParamSpec * pspec);
-void gst_backend_install_properties (GstBackendClass * klass,
+void gst_base_backend_install_properties (GstBaseBackendClass * klass,
                                 r2i::FrameworkCode code);
-gboolean gst_backend_set_framework_code (GstBackend * backend,
+gboolean gst_base_backend_set_framework_code (GstBaseBackend * backend,
                                          r2i::FrameworkCode code);
 
 gboolean gst_inference_backend_register (const gchar* type_name, r2i::FrameworkCode code);
 
 G_END_DECLS
-#endif //__GST_BACKENDSUBCLASS_H__
+#endif //__GST_BASE_BACKEND_SUBCLASS_H__
