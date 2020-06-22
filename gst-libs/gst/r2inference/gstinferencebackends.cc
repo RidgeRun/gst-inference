@@ -99,7 +99,7 @@ gst_inference_backends_search_type (guint id)
   enum_value = g_enum_get_value (enum_class, id);
 
   if (enum_value) {
-    framework = enum_value->value_nick;
+    framework = enum_value->value_name;
     backend_type_name = gst_inference_backends_get_type_name (framework);
     backend_type = g_type_from_name (backend_type_name);
     g_free (backend_type_name);
@@ -120,7 +120,7 @@ gst_inference_backends_add_frameworkmeta (r2i::FrameworkMeta meta,
   GType backend_type;
 
   gst_inference_backends_enum_register_item (meta.code,
-      meta.description.c_str (), meta.name.c_str ());
+      meta.name.c_str (), meta.label.c_str ());
 
   backend_type_name = gst_inference_backends_get_type_name (meta.name.c_str ());
   if (NULL == backend_type_name) {
