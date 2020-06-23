@@ -103,7 +103,7 @@ struct _GstBaseBackendPrivate {
 };
 
 G_DEFINE_TYPE_WITH_CODE (GstBaseBackend, gst_base_backend, G_TYPE_OBJECT,
-                         GST_DEBUG_CATEGORY_INIT (gst_base_backend_debug_category, "backend", 0,
+                         GST_DEBUG_CATEGORY_INIT (gst_base_backend_debug_category, "basebackend", 0,
                              "debug category for backend parameters"); G_ADD_PRIVATE (GstBaseBackend));
 
 #define GST_BASE_BACKEND_PRIVATE(self) \
