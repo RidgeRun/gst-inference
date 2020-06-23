@@ -35,7 +35,9 @@ typedef struct _GstInferenceBackendClass GstInferenceBackendClass;
 struct _GstInferenceBackendClass
 {
   GstBaseBackendClass parent_class;
-    r2i::FrameworkCode code;
+  /* *INDENT-OFF* */
+  r2i::FrameworkCode code;
+  /* *INDENT-ON* */
 };
 
 #define GST_BACKEND_CODE_QDATA g_quark_from_static_string("backend-code")
