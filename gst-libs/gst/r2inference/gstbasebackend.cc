@@ -160,7 +160,8 @@ gst_base_backend_install_properties (GstBaseBackendClass *klass,
 
   auto factory = r2i::IFrameworkFactory::MakeFactory (code, error);
   auto pfactory = factory->MakeParameters (error);
-  error = pfactory->List (params);
+  if (pfactory)
+      error = pfactory->List (params);
 
   for (auto &param : params) {
     GParamSpec *spec = gst_base_backend_param_to_spec (&param);
