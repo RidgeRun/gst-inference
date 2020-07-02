@@ -19,8 +19,8 @@
  *
  */
 
-#include "gstbackend.h"
-#include "gstbackendsubclass.h"
+#include "gstbasebackend.h"
+#include "gstbasebackendsubclass.h"
 
 #include <r2i/r2i.h>
 
@@ -28,8 +28,8 @@
 #include <memory>
 #include <list>
 
-GST_DEBUG_CATEGORY_STATIC (gst_backend_debug_category);
-#define GST_CAT_DEFAULT gst_backend_debug_category
+GST_DEBUG_CATEGORY_STATIC (gst_base_backend_debug_category);
+#define GST_CAT_DEFAULT gst_base_backend_debug_category
 
 #define DOUBLE_PROPERTY_DEFAULT_VALUE 0.0
 
@@ -58,7 +58,7 @@ class InferenceProperty {
     g_free(avalue);
   }
 
-  void apply_inference_property(GstBackend *self,
+  void apply_inference_property(GstBaseBackend *self,
                                 std::shared_ptr<r2i::IParameters> params, r2i::RuntimeError &error) {
     switch (apspec->value_type) {
       case G_TYPE_STRING:
@@ -87,8 +87,8 @@ class InferenceProperty {
   }
 };
 
-typedef struct _GstBackendPrivate GstBackendPrivate;
-struct _GstBackendPrivate {
+typedef struct _GstBaseBackendPrivate GstBaseBackendPrivate;
+struct _GstBaseBackendPrivate {
   r2i::FrameworkCode code;
   std::shared_ptr < r2i::IEngine > engine;
   std::shared_ptr < r2i::ILoader > loader;
@@ -102,32 +102,32 @@ struct _GstBackendPrivate {
 
 };
 
-G_DEFINE_TYPE_WITH_CODE (GstBackend, gst_backend, G_TYPE_OBJECT,
-                         GST_DEBUG_CATEGORY_INIT (gst_backend_debug_category, "backend", 0,
-                             "debug category for backend parameters"); G_ADD_PRIVATE (GstBackend));
+G_DEFINE_TYPE_WITH_CODE (GstBaseBackend, gst_base_backend, G_TYPE_OBJECT,
+                         GST_DEBUG_CATEGORY_INIT (gst_base_backend_debug_category, "basebackend", 0,
+                             "debug category for backend parameters"); G_ADD_PRIVATE (GstBaseBackend));
 
-#define GST_BACKEND_PRIVATE(self) \
-  (GstBackendPrivate *)(gst_backend_get_instance_private (self))
+#define GST_BASE_BACKEND_PRIVATE(self) \
+  (GstBaseBackendPrivate *)(gst_base_backend_get_instance_private (self))
 
-static GParamSpec *gst_backend_param_to_spec (r2i::ParameterMeta *param);
-static int gst_backend_param_flags (int flags);
-static void gst_backend_finalize (GObject *obj);
+static GParamSpec *gst_base_backend_param_to_spec (r2i::ParameterMeta *param);
+static int gst_base_backend_param_flags (int flags);
+static void gst_base_backend_finalize (GObject *obj);
 
-#define GST_BACKEND_ERROR gst_backend_error_quark()
+#define GST_BASE_BACKEND_ERROR gst_base_backend_error_quark()
 
 static void
-gst_backend_class_init (GstBackendClass *klass) {
+gst_base_backend_class_init (GstBaseBackendClass *klass) {
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
 
-  oclass->set_property = gst_backend_set_property;
-  oclass->get_property = gst_backend_get_property;
-  oclass->finalize = gst_backend_finalize;
+  oclass->set_property = gst_base_backend_set_property;
+  oclass->get_property = gst_base_backend_get_property;
+  oclass->finalize = gst_base_backend_finalize;
 
 }
 
 static void
-gst_backend_init (GstBackend *self) {
-  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+gst_base_backend_init (GstBaseBackend *self) {
+  GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (self);
   g_mutex_init(&priv->backend_mutex);
   priv->backend_started = false;
   priv->backend_created = false;
@@ -135,9 +135,9 @@ gst_backend_init (GstBackend *self) {
 }
 
 static void
-gst_backend_finalize (GObject *obj) {
-  GstBackend *self = GST_BACKEND (obj);
-  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+gst_base_backend_finalize (GObject *obj) {
+  GstBaseBackend *self = GST_BASE_BACKEND (obj);
+  GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (self);
   g_mutex_clear (&priv->backend_mutex);
 
   priv->engine = nullptr;
@@ -147,11 +147,11 @@ gst_backend_finalize (GObject *obj) {
   priv->factory = nullptr;
   priv-> property_list = nullptr;
 
-  G_OBJECT_CLASS (gst_backend_parent_class)->finalize (obj);
+  G_OBJECT_CLASS (gst_base_backend_parent_class)->finalize (obj);
 }
 
 void
-gst_backend_install_properties (GstBackendClass *klass,
+gst_base_backend_install_properties (GstBaseBackendClass *klass,
                                 r2i::FrameworkCode code) {
   GObjectClass *oclass = G_OBJECT_CLASS (klass);
   r2i::RuntimeError error;
@@ -160,17 +160,18 @@ gst_backend_install_properties (GstBackendClass *klass,
 
   auto factory = r2i::IFrameworkFactory::MakeFactory (code, error);
   auto pfactory = factory->MakeParameters (error);
-  error = pfactory->List (params);
+  if (pfactory)
+      error = pfactory->List (params);
 
   for (auto &param : params) {
-    GParamSpec *spec = gst_backend_param_to_spec (&param);
+    GParamSpec *spec = gst_base_backend_param_to_spec (&param);
     g_object_class_install_property (oclass, nprop, spec);
     nprop++;
   }
 }
 
 static int
-gst_backend_param_flags (int flags) {
+gst_base_backend_param_flags (int flags) {
   int pflags = 0;
 
   if (r2i::ParameterMeta::Flags::READ & flags) {
@@ -185,7 +186,7 @@ gst_backend_param_flags (int flags) {
 }
 
 static GParamSpec *
-gst_backend_param_to_spec (r2i::ParameterMeta *param) {
+gst_base_backend_param_to_spec (r2i::ParameterMeta *param) {
   GParamSpec *spec = NULL;
 
   switch (param->type) {
@@ -194,14 +195,14 @@ gst_backend_param_to_spec (r2i::ParameterMeta *param) {
                                param->name.c_str (),
                                param->description.c_str (),
                                G_MININT,
-                               G_MAXINT, 0, (GParamFlags) gst_backend_param_flags (param->flags));
+                               G_MAXINT, 0, (GParamFlags) gst_base_backend_param_flags (param->flags));
       break;
     }
     case (r2i::ParameterMeta::Type::STRING): {
       spec = g_param_spec_string (param->name.c_str (),
                                   param->name.c_str (),
                                   param->description.c_str (),
-                                  NULL, (GParamFlags) gst_backend_param_flags (param->flags));
+                                  NULL, (GParamFlags) gst_base_backend_param_flags (param->flags));
       break;
     }
     case (r2i::ParameterMeta::Type::DOUBLE): {
@@ -210,7 +211,7 @@ gst_backend_param_to_spec (r2i::ParameterMeta *param) {
                                  param->description.c_str (),
                                  -G_MAXDOUBLE,
                                  G_MAXDOUBLE, DOUBLE_PROPERTY_DEFAULT_VALUE,
-                                 (GParamFlags) gst_backend_param_flags (param->flags));
+                                 (GParamFlags) gst_base_backend_param_flags (param->flags));
       break;
     }
     default:
@@ -220,10 +221,10 @@ gst_backend_param_to_spec (r2i::ParameterMeta *param) {
 }
 
 void
-gst_backend_set_property (GObject *object, guint property_id,
+gst_base_backend_set_property (GObject *object, guint property_id,
                           const GValue *value, GParamSpec *pspec) {
-  GstBackend *self = GST_BACKEND (object);
-  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+  GstBaseBackend *self = GST_BASE_BACKEND (object);
+  GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (self);
   InferenceProperty *property;
 
   GST_DEBUG_OBJECT (self, "set_property");
@@ -254,10 +255,10 @@ gst_backend_set_property (GObject *object, guint property_id,
 }
 
 void
-gst_backend_get_property (GObject *object, guint property_id,
+gst_base_backend_get_property (GObject *object, guint property_id,
                           GValue *value, GParamSpec *pspec) {
-  GstBackend *self = GST_BACKEND (object);
-  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+  GstBaseBackend *self = GST_BASE_BACKEND (object);
+  GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (self);
   int int_buffer;
   double double_buffer;
   std::string string_buffer;
@@ -282,9 +283,9 @@ gst_backend_get_property (GObject *object, guint property_id,
 }
 
 gboolean
-gst_backend_start (GstBackend *self, const gchar *model_location,
+gst_base_backend_start (GstBaseBackend *self, const gchar *model_location,
                    GError **err) {
-  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+  GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (self);
   r2i::RuntimeError error;
   InferenceProperty *property;
   std::list<InferenceProperty *>::iterator property_it;
@@ -390,15 +391,15 @@ gst_backend_start (GstBackend *self, const gchar *model_location,
 start_error:
   g_mutex_unlock (&priv->backend_mutex);
 error:
-  g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
+  g_set_error (err, GST_BASE_BACKEND_ERROR, error.GetCode (),
                "R2Inference Error: (Code:%d) %s", error.GetCode (),
                error.GetDescription ().c_str ());
   return FALSE;
 }
 
 gboolean
-gst_backend_stop (GstBackend *self, GError **err) {
-  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+gst_base_backend_stop (GstBaseBackend *self, GError **err) {
+  GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (self);
   r2i::RuntimeError error;
 
   g_return_val_if_fail (priv, FALSE);
@@ -412,14 +413,14 @@ gst_backend_stop (GstBackend *self, GError **err) {
   return TRUE;
 
 error:
-  g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
+  g_set_error (err, GST_BASE_BACKEND_ERROR, error.GetCode (),
                "R2Inference Error: (Code:%d) %s", error.GetCode (),
                error.GetDescription ().c_str ());
   return FALSE;
 }
 
 static r2i::ImageFormat::Id
-gst_backend_cast_format (GstVideoFormat format) {
+gst_base_backend_cast_format (GstVideoFormat format) {
   r2i::ImageFormat::Id image_format;
 
   switch (format) {
@@ -440,9 +441,9 @@ gst_backend_cast_format (GstVideoFormat format) {
 }
 
 gboolean
-gst_backend_process_frame (GstBackend *self, GstVideoFrame *input_frame,
+gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame,
                            gpointer *prediction_data, gsize *prediction_size, GError **err) {
-  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (self);
+  GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (self);
   std::shared_ptr < r2i::IPrediction > prediction;
   std::shared_ptr < r2i::IFrame > frame;
   r2i::RuntimeError error;
@@ -464,7 +465,7 @@ gst_backend_process_frame (GstBackend *self, GstVideoFrame *input_frame,
   error =
     frame->Configure (input_frame->data[0], input_frame->info.width,
                       input_frame->info.height,
-                      gst_backend_cast_format(input_frame->info.finfo->format));
+                      gst_base_backend_cast_format(input_frame->info.finfo->format));
   if (error.IsError ()) {
     goto error;
   }
@@ -488,15 +489,15 @@ gst_backend_process_frame (GstBackend *self, GstVideoFrame *input_frame,
 
   return TRUE;
 error:
-  g_set_error (err, GST_BACKEND_ERROR, error.GetCode (),
+  g_set_error (err, GST_BASE_BACKEND_ERROR, error.GetCode (),
                "R2Inference Error: (Code:%d) %s", error.GetCode (),
                error.GetDescription ().c_str ());
   return FALSE;
 }
 
 gboolean
-gst_backend_set_framework_code (GstBackend *backend, r2i::FrameworkCode code) {
-  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (backend);
+gst_base_backend_set_framework_code (GstBaseBackend *backend, r2i::FrameworkCode code) {
+  GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (backend);
   g_return_val_if_fail (priv, FALSE);
 
   priv->code = code;
@@ -505,15 +506,15 @@ gst_backend_set_framework_code (GstBackend *backend, r2i::FrameworkCode code) {
 }
 
 guint
-gst_backend_get_framework_code (GstBackend *backend) {
-  GstBackendPrivate *priv = GST_BACKEND_PRIVATE (backend);
+gst_base_backend_get_framework_code (GstBaseBackend *backend) {
+  GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (backend);
   g_return_val_if_fail (priv, -1);
 
   return priv->code;
 }
 
 GQuark
-gst_backend_error_quark(void) {
+gst_base_backend_error_quark(void) {
   static GQuark q = 0;
 
   if (0 == q) {

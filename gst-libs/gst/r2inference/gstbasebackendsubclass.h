@@ -19,17 +19,25 @@
  *
  */
 
-#ifndef __GST_TFLITE_H__
-#define __GST_TFLITE_H__
+#ifndef __GST_BASE_BACKEND_SUBCLASS_H__
+#define __GST_BASE_BACKEND_SUBCLASS_H__
 
-#include <gst/gst.h>
-#include <gst/r2inference/gstbackendsubclass.h>
+#include "gstbasebackend.h"
+
+#include <r2i/r2i.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_TFLITE gst_tflite_get_type ()
-G_DECLARE_FINAL_TYPE(GstTflite, gst_tflite, GST, TFLITE, GstBackend);
+void gst_base_backend_get_property (GObject * object, guint property_id,
+                               GValue * value, GParamSpec * pspec);
+void gst_base_backend_set_property (GObject * object, guint property_id,
+                               const GValue * value, GParamSpec * pspec);
+void gst_base_backend_install_properties (GstBaseBackendClass * klass,
+                                r2i::FrameworkCode code);
+gboolean gst_base_backend_set_framework_code (GstBaseBackend * backend,
+                                         r2i::FrameworkCode code);
+
+gboolean gst_inference_backend_register (const gchar* type_name, r2i::FrameworkCode code);
 
 G_END_DECLS
-
-#endif //__GST_TFLITE_H__
+#endif //__GST_BASE_BACKEND_SUBCLASS_H__

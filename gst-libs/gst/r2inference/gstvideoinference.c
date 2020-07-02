@@ -22,7 +22,7 @@
 #include "gstvideoinference.h"
 #include "gstinferencebackends.h"
 #include "gstinferencemeta.h"
-#include "gstbackend.h"
+#include "gstbasebackend.h"
 
 #include <gst/base/gstcollectpads.h>
 
@@ -88,7 +88,7 @@ struct _GstVideoInferencePrivate
   GstPad *sink_model;
   GstPad *src_model;
 
-  GstBackend *backend;
+  GstBaseBackend *backend;
 
   gchar *model_location;
 
@@ -429,7 +429,7 @@ gst_video_inference_start (GstVideoInference * self)
     goto out;
   }
 
-  if (!gst_backend_start (priv->backend, priv->model_location, &err)) {
+  if (!gst_base_backend_start (priv->backend, priv->model_location, &err)) {
     GST_ELEMENT_ERROR (self, LIBRARY, INIT,
         ("Could not start the selected backend: (%s)", err->message), (NULL));
     ret = FALSE;
@@ -458,7 +458,7 @@ gst_video_inference_stop (GstVideoInference * self)
   video_inference_flush_queue (priv->model_queue, &priv->mtx_model_queue);
   video_inference_flush_queue (priv->bypass_queue, &priv->mtx_bypass_queue);
 
-  if (!gst_backend_stop (priv->backend, &err)) {
+  if (!gst_base_backend_stop (priv->backend, &err)) {
     GST_ELEMENT_ERROR (self, LIBRARY, INIT,
         ("Could not stop the selected backend: (%s)", err->message), (NULL));
     ret = FALSE;
@@ -772,7 +772,7 @@ gst_video_inference_predict (GstVideoInference * self,
 
   GST_LOG_OBJECT (self, "Running prediction on frame");
 
-  if (!gst_backend_process_frame (priv->backend, frame, pred, pred_size,
+  if (!gst_base_backend_process_frame (priv->backend, frame, pred, pred_size,
           &error)) {
     GST_ELEMENT_ERROR (self, STREAM, FAILED,
         ("Could not process using the selected backend: (%s)", error->message),
@@ -1388,7 +1388,7 @@ gst_video_inference_finalize (GObject * object)
 static void
 gst_video_inference_set_backend (GstVideoInference * self, gint backend)
 {
-  GstBackend *backend_new;
+  GstBaseBackend *backend_new;
   GType backend_type;
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
 
@@ -1403,7 +1403,7 @@ gst_video_inference_set_backend (GstVideoInference * self, gint backend)
     g_object_unref (priv->backend);
 
   backend_type = gst_inference_backends_search_type (backend);
-  backend_new = (GstBackend *) g_object_new (backend_type, NULL);
+  backend_new = (GstBaseBackend *) g_object_new (backend_type, NULL);
   priv->backend = backend_new;
 
   return;
@@ -1416,5 +1416,5 @@ gst_video_inference_get_backend_type (GstVideoInference * self)
 
   g_return_val_if_fail (priv, -1);
 
-  return gst_backend_get_framework_code (priv->backend);
+  return gst_base_backend_get_framework_code (priv->backend);
 }

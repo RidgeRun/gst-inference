@@ -6,17 +6,13 @@ libgstinference_@GST_API_VERSION@_la_SOURCES=	\
 	gstchildinspector.c			\
 	gstinferencemeta.c			\
 	gstinferencebackends.cc			\
-	gstbackend.cc				\
-	gstedgetpu.cc                           \
-	gstncsdk.cc				\
-	gsttensorflow.cc			\
-	gsttflite.cc				\
-	gsttensorrt.cc				\
+	gstbasebackend.cc			\
 	gstinferencepreprocess.c		\
 	gstinferencepostprocess.c		\
 	gstinferencedebug.c			\
 	gstinferenceprediction.c		\
-	gstinferenceclassification.c
+	gstinferenceclassification.c		\
+	gstinferencebackend.cc
 
 libgstinference_@GST_API_VERSION@_la_CXXFLAGS=	\
 	$(GST_CXXFLAGS)				\
@@ -44,13 +40,8 @@ gstinferenceinclude_HEADERS=		\
 	gstvideoinference.h		\
 	gstchildinspector.h		\
 	gstinferencebackends.h		\
-	gstbackend.h			\
-	gstbackendsubclass.h		\
-	gstedgetpu.h                    \
-	gstncsdk.h			\
-	gsttensorflow.h			\
-	gsttflite.h			\
-	gsttensorrt.h			\
+	gstbasebackend.h		\
+	gstbasebackendsubclass.h	\
 	gstinferencepreprocess.h	\
 	gstinferencepostprocess.h	\
 	gstinferencedebug.h		\
