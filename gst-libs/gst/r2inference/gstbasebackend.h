@@ -19,17 +19,28 @@
  *
  */
 
-#ifndef __GST_NCSDK_H__
-#define __GST_NCSDK_H__
+#ifndef __GST_BASE_BACKEND_H__
+#define __GST_BASE_BACKEND_H__
 
 #include <gst/gst.h>
-#include <gst/r2inference/gstbackendsubclass.h>
+#include <gst/video/video.h>
 
 G_BEGIN_DECLS
+#define GST_TYPE_BASE_BACKEND gst_base_backend_get_type ()
+G_DECLARE_DERIVABLE_TYPE (GstBaseBackend, gst_base_backend, GST, BASE_BACKEND, GObject);
 
-#define GST_TYPE_NCSDK gst_ncsdk_get_type ()
-G_DECLARE_FINAL_TYPE(GstNcsdk, gst_ncsdk, GST, NCSDK, GstBackend);
+struct _GstBaseBackendClass
+{
+  GObjectClass parent_class;
+
+};
+
+GQuark gst_base_backend_error_quark (void);
+gboolean gst_base_backend_start (GstBaseBackend *, const gchar *, GError **);
+gboolean gst_base_backend_stop (GstBaseBackend *, GError **);
+guint gst_base_backend_get_framework_code (GstBaseBackend *);
+gboolean gst_base_backend_process_frame (GstBaseBackend *, GstVideoFrame *,
+                                    gpointer *, gsize *, GError **);
 
 G_END_DECLS
-
-#endif //__GST_NCSDK_H__
+#endif //__GST_BASE_BACKEND_H__

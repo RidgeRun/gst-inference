@@ -5,7 +5,7 @@ dnl please read gstreamer/docs/random/autotools before changing this file
 dnl initialize autoconf
 dnl releases only do -Wall, git and prerelease does -Werror too
 dnl use a three digit version number for releases, and four for git/pre
-AC_INIT([GStreamer Inference],[0.9.1.1],[https://github.com/RidgeRun/gst-inference/issues],[gst-inference])
+AC_INIT([GStreamer Inference],[0.10.0.1],[https://github.com/RidgeRun/gst-inference/issues],[gst-inference])
 
 AG_GST_INIT
 
@@ -316,7 +316,7 @@ if test "$USE_OPENCV" = "yes"; then
 fi
 
 dnl *** r2inference ***
-R2INFERENCE_REQ=0.5.2
+R2INFERENCE_REQ=0.8.0
 AG_GST_CHECK_FEATURE(R2INFERENCE, [RidgeRun\'s Inference Framework], r2inference, [
   AG_GST_PKG_CHECK_MODULES(R2INFERENCE, r2inference-0.0 >= $R2INFERENCE_REQ)
 ],[],[],[
