@@ -61,6 +61,7 @@
 #    ├── graph_tinyyolov3_info.txt
 #    ├── graph_tinyyolov3.tflite
 #    └── labels.txt
+#
 # For edgetpu Follow the next PATH structure
 #.
 #├── InceptionV1_edgetpu
@@ -86,6 +87,33 @@
 #└── TinyYoloV3_edgetpu
 #    ├── graph_tinyyolov3_info.txt
 #    ├── graph_tinyyolov3.tflite
+#    └── labels.txt
+#
+# For ONNXRT Follow the next PATH structure
+#.
+#├── InceptionV1_onnxrt
+#│   ├── graph_inceptionv1_info.txt
+#│   ├── graph_inceptionv1.onnx
+#│   └── labels.txt
+#├── InceptionV2_onnxrt
+#│   ├── graph_inceptionv2_info.txt
+#│   ├── graph_inceptionv2.onnx
+#│   └── labels.txt
+#├── InceptionV3_onnxrt
+#│   ├── graph_inceptionv3_info.txt
+#│   ├── graph_inceptionv3.onnx
+#│   └── labels.txt
+#├── InceptionV4_onnxrt
+#│   ├── graph_inceptionv4_info.txt
+#│   ├── graph_inceptionv4.onnx
+#│   └── labels.txt
+#├── TinyYoloV2_onnxrt
+#│   ├── graph_tinyyolov2_info.txt
+#│   ├── graph_tinyyolov2.onnx
+#│   └── labels.txt
+#└── TinyYoloV3_onnxrt
+#    ├── graph_tinyyolov3_info.txt
+#    ├── graph_tinyyolov3.onnx
 #    └── labels.txt
 #
 # The output of this script is a CSV (results.csv) with the following structure
@@ -194,6 +222,10 @@ elif [ "$1" == edgetpu ]
 then
   EXTENSION="_edgetpu.tflite"
   INTERNAL_PATH="edgetpu"
+elif [ "$1" == onnxrt ]
+then
+  EXTENSION=".onnx"
+  INTERNAL_PATH="onnxrt"
 else
   echo "Invalid Backend"
   exit 1
