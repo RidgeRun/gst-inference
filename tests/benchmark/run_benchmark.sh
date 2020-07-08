@@ -116,6 +116,33 @@
 #    ├── graph_tinyyolov3.onnx
 #    └── labels.txt
 #
+# For tensorrt Follow the next PATH structure
+#.
+#├── InceptionV1_TensorRT
+#│   ├── graph_inceptionv1_info.txt
+#│   ├── graph_inceptionv1.trt
+#│   └── imagenet_labels.txt
+#├── InceptionV2_TensorRT
+#│   ├── graph_inceptionv2_info.txt
+#│   ├── graph_inceptionv2.trt
+#│   └── imagenet_labels.txt
+#├── InceptionV3_TensorRT
+#│   ├── graph_inceptionv3_info.txt
+#│   ├── graph_inceptionv3.trt
+#│   └── imagenet_labels.txt
+#├── InceptionV4_TensorRT
+#│   ├── graph_inceptionv4_info.txt
+#│   ├── graph_inceptionv4.trt
+#│   └── imagenet_labels.txt
+#├── TinyYoloV2_TensorRT
+#│   ├── graph_tinyyolov2_info.txt
+#│   ├── graph_tinyyolov2.trt
+#│   └── labels.txt
+#└── TinyYoloV3_TensorRT
+#    ├── graph_tinyyolov3_info.txt
+#    ├── graph_tinyyolov3.trt
+#    └── labels.txt
+#
 # The output of this script is a CSV (results.csv) with the following structure
 # 
 #    Name    , FPS ,  CPU
