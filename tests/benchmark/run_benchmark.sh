@@ -66,27 +66,27 @@
 #.
 #├── InceptionV1_edgetpu
 #│   ├── graph_inceptionv1_info.txt
-#│   ├── graph_inceptionv1.tflite
+#│   ├── graph_inceptionv1_edgetpu.tflite
 #│   └── labels.txt
 #├── InceptionV2_edgetpu
 #│   ├── graph_inceptionv2_info.txt
-#│   ├── graph_inceptionv2.tflite
+#│   ├── graph_inceptionv2_edgetpu.tflite
 #│   └── labels.txt
 #├── InceptionV3_edgetpu
 #│   ├── graph_inceptionv3_info.txt
-#│   ├── graph_inceptionv3.tflite
+#│   ├── graph_inceptionv3_edgetpu.tflite
 #│   └── labels.txt
 #├── InceptionV4_edgetpu
 #│   ├── graph_inceptionv4_info.txt
-#│   ├── graph_inceptionv4.tflite
+#│   ├── graph_inceptionv4_edgetpu.tflite
 #│   └── labels.txt
 #├── TinyYoloV2_edgetpu
 #│   ├── graph_tinyyolov2_info.txt
-#│   ├── graph_tinyyolov2.tflite
+#│   ├── graph_tinyyolov2_edgetpu.tflite
 #│   └── labels.txt
 #└── TinyYoloV3_edgetpu
 #    ├── graph_tinyyolov3_info.txt
-#    ├── graph_tinyyolov3.tflite
+#    ├── graph_tinyyolov3_edgetpu.tflite
 #    └── labels.txt
 #
 # For ONNXRT Follow the next PATH structure
@@ -148,13 +148,24 @@ run_all_models(){
   rm -f logs/*
 
   for ((i=0;i<${#model_array[@]};++i)); do
-    echo Perf ${model_array[i]}
-    gst-launch-1.0 \
-    filesrc location=$VIDEO_PATH num-buffers=600 ! decodebin ! videoconvert ! \
-    perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-    ${model_array[i]} backend=$BACKEND name=net backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} \
-    model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
-    net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/${model_array[i]}.log
+    if [ -f "${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" ]; then
+
+      #Set videoconvert element according with the backend
+      specific_videoconvert="videoconvert"
+      if [ "$BACKEND" == tensorrt ]; then
+        specific_videoconvert="nvvidconv"
+      fi
+
+      echo Perf ${model_array[i]}
+      gst-launch-1.0 \
+      filesrc location=$VIDEO_PATH num-buffers=600 ! decodebin ! ${specific_videoconvert} ! \
+      perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
+      ${model_array[i]} backend=$BACKEND name=net backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} \
+      model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
+      net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/${model_array[i]}.log
+    else
+      echo "${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION} does not exist"
+    fi
   done
 }
 
@@ -164,29 +175,33 @@ get_perf () {
   myvar=$1
   name=$2
 
-  #Read log and filter perf element
-  awk '/'$myvar'/&&/timestamp/' logs/${name}.log >  perf.log
-  cp perf.log  perf0.log 
-  #Filter only the perf that I want
-  awk '{gsub(/^.*'$myvar'/,"'$myvar'");print}' perf0.log > perf1.log
-  rm perf0.log
-  #Filter the columns needed
-  awk '{print  $11 "\t" $13}' perf1.log > perf0.log
-  rm perf1.log
-  #Remove unnecessary characters
-  awk '{gsub(/\\/,"");gsub(/\;/,"");gsub(/\"/,"");gsub(/,/,".")}1' perf0.log > perf1.log
-  #Save in the directory
-  awk 'END{printf "%s", $0}' perf1.log > $myvar/$name.log
-  #Get data to save it in the CSV table
-  fps=`awk '{printf "%s", $1}' $myvar/$name.log`
-  cpu=`awk '{printf "%s", $2}' $myvar/$name.log`
+  if [ -f logs/${name}.log ]; then
+    #Read log and filter perf element
+    awk '/'$myvar'/&&/timestamp/' logs/${name}.log >  perf.log
+    cp perf.log  perf0.log 
+    #Filter only the perf that I want
+    awk '{gsub(/^.*'$myvar'/,"'$myvar'");print}' perf0.log > perf1.log
+    rm perf0.log
+    #Filter the columns needed
+    awk '{print  $11 "\t" $13}' perf1.log > perf0.log
+    rm perf1.log
+    #Remove unnecessary characters
+    awk '{gsub(/\\/,"");gsub(/\;/,"");gsub(/\"/,"");gsub(/,/,".")}1' perf0.log > perf1.log
+    #Save in the directory
+    awk 'END{printf "%s", $0}' perf1.log > $myvar/$name.log
+    #Get data to save it in the CSV table
+    fps=`awk '{printf "%s", $1}' $myvar/$name.log`
+    cpu=`awk '{printf "%s", $2}' $myvar/$name.log`
 
-  echo $name, $fps, $cpu >> results.csv
+    echo $name, $fps, $cpu >> results.csv
 
-  #Remove unnecessary files
-  rm perf.log
-  rm perf0.log
-  rm perf1.log
+    #Remove unnecessary files
+    rm perf.log
+    rm perf0.log
+    rm perf1.log
+  else
+    echo "${name} log file does not exist"
+  fi
 }
 
 
@@ -226,6 +241,10 @@ elif [ "$1" == onnxrt ]
 then
   EXTENSION=".onnx"
   INTERNAL_PATH="onnxrt"
+elif [ "$1" == tensorrt ]
+then
+  EXTENSION=".trt"
+  INTERNAL_PATH="TensorRT"
 else
   echo "Invalid Backend"
   exit 1
