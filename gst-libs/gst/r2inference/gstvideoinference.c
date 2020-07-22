@@ -907,7 +907,7 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
     GST_ELEMENT_ERROR (self, STREAM, FAILED,
         ("Subclass didn't implement post-process"), (NULL));
     ret = GST_FLOW_ERROR;
-    goto buffer_free;
+    goto out;
   }
 
   buffer_model = gst_buffer_make_writable (buffer);
@@ -939,7 +939,7 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
   if (!video_inference_prepare_postprocess (klass->inference_meta_info,
           buffer_model, info_model, meta_model)) {
     ret = GST_FLOW_ERROR;
-    goto prediction_free;
+    goto buffer_free;
   }
 
   /* Subclass Processing */
@@ -949,7 +949,7 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
     GST_ELEMENT_ERROR (self, STREAM, FAILED, ("Subclass failed at preprocess"),
         (NULL));
     ret = GST_FLOW_ERROR;
-    goto prediction_free;
+    goto buffer_free;
   }
 
   /* Check if bypass pad was requested, if not, forward buffer */
@@ -976,13 +976,12 @@ forward_buffer:
   ret = gst_video_inference_forward_buffer (self, gst_buffer_ref (buffer_model),
       priv->src_model);
 
-prediction_free:
-  g_free (prediction_data);
-
 buffer_free:
   gst_buffer_unref (buffer_model);
 
 out:
+  g_free (prediction_data);
+
   return ret;
 }
 
