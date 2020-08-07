@@ -158,6 +158,14 @@ MODELS_PATH=""
 BACKEND=""
 EXTENSION=""
 INTERNAL_PATH=""
+PLATFORM="pc"
+
+if [ -z "$4" ]
+then
+  echo "Platform not specified, assuming PC platform"
+else
+  PLATFORM="$4"
+fi
 
 # exit when any command fails
 set -e
@@ -168,30 +176,52 @@ run_all_models(){
   model_array=(inceptionv1 inceptionv2 inceptionv3 inceptionv4 tinyyolov2 tinyyolov3)
   model_upper_array=(InceptionV1 InceptionV2 InceptionV3 InceptionV4 TinyYoloV2 TinyYoloV3)
   input_array=(input input input input input/Placeholder inputs )
-  output_array=(InceptionV1/Logits/Predictions/Reshape_1 Softmax InceptionV3/Predictions/Reshape_1 
+  output_array=(InceptionV1/Logits/Predictions/Reshape_1 Softmax InceptionV3/Predictions/Reshape_1
   InceptionV4/Logits/Predictions add_8 output_boxes )
 
   mkdir -p logs/
   rm -f logs/*
 
   for ((i=0;i<${#model_array[@]};++i)); do
-    if [ -f "${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" ]; then
-
-      #Set videoconvert element according with the backend
-      specific_videoconvert="videoconvert"
-      if [ "$BACKEND" == tensorrt ]; then
-        specific_videoconvert="nvvidconv"
+    echo Perf ${model_array[i]}
+    if [ $PLATFORM == "pc" ]
+    then
+      if [ $BACKEND == "onnxrt" ] || [ $BACKEND == "onnxrt_acl" ] || [ $BACKEND == "onnxrt_openvino" ]
+      then
+        gst-launch-1.0 \
+        filesrc location=$VIDEO_PATH num-buffers=600 ! decodebin ! videoconvert ! \
+        perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
+        ${model_array[i]} backend=$BACKEND name=net \
+        model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
+        backend::graph-optimization-level=0 backend::intra-num-threads=0 \
+        net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/${model_array[i]}.log
+      else
+        gst-launch-1.0 \
+        filesrc location=$VIDEO_PATH num-buffers=600 ! decodebin ! videoconvert ! \
+        perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
+        ${model_array[i]} backend=$BACKEND name=net backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} \
+        model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
+        net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/${model_array[i]}.log
       fi
-
-      echo Perf ${model_array[i]}
-      gst-launch-1.0 \
-      filesrc location=$VIDEO_PATH num-buffers=600 ! decodebin ! ${specific_videoconvert} ! \
-      perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-      ${model_array[i]} backend=$BACKEND name=net backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} \
-      model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
-      net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/${model_array[i]}.log
-    else
-      echo "${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION} does not exist"
+    elif [ $PLATFORM == "jetson" ]
+    then
+      if [ $BACKEND == "onnxrt" ] || [ $BACKEND == "onnxrt_acl" ] || [ $BACKEND == "onnxrt_openvino" ]
+      then
+        gst-launch-1.0 \
+        filesrc location=$VIDEO_PATH num-buffers=600 ! qtdemux name=demux ! h264parse ! omxh264dec ! nvvidconv ! queue ! \
+        perf print-arm-load=true name=inputperf ! tee name=t t. ! nvvidconv ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
+        ${model_array[i]} backend=$BACKEND name=net \
+        model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
+        backend::graph-optimization-level=0 backend::intra-num-threads=0 \
+        net.src_bypass ! perf print-arm-load=true name=outputperf ! nvvidconv ! fakesink sync=false > logs/${model_array[i]}.log
+      else
+        gst-launch-1.0 \
+        filesrc location=$VIDEO_PATH num-buffers=600 ! qtdemux name=demux ! h264parse ! omxh264dec ! nvvidconv ! queue ! \
+        perf print-arm-load=true name=inputperf ! tee name=t t. ! nvvidconv ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
+        ${model_array[i]} backend=$BACKEND name=net backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} \
+        model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
+        net.src_bypass ! perf print-arm-load=true name=outputperf ! nvvidconv ! fakesink sync=false > logs/${model_array[i]}.log
+      fi
     fi
   done
 }
@@ -234,7 +264,7 @@ get_perf () {
 
 #Main
 
-if test "$#" -ne 3; then
+if test "$#" -ne 4; then
   if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     echo Usage: ./run_benchmark.sh $BACKEND $MODELS_PATH
     echo E.g: ./run_benchmark.sh tensorflow /home/user/models/tensorflow_models /home/user/test_benchmark_video.mp4
@@ -252,7 +282,7 @@ if test "$#" -ne 3; then
 fi
 
 #Check for a valid backend
-if [ "$1" == tensorflow ] 
+if [ "$1" == tensorflow ]
 then
   EXTENSION="_tensorflow.pb"
   INTERNAL_PATH="TensorFlow"
@@ -264,14 +294,22 @@ elif [ "$1" == edgetpu ]
 then
   EXTENSION="_edgetpu.tflite"
   INTERNAL_PATH="edgetpu"
-elif [ "$1" == onnxrt ]
-then
-  EXTENSION=".onnx"
-  INTERNAL_PATH="onnxrt"
 elif [ "$1" == tensorrt ]
 then
   EXTENSION=".trt"
   INTERNAL_PATH="TensorRT"
+elif [ "$1" == onnxrt ]
+then
+  EXTENSION=".onnx"
+  INTERNAL_PATH="ONNXRT"
+elif [ "$1" == onnxrt_acl ]
+then
+  EXTENSION=".onnx"
+  INTERNAL_PATH="ONNXRT"
+elif [ "$1" == onnxrt_openvino ]
+then
+  EXTENSION=".onnx"
+  INTERNAL_PATH="ONNXRT"
 else
   echo "Invalid Backend"
   exit 1
