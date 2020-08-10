@@ -204,12 +204,12 @@ run_all_models(){
       fi
     elif [ $PLATFORM == "jetson" ]
     then
+      PIPELINE_JETSON="gst-launch-1.0 filesrc location=$VIDEO_PATH num-buffers=600 ! qtdemux name=demux ! h264parse ! omxh264dec ! nvvidconv ! queue !
+                      perf print-arm-load=true name=inputperf ! tee name=t t. ! nvvidconv ! queue ! net.sink_model t. ! queue ! net.sink_bypass
+                      ${MODEL} backend=$BACKEND name=net model-location=${LOCATION}"
+      PIPELINE_TAIL_JETSON="net.src_bypass ! perf print-arm-load=true name=outputperf ! nvvidconv ! fakesink sync=false > logs/${model_array[i]}.log"
       if [ $BACKEND == "onnxrt" ] || [ $BACKEND == "onnxrt_acl" ] || [ $BACKEND == "onnxrt_openvino" ]
       then
-        PIPELINE_JETSON="gst-launch-1.0 filesrc location=$VIDEO_PATH num-buffers=600 ! qtdemux name=demux ! h264parse ! omxh264dec ! nvvidconv ! queue !
-                        perf print-arm-load=true name=inputperf ! tee name=t t. ! nvvidconv ! queue ! net.sink_model t. ! queue ! net.sink_bypass
-                        ${MODEL} backend=$BACKEND name=net model-location=${LOCATION}"
-        PIPELINE_TAIL_JETSON="net.src_bypass ! perf print-arm-load=true name=outputperf ! nvvidconv ! fakesink sync=false > logs/${model_array[i]}.log"
         CMD="$PIPELINE_JETSON backend::graph-optimization-level=0 backend::intra-num-threads=0 $PIPELINE_TAIL_JETSON"
         eval $CMD
       else
