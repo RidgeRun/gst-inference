@@ -144,7 +144,7 @@
 #    └── labels.txt
 #
 # The output of this script is a CSV (results.csv) with the following structure
-# 
+#
 #    Name    , FPS ,  CPU
 # InceptionV1 , 11 ,  56
 # InceptionV2 , 12 ,  57
@@ -183,44 +183,38 @@ run_all_models(){
   rm -f logs/*
 
   for ((i=0;i<${#model_array[@]};++i)); do
-    echo Perf ${model_array[i]}
+    MODEL=${model_array[i]}
+    LOCATION="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}"
+    echo Perf $MODEL
     if [ $PLATFORM == "pc" ]
     then
+      PIPELINE_PC="gst-launch-1.0 filesrc location=$VIDEO_PATH num-buffers=600 ! decodebin ! videoconvert ! perf print-arm-load=true name=inputperf !
+                   tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass ${MODEL} backend=$BACKEND name=net
+                   model-location=${LOCATION}"
+      PIPELINE_TAIL_PC="net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/${model_array[i]}.log"
       if [ $BACKEND == "onnxrt" ] || [ $BACKEND == "onnxrt_acl" ] || [ $BACKEND == "onnxrt_openvino" ]
       then
-        gst-launch-1.0 \
-        filesrc location=$VIDEO_PATH num-buffers=600 ! decodebin ! videoconvert ! \
-        perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-        ${model_array[i]} backend=$BACKEND name=net \
-        model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
-        backend::graph-optimization-level=0 backend::intra-num-threads=0 \
-        net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/${model_array[i]}.log
+        #Add additional parameters
+        CMD="$PIPELINE_PC backend::graph-optimization-level=0 backend::intra-num-threads=0 $PIPELINE_TAIL_PC"
+        eval $CMD
       else
-        gst-launch-1.0 \
-        filesrc location=$VIDEO_PATH num-buffers=600 ! decodebin ! videoconvert ! \
-        perf print-arm-load=true name=inputperf ! tee name=t t. ! videoscale ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-        ${model_array[i]} backend=$BACKEND name=net backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} \
-        model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
-        net.src_bypass ! perf print-arm-load=true name=outputperf ! videoconvert ! fakesink sync=false > logs/${model_array[i]}.log
+        #Add additional parameters
+        CMD="$PIPELINE_PC backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} $PIPELINE_TAIL_PC"
+        eval $CMD
       fi
     elif [ $PLATFORM == "jetson" ]
     then
       if [ $BACKEND == "onnxrt" ] || [ $BACKEND == "onnxrt_acl" ] || [ $BACKEND == "onnxrt_openvino" ]
       then
-        gst-launch-1.0 \
-        filesrc location=$VIDEO_PATH num-buffers=600 ! qtdemux name=demux ! h264parse ! omxh264dec ! nvvidconv ! queue ! \
-        perf print-arm-load=true name=inputperf ! tee name=t t. ! nvvidconv ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-        ${model_array[i]} backend=$BACKEND name=net \
-        model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
-        backend::graph-optimization-level=0 backend::intra-num-threads=0 \
-        net.src_bypass ! perf print-arm-load=true name=outputperf ! nvvidconv ! fakesink sync=false > logs/${model_array[i]}.log
+        PIPELINE_JETSON="gst-launch-1.0 filesrc location=$VIDEO_PATH num-buffers=600 ! qtdemux name=demux ! h264parse ! omxh264dec ! nvvidconv ! queue !
+                        perf print-arm-load=true name=inputperf ! tee name=t t. ! nvvidconv ! queue ! net.sink_model t. ! queue ! net.sink_bypass
+                        ${MODEL} backend=$BACKEND name=net model-location=${LOCATION}"
+        PIPELINE_TAIL_JETSON="net.src_bypass ! perf print-arm-load=true name=outputperf ! nvvidconv ! fakesink sync=false > logs/${model_array[i]}.log"
+        CMD="$PIPELINE_JETSON backend::graph-optimization-level=0 backend::intra-num-threads=0 $PIPELINE_TAIL_JETSON"
+        eval $CMD
       else
-        gst-launch-1.0 \
-        filesrc location=$VIDEO_PATH num-buffers=600 ! qtdemux name=demux ! h264parse ! omxh264dec ! nvvidconv ! queue ! \
-        perf print-arm-load=true name=inputperf ! tee name=t t. ! nvvidconv ! queue ! net.sink_model t. ! queue ! net.sink_bypass \
-        ${model_array[i]} backend=$BACKEND name=net backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} \
-        model-location="${MODELS_PATH}${model_upper_array[i]}_${INTERNAL_PATH}/graph_${model_array[i]}${EXTENSION}" \
-        net.src_bypass ! perf print-arm-load=true name=outputperf ! nvvidconv ! fakesink sync=false > logs/${model_array[i]}.log
+        CMD="$PIPELINE_JETSON backend::input-layer=${input_array[i]} backend::output-layer=${output_array[i]} $PIPELINE_TAIL_JETSON"
+        eval $CMD
       fi
     fi
   done
@@ -235,7 +229,7 @@ get_perf () {
   if [ -f logs/${name}.log ]; then
     #Read log and filter perf element
     awk '/'$myvar'/&&/timestamp/' logs/${name}.log >  perf.log
-    cp perf.log  perf0.log 
+    cp perf.log  perf0.log
     #Filter only the perf that I want
     awk '{gsub(/^.*'$myvar'/,"'$myvar'");print}' perf0.log > perf1.log
     rm perf0.log
