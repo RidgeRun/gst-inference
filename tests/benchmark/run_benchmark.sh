@@ -62,31 +62,31 @@
 #    ├── graph_tinyyolov3.tflite
 #    └── labels.txt
 #
-# For edgetpu Follow the next PATH structure
+# For Coral from Google follow the next PATH structure
 #.
-#├── InceptionV1_edgetpu
+#├── InceptionV1_coral
 #│   ├── graph_inceptionv1_info.txt
-#│   ├── graph_inceptionv1_edgetpu.tflite
+#│   ├── graph_inceptionv1_coral.tflite
 #│   └── labels.txt
-#├── InceptionV2_edgetpu
+#├── InceptionV2_coral
 #│   ├── graph_inceptionv2_info.txt
-#│   ├── graph_inceptionv2_edgetpu.tflite
+#│   ├── graph_inceptionv2_coral.tflite
 #│   └── labels.txt
-#├── InceptionV3_edgetpu
+#├── InceptionV3_coral
 #│   ├── graph_inceptionv3_info.txt
-#│   ├── graph_inceptionv3_edgetpu.tflite
+#│   ├── graph_inceptionv3_coral.tflite
 #│   └── labels.txt
-#├── InceptionV4_edgetpu
+#├── InceptionV4_coral
 #│   ├── graph_inceptionv4_info.txt
-#│   ├── graph_inceptionv4_edgetpu.tflite
+#│   ├── graph_inceptionv4_coral.tflite
 #│   └── labels.txt
-#├── TinyYoloV2_edgetpu
+#├── TinyYoloV2_coral
 #│   ├── graph_tinyyolov2_info.txt
-#│   ├── graph_tinyyolov2_edgetpu.tflite
+#│   ├── graph_tinyyolov2_coral.tflite
 #│   └── labels.txt
-#└── TinyYoloV3_edgetpu
+#└── TinyYoloV3_coral
 #    ├── graph_tinyyolov3_info.txt
-#    ├── graph_tinyyolov3_edgetpu.tflite
+#    ├── graph_tinyyolov3_coral.tflite
 #    └── labels.txt
 #
 # For ONNXRT Follow the next PATH structure
@@ -284,10 +284,10 @@ elif [ "$1" == tflite ]
 then
   EXTENSION=".tflite"
   INTERNAL_PATH="TensorFlow-Lite"
-elif [ "$1" == edgetpu ]
+elif [ "$1" == coral ]
 then
-  EXTENSION="_edgetpu.tflite"
-  INTERNAL_PATH="edgetpu"
+  EXTENSION="_coral.tflite"
+  INTERNAL_PATH="coral"
 elif [ "$1" == tensorrt ]
 then
   EXTENSION=".trt"
