@@ -1,6 +1,6 @@
 GstInference               |  Coral from Google
 :-------------------------:|:-------------------------:
-<img src="https://developer.ridgerun.com/wiki/images/thumb/9/92/GstInference_Logo_with_name.jpeg/600px-GstInference_Logo_with_name.jpeg" height="400" width="400">  |  <img src="https://developer.ridgerun.com/wiki/images/6/62/Works_with_coral_svg.svg" height="400" width="400">
+[<img src="https://developer.ridgerun.com/wiki/images/thumb/9/92/GstInference_Logo_with_name.jpeg/600px-GstInference_Logo_with_name.jpeg" height="400" width="400">](https://developer.ridgerun.com/wiki/index.php?title=GstInference)  |  [<img src="https://developer.ridgerun.com/wiki/images/6/62/Works_with_coral_svg.svg" height="400" width="400">](https://coral.ai/products/#prototyping-products)
 
 # GstInference
 
