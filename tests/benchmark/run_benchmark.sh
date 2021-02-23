@@ -62,7 +62,7 @@
 #    ├── graph_tinyyolov3.tflite
 #    └── labels.txt
 #
-# For edgetpu Follow the next PATH structure
+# For Coral from Google follow the next PATH structure
 #.
 #├── InceptionV1_edgetpu
 #│   ├── graph_inceptionv1_info.txt
