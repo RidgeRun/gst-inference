@@ -495,7 +495,7 @@ gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame
     /* Compute the offset to concatenate the new tensor */
     data_offset = (void *) ((gsize) *prediction_data + *prediction_size);
     /* Could we avoid memory copy ?*/
-    memcpy(data_offset, predictions[i]->GetResultData(), extra_size);
+    memcpy (data_offset, predictions[i]->GetResultData (), extra_size);
     *prediction_size += extra_size;
   }
 
