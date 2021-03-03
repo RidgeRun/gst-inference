@@ -444,9 +444,10 @@ gboolean
 gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame,
                            gpointer *prediction_data, gsize *prediction_size, GError **err) {
   GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (self);
-  std::shared_ptr < r2i::IPrediction > prediction;
+  std::vector<std::shared_ptr<r2i::IPrediction>> predictions;
   std::shared_ptr < r2i::IFrame > frame;
   r2i::RuntimeError error;
+  gint num_outputs = 0;
 
   g_return_val_if_fail (priv, FALSE);
   g_return_val_if_fail (input_frame, FALSE);
@@ -470,22 +471,43 @@ gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame
     goto error;
   }
 
-  prediction = priv->engine->Predict (frame, error);
+  error = priv->engine->Predict (frame, predictions);
   if (error.IsError ()) {
     goto error;
   }
 
-  *prediction_size = prediction->GetResultSize ();
+  num_outputs = predictions.size();
+  GST_LOG_OBJECT (self, "Got %d predictions", num_outputs);
 
-  /*could we avoid memory copy ?*/
+  /* Assume that we have at least 1 output */
+  /* Could we avoid memory copy ?*/
+  *prediction_size = predictions[0]->GetResultSize ();
   *prediction_data = g_malloc(*prediction_size);
-  memcpy(*prediction_data, prediction->GetResultData(), *prediction_size);
+  memcpy(*prediction_data, predictions[0]->GetResultData(), *prediction_size);
+
+  /* If theres is more then 1 output tensor, concatenate them in a 1D array */
+  if (1 < num_outputs) {
+    gint i = 0;
+    gsize extra_size = 0;
+    gpointer data_offset = 0;
+    for (i = 1; i < num_outputs; i++) {
+      /* Compute the size including the new tensor and reallocate memory */
+      extra_size = predictions[i]->GetResultSize ();
+      *prediction_data = g_realloc (*prediction_data,
+                                    *prediction_size + extra_size);
+
+      /* Compute the offset to concatenate the new tensor */
+      data_offset = (void *) ((gsize) *prediction_data + *prediction_size);
+      memcpy(data_offset, predictions[i]->GetResultData(), extra_size);
+      *prediction_size += extra_size;
+    }
+  }
 
   GST_LOG_OBJECT (self, "Size of prediction %p is %lu",
                   *prediction_data, *prediction_size);
 
   frame = nullptr;
-  prediction = nullptr;
+  predictions.clear();
 
   return TRUE;
 error:
