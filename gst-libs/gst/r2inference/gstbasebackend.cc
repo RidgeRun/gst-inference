@@ -449,7 +449,9 @@ gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame
   r2i::RuntimeError error;
   gint num_outputs = 0;
   gsize extra_size = 0;
+  gpointer data = NULL;
   gpointer data_offset = 0;
+  gsize size = 0;
   gint i = 0;
 
   g_return_val_if_fail (priv, FALSE);
@@ -482,22 +484,21 @@ gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame
   num_outputs = predictions.size();
   GST_LOG_OBJECT (self, "Got %d predictions", num_outputs);
 
-  *prediction_size = 0;
-  *prediction_data = NULL;
-
   /* Concatenate all the outputs in a 1D array */
   for (i = 0; i < num_outputs; i++) {
     /* Compute the size including the new tensor and reallocate memory */
     extra_size = predictions[i]->GetResultSize ();
-    *prediction_data = g_realloc (*prediction_data,
-                                  *prediction_size + extra_size);
+    data = g_realloc (data, size + extra_size);
 
     /* Compute the offset to concatenate the new tensor */
-    data_offset = (void *) ((gsize) *prediction_data + *prediction_size);
+    data_offset = (void *) ((gsize) data + size);
     /* Could we avoid memory copy ?*/
     memcpy (data_offset, predictions[i]->GetResultData (), extra_size);
-    *prediction_size += extra_size;
+    size += extra_size;
   }
+
+  *prediction_size = size;
+  *prediction_data = data;
 
   GST_LOG_OBJECT (self, "Size of prediction %p is %lu",
                   *prediction_data, *prediction_size);
