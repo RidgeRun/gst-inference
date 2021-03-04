@@ -484,6 +484,12 @@ gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame
   num_outputs = predictions.size();
   GST_LOG_OBJECT (self, "Got %d predictions", num_outputs);
 
+  if (0 == num_outputs) {
+    error.Set (r2i::RuntimeError::Code::WRONG_ENGINE_STATE,
+               "Engine got 0 predictions");
+    goto error;
+  }
+
   /* Concatenate all the outputs in a 1D array */
   for (i = 0; i < num_outputs; i++) {
     /* Compute the size including the new tensor and reallocate memory */
