@@ -56,6 +56,10 @@ GST_DEBUG_CATEGORY_STATIC (gst_mobilenetv2ssd_debug_category);
 #define MAX_PROB_THRESH 1
 #define MIN_PROB_THRESH 0
 #define DEFAULT_PROB_THRESH 0.50
+/* Intersection over union threshold */
+#define MAX_IOU_THRESH 1
+#define MIN_IOU_THRESH 0
+#define DEFAULT_IOU_THRESH 0.40
 
 #define TOTAL_CLASSES 90
 #define LOCATION_PARAMS 4
@@ -81,6 +85,7 @@ enum
 {
   PROP_0,
   PROP_PROB_THRESH,
+  PROP_IOU_THRESH
 };
 
 /* pad templates */
@@ -109,6 +114,7 @@ struct _GstMobilenetv2ssd
   GstVideoInference parent;
 
   gdouble prob_thresh;
+  gdouble iou_thresh;
 };
 
 struct _GstMobilenetv2ssdClass
@@ -146,6 +152,11 @@ gst_mobilenetv2ssd_class_init (GstMobilenetv2ssdClass * klass)
       g_param_spec_double ("prob-thresh", "Probability threshold",
           "Class probability threshold", MIN_PROB_THRESH, MAX_PROB_THRESH,
           DEFAULT_PROB_THRESH, G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_IOU_THRESH,
+      g_param_spec_double ("iou-thresh", "Intersection over union threshold",
+          "Intersection over union threshold to merge similar boxes",
+          MIN_IOU_THRESH, MAX_IOU_THRESH, DEFAULT_IOU_THRESH,
+          G_PARAM_READWRITE));
 
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_mobilenetv2ssd_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_mobilenetv2ssd_postprocess);
@@ -156,6 +167,7 @@ static void
 gst_mobilenetv2ssd_init (GstMobilenetv2ssd * mobilenetv2ssd)
 {
   mobilenetv2ssd->prob_thresh = DEFAULT_PROB_THRESH;
+  mobilenetv2ssd->iou_thresh = DEFAULT_IOU_THRESH;
 }
 
 static gboolean
@@ -181,6 +193,7 @@ gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
   gint i_box = 0, i_prob = 0, i_location = 0, i_label = 0;
   gdouble prob = 0;
   gdouble prob_thresh = 0;
+  gdouble iou_thresh = 0;
 
   g_return_val_if_fail (mobilenetv2ssd, cur_box);
   g_return_val_if_fail (prediction, cur_box);
@@ -189,6 +202,7 @@ gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
 
   GST_OBJECT_LOCK (mobilenetv2ssd);
   prob_thresh = mobilenetv2ssd->prob_thresh;
+  iou_thresh = mobilenetv2ssd->iou_thresh;
   GST_OBJECT_UNLOCK (mobilenetv2ssd);
 
   for (i_box = 0; i_box < num_boxes; i_box++) {
@@ -225,6 +239,8 @@ gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
       cur_box++;
     }
   }
+
+  gst_remove_duplicated_boxes (iou_thresh, boxes, &cur_box);
   /* Resize the array to match the actual number of valid boxes */
   boxes = g_realloc (boxes, cur_box * sizeof (BBox));
   probabilities = g_realloc (probabilities, cur_box * sizeof (gdouble));
@@ -324,6 +340,12 @@ gst_mobilenetv2ssd_set_property (GObject * object, guint property_id,
       GST_DEBUG_OBJECT (mobilenetv2ssd,
           "Changed probability threshold to %lf", mobilenetv2ssd->prob_thresh);
       break;
+    case PROP_IOU_THRESH:
+      mobilenetv2ssd->iou_thresh = g_value_get_double (value);
+      GST_DEBUG_OBJECT (mobilenetv2ssd,
+          "Changed intersection over union threshold to %lf",
+          mobilenetv2ssd->prob_thresh);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -341,6 +363,9 @@ gst_mobilenetv2ssd_get_property (GObject * object, guint property_id,
   switch (property_id) {
     case PROP_PROB_THRESH:
       g_value_set_double (value, mobilenetv2ssd->prob_thresh);
+      break;
+    case PROP_IOU_THRESH:
+      g_value_set_double (value, mobilenetv2ssd->iou_thresh);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
