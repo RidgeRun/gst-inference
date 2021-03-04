@@ -30,8 +30,6 @@
 
 static gdouble gst_intersection_over_union (BBox box_1, BBox box_2);
 static void gst_delete_box (BBox * boxes, gint * num_boxes, gint index);
-static void gst_remove_duplicated_boxes (gfloat iou_thresh, BBox * boxes,
-    gint * num_boxes);
 static void gst_box_to_pixels (BBox * normalized_box, gint row, gint col,
     gint box);
 static gdouble gst_sigmoid (gdouble x);
@@ -109,7 +107,7 @@ gst_delete_box (BBox * boxes, gint * num_boxes, gint index)
   }
 }
 
-static void
+void
 gst_remove_duplicated_boxes (gfloat iou_thresh, BBox * boxes, gint * num_boxes)
 {
   /* Remove duplicated boxes. A box is considered a duplicate if its
