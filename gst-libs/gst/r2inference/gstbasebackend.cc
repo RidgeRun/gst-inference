@@ -471,7 +471,8 @@ gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame
   error =
     frame->Configure (input_frame->data[0], input_frame->info.width,
                       input_frame->info.height,
-                      gst_base_backend_cast_format(input_frame->info.finfo->format));
+                      gst_base_backend_cast_format(input_frame->info.finfo->format),
+                      r2i::DataType::Id::FLOAT);
   if (error.IsError ()) {
     goto error;
   }
