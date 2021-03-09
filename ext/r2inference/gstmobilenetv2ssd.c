@@ -78,7 +78,7 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
     gchar ** labels_list, gint num_labels);
 static gint
 gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
-    mobilenetv2ssd, const gpointer prediction, gint num_boxes, gint img_width,
+    mobilenetv2ssd, gfloat * prediction, gint num_boxes, gint img_width,
     gint img_height, BBox * boxes, gdouble ** probabilities);
 
 enum
@@ -185,7 +185,7 @@ gst_mobilenetv2ssd_preprocess (GstVideoInference * vi,
 
 static gint
 gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
-    mobilenetv2ssd, const gpointer prediction, gint num_boxes, gint img_width,
+    mobilenetv2ssd, gfloat * prediction, gint num_boxes, gint img_width,
     gint img_height, BBox * boxes, gdouble ** probabilities)
 {
   gint cur_box = 0;
@@ -212,7 +212,7 @@ gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
     i_location = i_box * LOCATION_PARAMS;
     i_label = i_box + (num_boxes * LOCATION_PARAMS);
     i_prob = i_label + num_boxes;
-    prob = ((gfloat *) (prediction))[i_prob];
+    prob = prediction[i_prob];
 
     if (prob > prob_thresh) {
       BBox result = { 0 };
@@ -221,16 +221,16 @@ gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
          outputs 1 label and 1 probability per bounding box */
       gdouble *cur_prob = g_malloc0 (TOTAL_CLASSES * sizeof (gdouble));
 
-      top = ((gfloat *) (prediction))[i_location] * img_height;
-      left = ((gfloat *) (prediction))[i_location + 1] * img_width;
-      bottom = ((gfloat *) (prediction))[i_location + 2] * img_height;
-      right = ((gfloat *) (prediction))[i_location + 3] * img_width;
+      top = prediction[i_location] * img_height;
+      left = prediction[i_location + 1] * img_width;
+      bottom = prediction[i_location + 2] * img_height;
+      right = prediction[i_location + 3] * img_width;
 
       result.x = left;
       result.y = top;
       result.width = right - left;
       result.height = bottom - top;
-      result.label = ((gfloat *) (prediction))[i_label];
+      result.label = prediction[i_label];
       result.prob = prob;
       cur_prob[result.label] = result.prob;
 
@@ -262,6 +262,7 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
   gint valid_boxes = 0;
   gint i = 0;
   gboolean ret = TRUE;
+  gfloat *pred = NULL;
 
   g_return_val_if_fail (vi, FALSE);
   g_return_val_if_fail (prediction, FALSE);
@@ -271,6 +272,7 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
 
   GST_LOG_OBJECT (vi, "Postprocess");
 
+  pred = (gfloat *) prediction;
   imeta = (GstInferenceMeta *) meta_model[1];
   mobilenetv2ssd = GST_MOBILENETV2SSD (vi);
 
@@ -283,13 +285,13 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
      3: [1] tensor with the number of detected boxes 
      They are all concatenated here in a 1D array in row-major order.
    */
-  total_boxes = ((gfloat *) (prediction))[predsize / sizeof (gfloat) - 1];
+  total_boxes = pred[predsize / sizeof (gfloat) - 1];
 
   boxes = g_malloc (total_boxes * sizeof (BBox));
   probabilities = g_malloc (total_boxes * sizeof (gdouble));
 
   valid_boxes =
-      gst_mobilenetv2ssd_get_boxes_from_prediction (mobilenetv2ssd, prediction,
+      gst_mobilenetv2ssd_get_boxes_from_prediction (mobilenetv2ssd, pred,
       total_boxes, info_model->width, info_model->height, boxes, probabilities);
 
   GST_LOG_OBJECT (mobilenetv2ssd, "Number of valid predictions: %d",
