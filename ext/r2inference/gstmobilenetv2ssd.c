@@ -333,6 +333,7 @@ gst_mobilenetv2ssd_set_property (GObject * object, guint property_id,
 
   GST_DEBUG_OBJECT (mobilenetv2ssd, "set_property");
 
+  GST_OBJECT_LOCK (mobilenetv2ssd);
   switch (property_id) {
     case PROP_PROB_THRESH:
       mobilenetv2ssd->prob_thresh = g_value_get_double (value);
@@ -349,6 +350,7 @@ gst_mobilenetv2ssd_set_property (GObject * object, guint property_id,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
+  GST_OBJECT_UNLOCK (mobilenetv2ssd);
 }
 
 static void
@@ -359,6 +361,7 @@ gst_mobilenetv2ssd_get_property (GObject * object, guint property_id,
 
   GST_DEBUG_OBJECT (mobilenetv2ssd, "get_property");
 
+  GST_OBJECT_LOCK (mobilenetv2ssd);
   switch (property_id) {
     case PROP_PROB_THRESH:
       g_value_set_double (value, mobilenetv2ssd->prob_thresh);
@@ -370,4 +373,5 @@ gst_mobilenetv2ssd_get_property (GObject * object, guint property_id,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
   }
+  GST_OBJECT_UNLOCK (mobilenetv2ssd);
 }
