@@ -233,9 +233,6 @@ gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
   }
 
   gst_remove_duplicated_boxes (iou_thresh, boxes, &cur_box);
-  /* Resize the array to match the actual number of valid boxes */
-  boxes = g_realloc (boxes, cur_box * sizeof (BBox));
-  probabilities = g_realloc (probabilities, cur_box * sizeof (gdouble));
 
   return cur_box;
 }
@@ -265,9 +262,7 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
   GST_LOG_OBJECT (vi, "Postprocess");
 
   pred = (gfloat *) prediction;
-  imeta = (GstInferenceMeta *) meta_model[1];
   mobilenetv2ssd = GST_MOBILENETV2SSD (vi);
-
   /* The ssd mobilenetv2 model has 4 output tensors:
      0: [N * 4] tensor with the location of the N bounding boxes (top-left and
      right-bottom corners). This tensor is flattened so the output we get here
@@ -279,6 +274,15 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
    */
   total_boxes = pred[predsize / sizeof (gfloat) - 1];
 
+  GST_LOG_OBJECT (mobilenetv2ssd, "Number of total predictions: %d",
+      total_boxes);
+
+  if (0 == total_boxes) {
+    goto out;
+  }
+
+  imeta = (GstInferenceMeta *) meta_model[1];
+
   boxes = g_malloc (total_boxes * sizeof (BBox));
   probabilities = g_malloc (total_boxes * sizeof (gdouble));
 
@@ -288,6 +292,10 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
 
   GST_LOG_OBJECT (mobilenetv2ssd, "Number of valid predictions: %d",
       valid_boxes);
+
+  if (0 == valid_boxes) {
+    goto free;
+  }
 
   if (NULL == imeta->prediction) {
     imeta->prediction = gst_inference_prediction_new ();
@@ -303,20 +311,17 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
     g_free (probabilities[i]);
   }
 
-  *valid_prediction = (valid_boxes > 0) ? TRUE : FALSE;
-
-  if (0 == valid_boxes) {
-    goto out;
-  }
-
   gst_inference_print_predictions (vi, gst_mobilenetv2ssd_debug_category,
       imeta);
 
+free:
   /* Free boxes after creation */
   g_free (boxes);
   g_free (probabilities);
 
 out:
+  *valid_prediction = (valid_boxes > 0) ? TRUE : FALSE;
+
   return ret;
 }
 
