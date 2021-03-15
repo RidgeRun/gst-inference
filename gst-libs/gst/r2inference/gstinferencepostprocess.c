@@ -108,7 +108,7 @@ gst_delete_box (BBox * boxes, gint * num_boxes, gint index)
 }
 
 void
-gst_remove_duplicated_boxes (gfloat iou_thresh, BBox * boxes, gint * num_boxes)
+gst_remove_duplicated_boxes (gdouble iou_thresh, BBox * boxes, gint * num_boxes)
 {
   /* Remove duplicated boxes. A box is considered a duplicate if its
    * intersection over union metric is above a threshold

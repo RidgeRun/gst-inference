@@ -104,7 +104,7 @@ GstInferenceClassification *gst_create_class_from_prediction (GstVideoInference 
  * \param boxes Array of bounding boxes
  * \param num_boxes Amount of boxes in the array
  */
-void gst_remove_duplicated_boxes (gfloat iou_thresh, BBox * boxes,
+void gst_remove_duplicated_boxes (gdouble iou_thresh, BBox * boxes,
     gint * num_boxes);
 
 G_END_DECLS
