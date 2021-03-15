@@ -24,14 +24,6 @@
  *
  * The mobilenetv2ssd element allows the user to infer/execute a pretrained 
  * model based on the MobilenetV2 + SSD architecture on incoming image frames.
- *
- * <refsect2>
- * <title>Example launch line</title>
- * |[
- * gst-launch-1.0 -v videotestsrc ! mobilenetv2ssd ! xvimagesink
- * ]|
- * Process video frames from the camera using a MobilenetV2 + SSD model.
- * </refsect2>
  */
 
 #ifdef HAVE_CONFIG_H
@@ -277,7 +269,7 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
   mobilenetv2ssd = GST_MOBILENETV2SSD (vi);
 
   /* The ssd mobilenetv2 model has 4 output tensors:
-     0: [N,4] tensor with the location of the N bounding boxes (top-left and
+     0: [N * 4] tensor with the location of the N bounding boxes (top-left and
      right-bottom corners). This tensor is flattened so the output we get here
      is of shape [N * 4]
      1: [N] tensor with the number of labels for the N bounding boxes
