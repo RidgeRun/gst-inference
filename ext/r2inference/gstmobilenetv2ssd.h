@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018-2021 RidgeRun <support@ridgerun.com>
+ * Copyright (C) 2021 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
