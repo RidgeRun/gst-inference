@@ -10,7 +10,7 @@ libgstinference_la_SOURCES =		\
 	gsttinyyolov3.c                 \
 	gstfacenetv1.c                  \
 	gstresnet50v1.c			\
-	gstmobilenetv2.c    \
+	gstmobilenetv2.c                \
 	gstmobilenetv2ssd.c
 
 
@@ -50,5 +50,5 @@ noinst_HEADERS =			\
 	gsttinyyolov3.h                 \
 	gstfacenetv1.h                  \
 	gstresnet50v1.h			\
-	gstmobilenetv2.h    \
+	gstmobilenetv2.h                \
 	gstmobilenetv2ssd.h
