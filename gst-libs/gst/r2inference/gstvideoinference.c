@@ -51,7 +51,7 @@ enum
 {
   NEW_PREDICTION_SIGNAL,
   NEW_INFERENCE_SIGNAL,
-  STRING_INFERENCE_SIGNAL,
+  NEW_INFERENCE_STRING_SIGNAL,
   LAST_SIGNAL
 };
 
@@ -244,8 +244,8 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
       G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 4, G_TYPE_POINTER,
       G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
 
-  gst_video_inference_signals[STRING_INFERENCE_SIGNAL] =
-      g_signal_new ("string-inference", G_TYPE_FROM_CLASS (klass),
+  gst_video_inference_signals[NEW_INFERENCE_STRING_SIGNAL] =
+      g_signal_new ("new-inference-string", G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_STRING);
 
   klass->start = NULL;
@@ -1027,8 +1027,8 @@ video_inference_notify (GstVideoInference * self, GstBuffer * model_buffer,
   prediction_string = gst_inference_prediction_to_string (pred);
 
   /* Emit JSON string inference signal */
-  g_signal_emit (self, gst_video_inference_signals[STRING_INFERENCE_SIGNAL], 0,
-      prediction_string);
+  g_signal_emit (self, gst_video_inference_signals[NEW_INFERENCE_STRING_SIGNAL],
+      0, prediction_string);
 
   gst_video_frame_unmap (&frame_model);
   gst_video_frame_unmap (&frame_bypass);
