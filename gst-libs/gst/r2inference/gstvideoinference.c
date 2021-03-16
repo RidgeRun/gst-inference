@@ -51,6 +51,7 @@ enum
 {
   NEW_PREDICTION_SIGNAL,
   NEW_INFERENCE_SIGNAL,
+  NEW_INFERENCE_STRING_SIGNAL,
   LAST_SIGNAL
 };
 
@@ -242,6 +243,10 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
       g_signal_new ("new-inference", G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 4, G_TYPE_POINTER,
       G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
+
+  gst_video_inference_signals[NEW_INFERENCE_STRING_SIGNAL] =
+      g_signal_new ("new-inference-string", G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_STRING);
 
   klass->start = NULL;
   klass->stop = NULL;
@@ -996,6 +1001,9 @@ video_inference_notify (GstVideoInference * self, GstBuffer * model_buffer,
   GstVideoInfo *info_model = NULL;
   GstVideoInfo *info_bypass = NULL;
   GstMapFlags flags;
+  GstInferenceMeta *imeta = NULL;
+  GstInferencePrediction *pred = NULL;
+  gchar *prediction_string;
 
   g_return_if_fail (model_buffer);
   g_return_if_fail (meta_model);
@@ -1013,8 +1021,18 @@ video_inference_notify (GstVideoInference * self, GstBuffer * model_buffer,
   g_signal_emit (self, gst_video_inference_signals[NEW_INFERENCE_SIGNAL], 0,
       meta_model[1], &frame_model, meta_bypass[1], &frame_bypass);
 
+  /* Parse InferenceMeta from new Inference Model */
+  imeta = (GstInferenceMeta *) meta_model[1];
+  pred = imeta->prediction;
+  prediction_string = gst_inference_prediction_to_string (pred);
+
+  /* Emit JSON string inference signal */
+  g_signal_emit (self, gst_video_inference_signals[NEW_INFERENCE_STRING_SIGNAL],
+      0, prediction_string);
+
   gst_video_frame_unmap (&frame_model);
   gst_video_frame_unmap (&frame_bypass);
+  g_free (prediction_string);
 }
 
 static GstFlowReturn
