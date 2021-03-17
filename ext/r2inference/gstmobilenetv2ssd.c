@@ -70,7 +70,7 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
     gchar ** labels_list, gint num_labels);
 static gint
 gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
-    mobilenetv2ssd, gfloat * prediction, gint num_boxes, gint img_width,
+    mobilenetv2ssd, const gfloat * prediction, gint num_boxes, gint img_width,
     gint img_height, BBox * boxes, gdouble ** probabilities);
 
 enum
@@ -177,7 +177,7 @@ gst_mobilenetv2ssd_preprocess (GstVideoInference * vi,
 
 static gint
 gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
-    mobilenetv2ssd, gfloat * prediction, gint num_boxes, gint img_width,
+    mobilenetv2ssd, const gfloat * prediction, gint num_boxes, gint img_width,
     gint img_height, BBox * boxes, gdouble ** probabilities)
 {
   gint cur_box = 0;
@@ -251,7 +251,7 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
   gint valid_boxes = 0;
   gint i = 0;
   gboolean ret = TRUE;
-  gfloat *pred = NULL;
+  const gfloat *pred = NULL;
 
   g_return_val_if_fail (vi, FALSE);
   g_return_val_if_fail (prediction, FALSE);
@@ -261,7 +261,7 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
 
   GST_LOG_OBJECT (vi, "Postprocess");
 
-  pred = (gfloat *) prediction;
+  pred = (const gfloat *) prediction;
   mobilenetv2ssd = GST_MOBILENETV2SSD (vi);
   /* The ssd mobilenetv2 model has 4 output tensors:
      0: [N * 4] tensor with the location of the N bounding boxes (top-left and
