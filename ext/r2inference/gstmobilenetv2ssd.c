@@ -208,10 +208,6 @@ gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
 
     if (prob > prob_thresh) {
       BBox result = { 0 };
-      /* We create an array of probabilities of the total classes size to have
-         compatibility with the other classification models, but this model only
-         outputs 1 label and 1 probability per bounding box */
-      gdouble *cur_prob = g_malloc0 (TOTAL_CLASSES * sizeof (gdouble));
 
       top = prediction[i_location] * img_height;
       left = prediction[i_location + 1] * img_width;
@@ -224,10 +220,8 @@ gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
       result.height = bottom - top;
       result.label = prediction[i_label];
       result.prob = prob;
-      cur_prob[result.label] = result.prob;
-
+      probabilities[cur_box][result.label] = result.prob;
       boxes[cur_box] = result;
-      probabilities[cur_box] = cur_prob;
       cur_box++;
     }
   }
@@ -284,7 +278,14 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
   imeta = (GstInferenceMeta *) meta_model[1];
 
   boxes = g_malloc (total_boxes * sizeof (BBox));
-  probabilities = g_malloc (total_boxes * sizeof (gdouble));
+  probabilities = g_malloc (total_boxes * sizeof (gdouble *));
+  /* We create an array of probabilities of the total classes size to have
+     compatibility with the other classification models, but this model only
+     outputs 1 label and 1 probability per bounding box
+   */
+  for (i = 0; i < total_boxes; i++) {
+    probabilities[i] = g_malloc0 (TOTAL_CLASSES * sizeof (gdouble));
+  }
 
   valid_boxes =
       gst_mobilenetv2ssd_get_boxes_from_prediction (mobilenetv2ssd, pred,
@@ -308,7 +309,6 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
         gst_create_prediction_from_box (vi, &boxes[i], labels_list, num_labels,
         probabilities[i]);
     gst_inference_prediction_append (imeta->prediction, pred);
-    g_free (probabilities[i]);
   }
 
   gst_inference_print_predictions (vi, gst_mobilenetv2ssd_debug_category,
@@ -317,6 +317,9 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
 free:
   /* Free boxes after creation */
   g_free (boxes);
+  for (i = 0; i < total_boxes; i++) {
+    g_free (probabilities[i]);
+  }
   g_free (probabilities);
 
 out:
