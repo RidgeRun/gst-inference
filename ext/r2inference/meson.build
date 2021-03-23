@@ -6,6 +6,7 @@ gstinference_sources = [
 	'gstinceptionv4.c',
 	'gstinference.c',
 	'gstmobilenetv2.c',
+	'gstmobilenetv2ssd.c',
 	'gstresnet50v1.c',
 	'gsttinyyolov2.c',
 	'gsttinyyolov3.c'
