@@ -267,7 +267,14 @@ prediction_children_to_string (GstInferencePrediction * self, gint level)
     GstInferencePrediction *pred = (GstInferencePrediction *) iter->data;
     gchar *child = prediction_to_string (pred, level + 1);
 
-    g_string_append_printf (string, "%s, ", child);
+    if (iter == subpreds) {
+      /* The first element does not need a comma prepended */
+      g_string_append_printf (string, "%s", child);
+    } else {
+      /* Check if more than one element to add list separator */
+      g_string_append_printf (string, ",%s", child);
+    }
+
     g_free (child);
   }
 
