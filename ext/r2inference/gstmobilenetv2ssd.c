@@ -152,7 +152,7 @@ gst_mobilenetv2ssd_class_init (GstMobilenetv2ssdClass * klass)
 
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_mobilenetv2ssd_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_mobilenetv2ssd_postprocess);
-  vi_class->inference_meta_info = gst_detection_meta_get_info ();
+  vi_class->inference_meta_info = gst_inference_meta_get_info ();
 }
 
 static void

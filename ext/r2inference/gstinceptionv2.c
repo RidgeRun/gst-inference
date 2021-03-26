@@ -148,7 +148,7 @@ gst_inceptionv2_class_init (GstInceptionv2Class * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_inceptionv2_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_inceptionv2_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_inceptionv2_postprocess);
-  vi_class->inference_meta_info = gst_classification_meta_get_info ();
+  vi_class->inference_meta_info = gst_inference_meta_get_info ();
 }
 
 static void

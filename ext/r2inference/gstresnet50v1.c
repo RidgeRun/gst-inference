@@ -137,7 +137,7 @@ gst_resnet50v1_class_init (GstResnet50v1Class * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_resnet50v1_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_resnet50v1_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_resnet50v1_postprocess);
-  vi_class->inference_meta_info = gst_classification_meta_get_info ();
+  vi_class->inference_meta_info = gst_inference_meta_get_info ();
 }
 
 static void
