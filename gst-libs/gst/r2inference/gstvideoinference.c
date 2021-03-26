@@ -49,7 +49,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define DEFAULT_NUM_LABELS 0
 enum
 {
-  NEW_PREDICTION_SIGNAL,
   NEW_INFERENCE_SIGNAL,
   NEW_INFERENCE_STRING_SIGNAL,
   LAST_SIGNAL
@@ -233,11 +232,6 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
       g_param_spec_string ("labels", "labels",
           "Semicolon separated string containing inference labels",
           DEFAULT_LABELS, G_PARAM_READWRITE));
-
-  gst_video_inference_signals[NEW_PREDICTION_SIGNAL] =
-      g_signal_new ("new-prediction", G_TYPE_FROM_CLASS (klass),
-      G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 4, G_TYPE_POINTER,
-      G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
 
   gst_video_inference_signals[NEW_INFERENCE_SIGNAL] =
       g_signal_new ("new-inference", G_TYPE_FROM_CLASS (klass),
@@ -1016,8 +1010,6 @@ video_inference_notify (GstVideoInference * self, GstBuffer * model_buffer,
   gst_video_frame_map (&frame_bypass, info_bypass, bypass_buffer, flags);
 
   /* Emit inference signal */
-  g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL], 0,
-      meta_model[0], &frame_model, meta_bypass[0], &frame_bypass);
   g_signal_emit (self, gst_video_inference_signals[NEW_INFERENCE_SIGNAL], 0,
       meta_model[1], &frame_model, meta_bypass[1], &frame_bypass);
 
