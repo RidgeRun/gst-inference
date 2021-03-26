@@ -79,10 +79,6 @@ gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction, gchar ** labels_list, gint num_labels);
 static gboolean
-gst_tinyyolov3_postprocess_old (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model,
-    GstVideoInfo * info_model, gboolean * valid_prediction);
-static gboolean
 gst_tinyyolov3_postprocess_new (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction,
@@ -270,46 +266,8 @@ gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
   g_return_val_if_fail (valid_prediction, FALSE);
 
   ret &=
-      gst_tinyyolov3_postprocess_old (vi, prediction, predsize, meta_model[0],
-      info_model, valid_prediction);
-  ret &=
       gst_tinyyolov3_postprocess_new (vi, prediction, predsize, meta_model[1],
       info_model, valid_prediction, labels_list, num_labels);
-
-  return TRUE;
-}
-
-static gboolean
-gst_tinyyolov3_postprocess_old (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model,
-    GstVideoInfo * info_model, gboolean * valid_prediction)
-{
-  GstTinyyolov3 *tinyyolov3;
-  gdouble **probabilities = g_malloc (sizeof (gdouble) * TOTAL_BOXES);
-  gint i;
-
-  GstDetectionMeta *detect_meta = (GstDetectionMeta *) meta_model;
-
-  g_return_val_if_fail (detect_meta, FALSE);
-
-  GST_LOG_OBJECT (vi, "Postprocess");
-  detect_meta->num_boxes = 0;
-  tinyyolov3 = GST_TINYYOLOV3 (vi);
-
-  gst_create_boxes_float (vi, prediction, valid_prediction,
-      &detect_meta->boxes, &detect_meta->num_boxes, tinyyolov3->obj_thresh,
-      tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, probabilities,
-      TOTAL_CLASSES);
-
-  /* Free probabilities */
-  for (i = 0; i < detect_meta->num_boxes; i++) {
-    g_free (probabilities[i]);
-  }
-  g_free (probabilities);
-
-  gst_inference_print_boxes (vi, gst_tinyyolov3_debug_category, detect_meta);
-
-  *valid_prediction = (detect_meta->num_boxes > 0) ? TRUE : FALSE;
 
   return TRUE;
 }

@@ -68,9 +68,6 @@ static gboolean gst_inceptionv2_postprocess (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model[2],
     GstVideoInfo * info_model, gboolean * valid_prediction,
     gchar ** labels_list, gint num_labels);
-static gboolean gst_inceptionv2_postprocess_old (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model,
-    GstVideoInfo * info_model, gboolean * valid_prediction);
 static gboolean gst_inceptionv2_postprocess_new (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction,
@@ -219,25 +216,6 @@ gst_inceptionv2_preprocess (GstVideoInference * vi,
 }
 
 static gboolean
-gst_inceptionv2_postprocess_old (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model,
-    GstVideoInfo * info_model, gboolean * valid_prediction)
-{
-  GstClassificationMeta *class_meta = (GstClassificationMeta *) meta_model;
-  GstDebugLevel gst_debug_level = GST_LEVEL_LOG;
-
-  GST_LOG_OBJECT (vi, "Postprocess");
-
-  gst_fill_classification_meta (class_meta, prediction, predsize);
-
-  gst_inference_print_highest_probability (vi, gst_inceptionv2_debug_category,
-      class_meta, prediction, gst_debug_level);
-
-  *valid_prediction = TRUE;
-  return TRUE;
-}
-
-static gboolean
 gst_inceptionv2_postprocess_new (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction,
@@ -277,9 +255,6 @@ gst_inceptionv2_postprocess (GstVideoInference * vi, const gpointer prediction,
 {
   gboolean ret = TRUE;
 
-  ret &=
-      gst_inceptionv2_postprocess_old (vi, prediction, predsize, meta_model[0],
-      info_model, valid_prediction);
   ret &=
       gst_inceptionv2_postprocess_new (vi, prediction, predsize, meta_model[1],
       info_model, valid_prediction, labels_list, num_labels);
