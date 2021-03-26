@@ -224,7 +224,7 @@ gst_classification_create_pipeline (GstClassification * classification)
   g_string_append (pipe_desc, " videoscale ! net.sink_model t. ! ");
   g_string_append (pipe_desc, " queue ! videoconvert ! ");
   g_string_append (pipe_desc, " video/x-raw,format=RGB ! net.sink_bypass ");
-  g_string_append (pipe_desc, " net.src_bypass ! classificationoverlay ! ");
+  g_string_append (pipe_desc, " net.src_bypass ! inferenceoverlay ! ");
   g_string_append (pipe_desc, " videoconvert ! queue ! ");
   g_string_append (pipe_desc, " autovideosink sync=false");
 

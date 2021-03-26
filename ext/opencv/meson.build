@@ -1,8 +1,6 @@
 gstinference_sources = [
   'gstplugin.cc',
-  'gstclassificationoverlay.cc',
   'gstinferenceoverlay.cc',
-  'gstdetectionoverlay.cc',
   'gstembeddingoverlay.cc'
 ]
 
