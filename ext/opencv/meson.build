@@ -1,7 +1,6 @@
 gstinference_sources = [
   'gstplugin.cc',
   'gstinferenceoverlay.cc',
-  'gstembeddingoverlay.cc'
 ]
 
 if opencv_dep.found()

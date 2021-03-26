@@ -1,5 +1,4 @@
 gstinference_sources = [
-	'gstfacenetv1.c',
 	'gstinceptionv1.c',
 	'gstinceptionv2.c',
 	'gstinceptionv3.c',

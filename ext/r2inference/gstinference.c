@@ -29,7 +29,6 @@
 #include "gstinceptionv4.h"
 #include "gsttinyyolov2.h"
 #include "gsttinyyolov3.h"
-#include "gstfacenetv1.h"
 #include "gstresnet50v1.h"
 #include "gstmobilenetv2.h"
 #include "gstmobilenetv2ssd.h"
@@ -86,12 +85,6 @@ plugin_init (GstPlugin * plugin)
 
   ret = gst_element_register (plugin, "tinyyolov3", GST_RANK_NONE,
       GST_TYPE_TINYYOLOV3);
-  if (!ret) {
-    goto out;
-  }
-
-  ret = gst_element_register (plugin, "facenetv1", GST_RANK_NONE,
-      GST_TYPE_FACENETV1);
   if (!ret) {
     goto out;
   }
