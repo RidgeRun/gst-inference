@@ -65,7 +65,7 @@ static gboolean gst_mobilenetv2ssd_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean
 gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model[2],
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction,
     gchar ** labels_list, gint num_labels);
 static gint
@@ -152,7 +152,6 @@ gst_mobilenetv2ssd_class_init (GstMobilenetv2ssdClass * klass)
 
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_mobilenetv2ssd_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_mobilenetv2ssd_postprocess);
-  vi_class->inference_meta_info = gst_inference_meta_get_info ();
 }
 
 static void
@@ -233,7 +232,7 @@ gst_mobilenetv2ssd_get_boxes_from_prediction (GstMobilenetv2ssd *
 
 static gboolean
 gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model[2],
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction,
     gchar ** labels_list, gint num_labels)
 {
@@ -275,7 +274,7 @@ gst_mobilenetv2ssd_postprocess (GstVideoInference * vi,
     goto out;
   }
 
-  imeta = (GstInferenceMeta *) meta_model[1];
+  imeta = (GstInferenceMeta *) meta_model;
 
   boxes = g_malloc (total_boxes * sizeof (BBox));
   probabilities = g_malloc (total_boxes * sizeof (gdouble *));

@@ -59,7 +59,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_resnet50v1_debug_category);
 static gboolean gst_resnet50v1_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_resnet50v1_postprocess (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model[2],
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction,
     gchar ** labels_list, gint num_labels);
 static gboolean gst_resnet50v1_start (GstVideoInference * vi);
@@ -130,7 +130,6 @@ gst_resnet50v1_class_init (GstResnet50v1Class * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_resnet50v1_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_resnet50v1_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_resnet50v1_postprocess);
-  vi_class->inference_meta_info = gst_inference_meta_get_info ();
 }
 
 static void
@@ -150,7 +149,7 @@ gst_resnet50v1_preprocess (GstVideoInference * vi,
 
 static gboolean
 gst_resnet50v1_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction, gchar ** labels_list, gint num_labels)
 {
   GstInferenceMeta *imeta = NULL;

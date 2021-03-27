@@ -55,7 +55,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_mobilenetv2_debug_category);
 static gboolean gst_mobilenetv2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean gst_mobilenetv2_postprocess (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model[2],
+    const gpointer prediction, gsize predsize, GstMeta * meta_model,
     GstVideoInfo * info_model, gboolean * valid_prediction,
     gchar ** labels_list, gint num_labels);
 static gboolean gst_mobilenetv2_start (GstVideoInference * vi);
@@ -126,7 +126,6 @@ gst_mobilenetv2_class_init (GstMobilenetv2Class * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_mobilenetv2_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_mobilenetv2_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_mobilenetv2_postprocess);
-  vi_class->inference_meta_info = gst_inference_meta_get_info ();
 }
 
 static void
@@ -144,7 +143,7 @@ gst_mobilenetv2_preprocess (GstVideoInference * vi,
 
 static gboolean
 gst_mobilenetv2_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction, gchar ** labels_list, gint num_labels)
 {
   GstInferenceMeta *imeta = NULL;
@@ -158,7 +157,7 @@ gst_mobilenetv2_postprocess (GstVideoInference * vi, const gpointer prediction,
 
   GST_LOG_OBJECT (vi, "Postprocess Meta");
 
-  imeta = (GstInferenceMeta *) meta_model[1];
+  imeta = (GstInferenceMeta *) meta_model;
 
   root = imeta->prediction;
   if (!root) {

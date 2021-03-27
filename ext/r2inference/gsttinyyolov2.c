@@ -84,7 +84,7 @@ static gboolean gst_tinyyolov2_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 static gboolean
 gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction, gchar ** labels_list, gint num_labels);
 static gboolean gst_tinyyolov2_start (GstVideoInference * vi);
 static gboolean gst_tinyyolov2_stop (GstVideoInference * vi);
@@ -183,7 +183,6 @@ gst_tinyyolov2_class_init (GstTinyyolov2Class * klass)
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_tinyyolov2_stop);
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_tinyyolov2_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_tinyyolov2_postprocess);
-  vi_class->inference_meta_info = gst_inference_meta_get_info ();
 }
 
 static void
@@ -283,7 +282,7 @@ gst_tinyyolov2_preprocess (GstVideoInference * vi,
 
 static gboolean
 gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
-    gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
+    gsize predsize, GstMeta * meta_model, GstVideoInfo * info_model,
     gboolean * valid_prediction, gchar ** labels_list, gint num_labels)
 {
   GstTinyyolov2 *tinyyolov2 = NULL;
@@ -300,7 +299,7 @@ gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
 
   probabilities = g_malloc (sizeof (gdouble *) * TOTAL_BOXES);
 
-  imeta = (GstInferenceMeta *) meta_model[1];
+  imeta = (GstInferenceMeta *) meta_model;
   tinyyolov2 = GST_TINYYOLOV2 (vi);
 
   GST_LOG_OBJECT (tinyyolov2, "Postprocess Meta");
