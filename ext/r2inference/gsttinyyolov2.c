@@ -86,11 +86,6 @@ static gboolean
 gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction, gchar ** labels_list, gint num_labels);
-static gboolean
-gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model,
-    GstVideoInfo * info_model, gboolean * valid_prediction,
-    gchar ** labels_list, gint num_labels);
 static gboolean gst_tinyyolov2_start (GstVideoInference * vi);
 static gboolean gst_tinyyolov2_stop (GstVideoInference * vi);
 
@@ -291,7 +286,11 @@ gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
     gsize predsize, GstMeta * meta_model[2], GstVideoInfo * info_model,
     gboolean * valid_prediction, gchar ** labels_list, gint num_labels)
 {
-  gboolean ret = TRUE;
+  GstTinyyolov2 *tinyyolov2 = NULL;
+  GstInferenceMeta *imeta = NULL;
+  BBox *boxes = NULL;
+  gint num_boxes = 0, i = 0;
+  gdouble **probabilities = NULL;
 
   g_return_val_if_fail (vi, FALSE);
   g_return_val_if_fail (prediction, FALSE);
@@ -299,30 +298,9 @@ gst_tinyyolov2_postprocess (GstVideoInference * vi, const gpointer prediction,
   g_return_val_if_fail (info_model, FALSE);
   g_return_val_if_fail (valid_prediction, FALSE);
 
-  ret &=
-      gst_tinyyolov2_postprocess_new (vi, prediction, predsize, meta_model[1],
-      info_model, valid_prediction, labels_list, num_labels);
+  probabilities = g_malloc (sizeof (gdouble *) * TOTAL_BOXES);
 
-  return TRUE;
-}
-
-static gboolean
-gst_tinyyolov2_postprocess_new (GstVideoInference * vi,
-    const gpointer prediction, gsize predsize, GstMeta * meta_model,
-    GstVideoInfo * info_model, gboolean * valid_prediction,
-    gchar ** labels_list, gint num_labels)
-{
-  GstTinyyolov2 *tinyyolov2 = NULL;
-  GstInferenceMeta *imeta = NULL;
-  BBox *boxes = NULL;
-  gint num_boxes, i;
-  gdouble **probabilities = g_malloc (sizeof (gdouble) * TOTAL_BOXES);
-
-  g_return_val_if_fail (vi != NULL, FALSE);
-  g_return_val_if_fail (meta_model != NULL, FALSE);
-  g_return_val_if_fail (info_model != NULL, FALSE);
-
-  imeta = (GstInferenceMeta *) meta_model;
+  imeta = (GstInferenceMeta *) meta_model[1];
   tinyyolov2 = GST_TINYYOLOV2 (vi);
 
   GST_LOG_OBJECT (tinyyolov2, "Postprocess Meta");
