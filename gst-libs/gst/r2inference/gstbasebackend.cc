@@ -478,6 +478,16 @@ gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame
   }
 
   error = priv->engine->Predict (frame, predictions);
+
+  /* We verify it the error is not implemented to keep compatibility with
+   backends that do not support multiple predictions */
+  if (r2i::RuntimeError::Code::NOT_IMPLEMENTED == error.GetCode()) {
+    std::shared_ptr < r2i::IPrediction > prediction;
+
+    prediction = priv->engine->Predict (frame, error);
+    predictions.push_back(prediction);
+  }
+
   if (error.IsError ()) {
     goto error;
   }
