@@ -23,9 +23,6 @@
 #include "config.h"
 #endif
 
-#include "gstclassificationoverlay.h"
-#include "gstdetectionoverlay.h"
-#include "gstembeddingoverlay.h"
 #include "gstinferenceoverlay.h"
 
 static gboolean
@@ -33,26 +30,6 @@ plugin_init (GstPlugin * plugin)
 {
   gboolean ret = TRUE;
 
-  ret =
-      gst_element_register (plugin, "classificationoverlay", GST_RANK_NONE,
-      GST_TYPE_CLASSIFICATION_OVERLAY);
-  if (!ret) {
-    goto out;
-  }
-
-  ret =
-      gst_element_register (plugin, "detectionoverlay", GST_RANK_NONE,
-      GST_TYPE_DETECTION_OVERLAY);
-  if (!ret) {
-    goto out;
-  }
-
-  ret =
-      gst_element_register (plugin, "embeddingoverlay", GST_RANK_NONE,
-      GST_TYPE_EMBEDDING_OVERLAY);
-  if (!ret) {
-    goto out;
-  }
   ret =
       gst_element_register (plugin, "inferenceoverlay", GST_RANK_NONE,
       GST_TYPE_INFERENCE_OVERLAY);

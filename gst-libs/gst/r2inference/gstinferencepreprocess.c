@@ -133,63 +133,6 @@ gst_normalize (GstVideoFrame * inframe, GstVideoFrame * outframe, gdouble mean,
 }
 
 gboolean
-gst_normalize_face (GstVideoFrame * inframe, GstVideoFrame * outframe,
-    gint model_channels)
-{
-  gint i, j, pixel_stride, width, height, channels;
-  gdouble mean, std, variance, sum, normalized, R, G, B;
-  gint first_index = 0, last_index = 0, offset = 0;
-
-  channels = GST_VIDEO_FRAME_N_COMPONENTS (inframe);
-  pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0) / channels;
-  width = GST_VIDEO_FRAME_WIDTH (inframe);
-  height = GST_VIDEO_FRAME_HEIGHT (inframe);
-
-  sum = 0;
-  normalized = 0;
-
-  g_return_val_if_fail (inframe != NULL, FALSE);
-  g_return_val_if_fail (outframe != NULL, FALSE);
-
-  for (i = 0; i < height; ++i) {
-    for (j = 0; j < width; ++j) {
-      sum =
-          sum + (((guchar *) inframe->data[0])[(i * pixel_stride +
-                  j) * channels + 0]);
-      sum =
-          sum + (((guchar *) inframe->data[0])[(i * pixel_stride +
-                  j) * channels + 1]);
-      sum =
-          sum + (((guchar *) inframe->data[0])[(i * pixel_stride +
-                  j) * channels + 2]);
-    }
-  }
-
-  mean = sum / (float) (width * height * channels);
-
-  for (i = 0; i < height; ++i) {
-    for (j = 0; j < width; ++j) {
-      R = (gfloat) ((((guchar *) inframe->data[0])[(i * pixel_stride +
-                      j) * channels + 0])) - mean;
-      G = (gfloat) ((((guchar *) inframe->data[0])[(i * pixel_stride +
-                      j) * channels + 1])) - mean;
-      B = (gfloat) ((((guchar *) inframe->data[0])[(i * pixel_stride +
-                      j) * channels + 2])) - mean;
-      normalized = normalized + pow (R, 2);
-      normalized = normalized + pow (G, 2);
-      normalized = normalized + pow (B, 2);
-    }
-  }
-
-  variance = normalized / (float) (width * height * channels);
-  std = 1 / sqrt (variance);
-
-  gst_apply_means_std (inframe, outframe, first_index, last_index, offset,
-      channels, mean, mean, mean, std, std, std, model_channels);
-  return TRUE;
-}
-
-gboolean
 gst_subtract_mean (GstVideoFrame * inframe, GstVideoFrame * outframe,
     gdouble mean_red, gdouble mean_green, gdouble mean_blue,
     gint model_channels)

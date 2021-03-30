@@ -39,16 +39,6 @@ G_BEGIN_DECLS
 gboolean gst_normalize(GstVideoFrame * inframe, GstVideoFrame * outframe, gdouble mean, gdouble std, gint model_channels);
 
 /**
- * \brief Especial normalization used for facenet
- *
- * \param inframe The input frame
- * \param outframe The output frame after preprocess
- * \param model_channels The number of channels of the model
- */
-
-gboolean gst_normalize_face(GstVideoFrame * inframe, GstVideoFrame * outframe, gint model_channels);
-
-/**
  * \brief Substract the mean value to every pixel
  *
  * \param inframe The input frame

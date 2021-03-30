@@ -240,7 +240,7 @@ gst_detection_create_pipeline (GstDetection * detection)
       " tee name=t t. ! queue ! videoconvert ! videoscale ! ");
   g_string_append (pipe_desc, " net.sink_model t. ! queue ! videoconvert ! ");
   g_string_append (pipe_desc, " video/x-raw,format=RGB ! net.sink_bypass ");
-  g_string_append (pipe_desc, " net.src_bypass ! detectionoverlay ! ");
+  g_string_append (pipe_desc, " net.src_bypass ! inferenceoverlay ! ");
   g_string_append (pipe_desc, " videoconvert ! queue ! ");
   g_string_append (pipe_desc, " autovideosink sync=false ");
 
