@@ -27,7 +27,7 @@
 
 G_BEGIN_DECLS
 /**
- * \brief Fill all the detection meta with the boxes
+ * \brief Fill all the data for the boxes
  *
  * \param vi Father object of every architecture
  * \param prediction Value of the prediction
@@ -46,7 +46,7 @@ gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
     gdouble ** probabilities, gint num_classes);
 
 /**
- * \brief Fill all the detection meta with the boxes
+ * \brief Fill all the data for the boxes
  *
  * \param vi Father object of every architecture
  * \param prediction Value of the prediction
