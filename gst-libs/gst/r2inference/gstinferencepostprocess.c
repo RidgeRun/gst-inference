@@ -41,22 +41,6 @@ static void gst_get_boxes_from_prediction_float (gfloat obj_thresh,
     gfloat prob_thresh, gpointer prediction, BBox * boxes, gint * elements,
     gint total_boxes, gdouble ** probabilities, gint num_classes);
 
-gboolean
-gst_fill_classification_meta (GstClassificationMeta * class_meta,
-    const gpointer prediction, gsize predsize)
-{
-  g_return_val_if_fail (class_meta != NULL, FALSE);
-  g_return_val_if_fail (prediction != NULL, FALSE);
-
-  class_meta->num_labels = predsize / sizeof (gfloat);
-  class_meta->label_probs =
-      g_malloc (class_meta->num_labels * sizeof (gdouble));
-  for (gint i = 0; i < class_meta->num_labels; ++i) {
-    class_meta->label_probs[i] = (gdouble) ((gfloat *) prediction)[i];
-  }
-  return TRUE;
-}
-
 static gdouble
 gst_intersection_over_union (BBox box_1, BBox box_2)
 {

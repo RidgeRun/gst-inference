@@ -48,8 +48,8 @@ void gst_classification_create_pipeline (GstClassification * classification);
 void gst_classification_start (GstClassification * classification);
 void gst_classification_stop (GstClassification * classification);
 static void gst_classification_process_inference (GstElement * element,
-    GstClassificationMeta * model_meta, GstVideoFrame * model_frame,
-    GstClassificationMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    GstInferenceMeta * model_meta, GstVideoFrame * model_frame,
+    GstInferenceMeta * bypass_meta, GstVideoFrame * bypass_frame,
     gpointer user_data);
 static gboolean gst_classification_exit_handler (gpointer user_data);
 static gboolean gst_classification_handle_message (GstBus * bus,
@@ -111,7 +111,7 @@ main (int argc, char *argv[])
   classification->inference_element =
       gst_bin_get_by_name (GST_BIN (classification->pipeline), "net");
 
-  g_signal_connect (classification->inference_element, "new-prediction",
+  g_signal_connect (classification->inference_element, "new-inference",
       G_CALLBACK (gst_classification_process_inference), classification);
 
   gst_classification_start (classification);
@@ -176,10 +176,13 @@ gst_classification_free (GstClassification * classification)
 
 static void
 gst_classification_process_inference (GstElement * element,
-    GstClassificationMeta * model_meta, GstVideoFrame * model_frame,
-    GstClassificationMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    GstInferenceMeta * model_meta, GstVideoFrame * model_frame,
+    GstInferenceMeta * bypass_meta, GstVideoFrame * bypass_frame,
     gpointer user_data)
 {
+  GstInferenceClassification *classification = NULL;
+  GstInferencePrediction *prediction = NULL;
+
   g_return_if_fail (element);
   g_return_if_fail (model_meta);
   g_return_if_fail (model_frame);
@@ -187,9 +190,18 @@ gst_classification_process_inference (GstElement * element,
   g_return_if_fail (bypass_frame);
   g_return_if_fail (user_data);
 
+  prediction = bypass_meta->prediction;
+
+  GST_INFERENCE_PREDICTION_LOCK (prediction);
+
+  classification =
+      (GstInferenceClassification *) prediction->classifications->data;
+
   handle_prediction (bypass_frame->data[0], bypass_frame->info.width,
       bypass_frame->info.height, bypass_frame->info.size,
-      bypass_meta->label_probs, bypass_meta->num_labels);
+      classification->probabilities, classification->num_classes);
+
+  GST_INFERENCE_PREDICTION_UNLOCK (prediction);
 }
 
 void

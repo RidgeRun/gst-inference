@@ -1,6 +1,5 @@
 # name, condition when to skip the test, extra dependencies and extra files
 gst_tests = [
-  ['test_gst_fill_classification_meta_function', false, [gstinference_dep, test_deps],  [] ],
   ['test_gst_normalize_function', false, [gstinference_dep, test_deps],  [] ],
   ['test_gst_pixel_to_float_function', false, [gstinference_dep, test_deps],  [] ],
   ['test_gst_subtract_mean_function', false, [gstinference_dep, test_deps],  [] ],
