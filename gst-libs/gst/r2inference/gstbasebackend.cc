@@ -207,11 +207,22 @@ gst_base_backend_param_to_spec (r2i::ParameterMeta *param) {
     }
     case (r2i::ParameterMeta::Type::DOUBLE): {
       spec = g_param_spec_double (param->name.c_str (),
-                                 param->name.c_str (),
-                                 param->description.c_str (),
-                                 -G_MAXDOUBLE,
-                                 G_MAXDOUBLE, DOUBLE_PROPERTY_DEFAULT_VALUE,
-                                 (GParamFlags) gst_base_backend_param_flags (param->flags));
+                                  param->name.c_str (),
+                                  param->description.c_str (),
+                                  -G_MAXDOUBLE,
+                                  G_MAXDOUBLE, DOUBLE_PROPERTY_DEFAULT_VALUE,
+                                  (GParamFlags) gst_base_backend_param_flags (param->flags));
+      break;
+    }
+    case (r2i::ParameterMeta::Type::VECTOR): {
+      spec = gst_param_spec_array (param->name.c_str(),
+                                   param->name.c_str(),
+                                   param->description.c_str(),
+                                   g_param_spec_string (param->name.c_str (),
+                                       param->name.c_str (),
+                                       param->description.c_str (),
+                                       NULL, (GParamFlags) gst_base_backend_param_flags (param->flags)),
+                                   (GParamFlags) gst_base_backend_param_flags (param->flags));
       break;
     }
     default:
