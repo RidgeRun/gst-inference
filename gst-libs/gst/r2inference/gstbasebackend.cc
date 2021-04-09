@@ -207,13 +207,26 @@ gst_base_backend_param_to_spec (r2i::ParameterMeta *param) {
     }
     case (r2i::ParameterMeta::Type::DOUBLE): {
       spec = g_param_spec_double (param->name.c_str (),
-                                 param->name.c_str (),
-                                 param->description.c_str (),
-                                 -G_MAXDOUBLE,
-                                 G_MAXDOUBLE, DOUBLE_PROPERTY_DEFAULT_VALUE,
-                                 (GParamFlags) gst_base_backend_param_flags (param->flags));
+                                  param->name.c_str (),
+                                  param->description.c_str (),
+                                  -G_MAXDOUBLE,
+                                  G_MAXDOUBLE, DOUBLE_PROPERTY_DEFAULT_VALUE,
+                                  (GParamFlags) gst_base_backend_param_flags (param->flags));
       break;
     }
+#if GST_VERSION_MINOR >= 14
+    case (r2i::ParameterMeta::Type::VECTOR): {
+      spec = gst_param_spec_array (param->name.c_str(),
+                                   param->name.c_str(),
+                                   param->description.c_str(),
+                                   g_param_spec_string (param->name.c_str (),
+                                       param->name.c_str (),
+                                       param->description.c_str (),
+                                       NULL, (GParamFlags) gst_base_backend_param_flags (param->flags)),
+                                   (GParamFlags) gst_base_backend_param_flags (param->flags));
+      break;
+    }
+#endif
     default:
       g_return_val_if_reached (NULL);
   }
@@ -444,9 +457,15 @@ gboolean
 gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame,
                            gpointer *prediction_data, gsize *prediction_size, GError **err) {
   GstBaseBackendPrivate *priv = GST_BASE_BACKEND_PRIVATE (self);
-  std::shared_ptr < r2i::IPrediction > prediction;
+  std::vector<std::shared_ptr<r2i::IPrediction>> predictions;
   std::shared_ptr < r2i::IFrame > frame;
   r2i::RuntimeError error;
+  gint num_outputs = 0;
+  gsize extra_size = 0;
+  gpointer data = NULL;
+  gpointer data_offset = 0;
+  gsize size = 0;
+  gint i = 0;
 
   g_return_val_if_fail (priv, FALSE);
   g_return_val_if_fail (input_frame, FALSE);
@@ -465,27 +484,57 @@ gst_base_backend_process_frame (GstBaseBackend *self, GstVideoFrame *input_frame
   error =
     frame->Configure (input_frame->data[0], input_frame->info.width,
                       input_frame->info.height,
-                      gst_base_backend_cast_format(input_frame->info.finfo->format));
+                      gst_base_backend_cast_format(input_frame->info.finfo->format),
+                      r2i::DataType::Id::FLOAT);
   if (error.IsError ()) {
     goto error;
   }
 
-  prediction = priv->engine->Predict (frame, error);
+  error = priv->engine->Predict (frame, predictions);
+
+  /* We verify it the error is not implemented to keep compatibility with
+   backends that do not support multiple predictions */
+  if (r2i::RuntimeError::Code::NOT_IMPLEMENTED == error.GetCode()) {
+    std::shared_ptr < r2i::IPrediction > prediction;
+
+    prediction = priv->engine->Predict (frame, error);
+    predictions.push_back(prediction);
+  }
+
   if (error.IsError ()) {
     goto error;
   }
 
-  *prediction_size = prediction->GetResultSize ();
+  num_outputs = predictions.size();
+  GST_LOG_OBJECT (self, "Got %d predictions", num_outputs);
 
-  /*could we avoid memory copy ?*/
-  *prediction_data = g_malloc(*prediction_size);
-  memcpy(*prediction_data, prediction->GetResultData(), *prediction_size);
+  if (0 == num_outputs) {
+    error.Set (r2i::RuntimeError::Code::WRONG_ENGINE_STATE,
+               "Engine got 0 predictions");
+    goto error;
+  }
+
+  /* Concatenate all the outputs in a 1D array */
+  for (i = 0; i < num_outputs; i++) {
+    /* Compute the size including the new tensor and reallocate memory */
+    extra_size = predictions[i]->GetResultSize ();
+    data = g_realloc (data, size + extra_size);
+
+    /* Compute the offset to concatenate the new tensor */
+    data_offset = (void *) ((gsize) data + size);
+    /* Could we avoid memory copy ?*/
+    memcpy (data_offset, predictions[i]->GetResultData (), extra_size);
+    size += extra_size;
+  }
+
+  *prediction_size = size;
+  *prediction_data = data;
 
   GST_LOG_OBJECT (self, "Size of prediction %p is %lu",
                   *prediction_data, *prediction_size);
 
   frame = nullptr;
-  prediction = nullptr;
+  predictions.clear();
 
   return TRUE;
 error:

@@ -30,8 +30,6 @@
 
 static gdouble gst_intersection_over_union (BBox box_1, BBox box_2);
 static void gst_delete_box (BBox * boxes, gint * num_boxes, gint index);
-static void gst_remove_duplicated_boxes (gfloat iou_thresh, BBox * boxes,
-    gint * num_boxes);
 static void gst_box_to_pixels (BBox * normalized_box, gint row, gint col,
     gint box);
 static gdouble gst_sigmoid (gdouble x);
@@ -42,22 +40,6 @@ static void gst_get_boxes_from_prediction (gfloat obj_thresh,
 static void gst_get_boxes_from_prediction_float (gfloat obj_thresh,
     gfloat prob_thresh, gpointer prediction, BBox * boxes, gint * elements,
     gint total_boxes, gdouble ** probabilities, gint num_classes);
-
-gboolean
-gst_fill_classification_meta (GstClassificationMeta * class_meta,
-    const gpointer prediction, gsize predsize)
-{
-  g_return_val_if_fail (class_meta != NULL, FALSE);
-  g_return_val_if_fail (prediction != NULL, FALSE);
-
-  class_meta->num_labels = predsize / sizeof (gfloat);
-  class_meta->label_probs =
-      g_malloc (class_meta->num_labels * sizeof (gdouble));
-  for (gint i = 0; i < class_meta->num_labels; ++i) {
-    class_meta->label_probs[i] = (gdouble) ((gfloat *) prediction)[i];
-  }
-  return TRUE;
-}
 
 static gdouble
 gst_intersection_over_union (BBox box_1, BBox box_2)
@@ -109,8 +91,8 @@ gst_delete_box (BBox * boxes, gint * num_boxes, gint index)
   }
 }
 
-static void
-gst_remove_duplicated_boxes (gfloat iou_thresh, BBox * boxes, gint * num_boxes)
+void
+gst_remove_duplicated_boxes (gdouble iou_thresh, BBox * boxes, gint * num_boxes)
 {
   /* Remove duplicated boxes. A box is considered a duplicate if its
    * intersection over union metric is above a threshold

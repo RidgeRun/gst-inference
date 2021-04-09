@@ -212,11 +212,11 @@ gst_inference_classification_to_string (GstInferenceClassification * self,
   GST_INFERENCE_CLASSIFICATION_LOCK (self);
 
   serial = g_strdup_printf ("{\n"
-      "%*s  Id : %" G_GUINT64_FORMAT "\n"
-      "%*s  Class : %d\n"
-      "%*s  Label : %s\n"
-      "%*s  Probability : %f\n"
-      "%*s  Classes : %d\n"
+      "%*s  \"Id\" : %" G_GUINT64_FORMAT ",\n"
+      "%*s  \"Class\" : %d,\n"
+      "%*s  \"Label\" : \"%s\",\n"
+      "%*s  \"Probability\" : \"%f\",\n"
+      "%*s  \"Classes\" : %d\n"
       "%*s}",
       indent, "", self->classification_id,
       indent, "", self->class_id,

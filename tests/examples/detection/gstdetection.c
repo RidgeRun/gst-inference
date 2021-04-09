@@ -48,8 +48,8 @@ void gst_detection_create_pipeline (GstDetection * detection);
 void gst_detection_start (GstDetection * detection);
 void gst_detection_stop (GstDetection * detection);
 static void gst_detection_process_inference (GstElement * element,
-    GstDetectionMeta * model_meta, GstVideoFrame * model_frame,
-    GstDetectionMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    GstInferenceMeta * model_meta, GstVideoFrame * model_frame,
+    GstInferenceMeta * bypass_meta, GstVideoFrame * bypass_frame,
     gpointer user_data);
 static gboolean gst_detection_exit_handler (gpointer user_data);
 static gboolean gst_detection_handle_message (GstBus * bus,
@@ -111,7 +111,7 @@ main (int argc, char *argv[])
   detection->inference_element =
       gst_bin_get_by_name (GST_BIN (detection->pipeline), "net");
 
-  g_signal_connect (detection->inference_element, "new-prediction",
+  g_signal_connect (detection->inference_element, "new-inference",
       G_CALLBACK (gst_detection_process_inference), detection);
 
   gst_detection_start (detection);
@@ -176,12 +176,16 @@ gst_detection_free (GstDetection * detection)
 
 static void
 gst_detection_process_inference (GstElement * element,
-    GstDetectionMeta * model_meta, GstVideoFrame * model_frame,
-    GstDetectionMeta * bypass_meta, GstVideoFrame * bypass_frame,
+    GstInferenceMeta * model_meta, GstVideoFrame * model_frame,
+    GstInferenceMeta * bypass_meta, GstVideoFrame * bypass_frame,
     gpointer user_data)
 {
-  gint index;
-  PredictionBox *boxes;
+  PredictionBox *boxes = NULL;
+  GstInferenceClassification *classification = NULL;
+  GstInferencePrediction *prediction = NULL;
+  GstInferencePrediction *child = NULL;
+  GSList *child_predictions = NULL;
+  gint num_boxes = 0;
 
   g_return_if_fail (element);
   g_return_if_fail (model_meta);
@@ -190,23 +194,36 @@ gst_detection_process_inference (GstElement * element,
   g_return_if_fail (bypass_frame);
   g_return_if_fail (user_data);
 
-  boxes =
-      (PredictionBox *) g_malloc (bypass_meta->num_boxes *
-      sizeof (PredictionBox));
+  prediction = bypass_meta->prediction;
 
-  for (index = 0; index < bypass_meta->num_boxes; index++) {
-    boxes[index].category = bypass_meta->boxes[index].label;
-    boxes[index].x = bypass_meta->boxes[index].x;
-    boxes[index].y = bypass_meta->boxes[index].y;
-    boxes[index].width = bypass_meta->boxes[index].width;
-    boxes[index].height = bypass_meta->boxes[index].height;
-    boxes[index].probability = bypass_meta->boxes[index].prob;
+  /* Iterate through the immediate child predictions */
+  for (child_predictions = gst_inference_prediction_get_children (prediction);
+       child_predictions;
+       child_predictions = g_slist_next (child_predictions)) {
+
+    PredictionBox box = { 0 };
+    child = (GstInferencePrediction *) child_predictions->data;
+    box.x = child->bbox.x;
+    box.y = child->bbox.y;
+    box.width = child->bbox.width;
+    box.height = child->bbox.height;
+    classification =
+        (GstInferenceClassification *) child->classifications->data;
+    box.category = classification->class_id;
+    box.probability = classification->class_prob;
+
+    num_boxes++;
+    boxes = (PredictionBox *) g_realloc (boxes,
+        num_boxes * sizeof (PredictionBox));
+    boxes[num_boxes - 1] = box;
   }
 
   handle_prediction (bypass_frame->data[0], bypass_frame->info.width,
-      bypass_frame->info.height, bypass_frame->info.size, boxes,
-      bypass_meta->num_boxes);
-  g_free (boxes);
+      bypass_frame->info.height, bypass_frame->info.size, boxes, num_boxes);
+
+  if (boxes) {
+    g_free (boxes);
+  }
 }
 
 void
@@ -240,7 +257,7 @@ gst_detection_create_pipeline (GstDetection * detection)
       " tee name=t t. ! queue ! videoconvert ! videoscale ! ");
   g_string_append (pipe_desc, " net.sink_model t. ! queue ! videoconvert ! ");
   g_string_append (pipe_desc, " video/x-raw,format=RGB ! net.sink_bypass ");
-  g_string_append (pipe_desc, " net.src_bypass ! detectionoverlay ! ");
+  g_string_append (pipe_desc, " net.src_bypass ! inferenceoverlay ! ");
   g_string_append (pipe_desc, " videoconvert ! queue ! ");
   g_string_append (pipe_desc, " autovideosink sync=false ");
 

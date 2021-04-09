@@ -1,5 +1,5 @@
 project('GStreamer Inference', ['c', 'cpp'], default_options : ['cpp_std=c++11'],
-  version : '0.10.1.1',
+  version : '0.11.0.1',
   meson_version : '>= 0.50',)
 
 project_name = meson.project_name()
@@ -225,7 +225,7 @@ pkgconfig = import('pkgconfig')
 
 # Install git hooks
 python3 = import('python').find_installation()
-run_command(python3, '-c', 'import shutil; shutil.copy("common/hooks/pre-commit.hook", ".git/hooks/pre-commit")')
+run_command(python3, '-c', 'import shutil; shutil.copy("hooks/pre-commit.hook", ".git/hooks/pre-commit")')
 
 # Meson will generate a header file all the entries in the configuration data object
 configure_file(output : 'config.h', configuration : cdata)

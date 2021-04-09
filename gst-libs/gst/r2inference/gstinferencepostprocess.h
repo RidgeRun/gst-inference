@@ -27,17 +27,7 @@
 
 G_BEGIN_DECLS
 /**
- * \brief Fill all the classification meta with predictions
- *
- * \param class_meta Meta to fill
- * \param prediction Value of the prediction
- * \param predsize Size of the prediction
- */
-    gboolean gst_fill_classification_meta (GstClassificationMeta * class_meta,
-    const gpointer prediction, gsize predsize);
-
-/**
- * \brief Fill all the detection meta with the boxes
+ * \brief Fill all the data for the boxes
  *
  * \param vi Father object of every architecture
  * \param prediction Value of the prediction
@@ -56,7 +46,7 @@ gboolean gst_create_boxes (GstVideoInference * vi, const gpointer prediction,
     gdouble ** probabilities, gint num_classes);
 
 /**
- * \brief Fill all the detection meta with the boxes
+ * \brief Fill all the data for the boxes
  *
  * \param vi Father object of every architecture
  * \param prediction Value of the prediction
@@ -98,6 +88,14 @@ GstInferencePrediction *gst_create_prediction_from_box (GstVideoInference * vi,
  */
 GstInferenceClassification *gst_create_class_from_prediction (GstVideoInference * vi,
     const gpointer prediction, gsize predsize, gchar **labels_list, gint num_labels);
+/**
+ * \brief Remove duplicated boxes
+ * \param iou_thresh Threshold of iou to consider that a box is duplicated
+ * \param boxes Array of bounding boxes
+ * \param num_boxes Amount of boxes in the array
+ */
+void gst_remove_duplicated_boxes (gdouble iou_thresh, BBox * boxes,
+    gint * num_boxes);
 
 G_END_DECLS
 #endif

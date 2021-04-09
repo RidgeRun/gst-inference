@@ -1,11 +1,11 @@
 gstinference_sources = [
-	'gstfacenetv1.c',
 	'gstinceptionv1.c',
 	'gstinceptionv2.c',
 	'gstinceptionv3.c',
 	'gstinceptionv4.c',
 	'gstinference.c',
 	'gstmobilenetv2.c',
+	'gstmobilenetv2ssd.c',
 	'gstresnet50v1.c',
 	'gsttinyyolov2.c',
 	'gsttinyyolov3.c'

@@ -239,10 +239,10 @@ bounding_box_to_string (BoundingBox * bbox, gint level)
   g_return_val_if_fail (bbox, NULL);
 
   return g_strdup_printf ("{\n"
-      "%*s  x : %d\n"
-      "%*s  y : %d\n"
-      "%*s  width : %u\n"
-      "%*s  height : %u\n"
+      "%*s  \"x\" : %d,\n"
+      "%*s  \"y\" : %d,\n"
+      "%*s  \"width\" : %u,\n"
+      "%*s  \"height\" : %u\n"
       "%*s}",
       indent, "", bbox->x,
       indent, "", bbox->y,
@@ -267,7 +267,14 @@ prediction_children_to_string (GstInferencePrediction * self, gint level)
     GstInferencePrediction *pred = (GstInferencePrediction *) iter->data;
     gchar *child = prediction_to_string (pred, level + 1);
 
-    g_string_append_printf (string, "%s, ", child);
+    if (iter == subpreds) {
+      /* The first element does not need a comma prepended */
+      g_string_append_printf (string, "%s", child);
+    } else {
+      /* Check if more than one element to add list separator */
+      g_string_append_printf (string, ",%s", child);
+    }
+
     g_free (child);
   }
 
@@ -291,7 +298,7 @@ prediction_classes_to_string (GstInferencePrediction * self, gint level)
     GstInferenceClassification *c = (GstInferenceClassification *) iter->data;
     gchar *sclass = gst_inference_classification_to_string (c, level + 1);
 
-    g_string_append_printf (string, "%s, ", sclass);
+    g_string_append_printf (string, "%s ", sclass);
     g_free (sclass);
   }
 
@@ -314,13 +321,13 @@ prediction_to_string (GstInferencePrediction * self, gint level)
   children = prediction_children_to_string (self, level + 1);
 
   prediction = g_strdup_printf ("{\n"
-      "%*s  id : %" G_GUINT64_FORMAT ",\n"
-      "%*s  enabled : %s,\n"
-      "%*s  bbox : %s,\n"
-      "%*s  classes : [\n"
+      "%*s  \"id\" : %" G_GUINT64_FORMAT ",\n"
+      "%*s  \"enabled\" : \"%s\",\n"
+      "%*s  \"bbox\" : %s,\n"
+      "%*s  \"classes\" : [\n"
       "%*s    %s\n"
       "%*s  ],\n"
-      "%*s  predictions : [\n"
+      "%*s  \"predictions\" : [\n"
       "%*s    %s\n"
       "%*s  ]\n"
       "%*s}",

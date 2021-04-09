@@ -49,8 +49,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_video_inference_debug_category);
 #define DEFAULT_NUM_LABELS 0
 enum
 {
-  NEW_PREDICTION_SIGNAL,
   NEW_INFERENCE_SIGNAL,
+  NEW_INFERENCE_STRING_SIGNAL,
   LAST_SIGNAL
 };
 
@@ -169,9 +169,8 @@ static void gst_video_inference_set_caps (GstVideoInference * self,
 
 static void video_inference_map_buffers (GstVideoInferencePad * data,
     GstBuffer * inbuf, GstVideoFrame * inframe, GstVideoFrame * outframe);
-static gboolean video_inference_prepare_postprocess (const GstMetaInfo *
-    meta_info, GstBuffer * buffer, GstVideoInfo * video_info,
-    GstMeta ** out_meta);
+static gboolean video_inference_prepare_postprocess (GstBuffer * buffer,
+    GstVideoInfo * video_info, GstMeta ** out_meta);
 static GstMeta *video_inference_transform_meta (GstBuffer * buffer_model,
     GstVideoInfo * info_model, GstMeta * meta_model, GstBuffer * buffer_bypass,
     GstVideoInfo * info_bypass);
@@ -233,15 +232,14 @@ gst_video_inference_class_init (GstVideoInferenceClass * klass)
           "Semicolon separated string containing inference labels",
           DEFAULT_LABELS, G_PARAM_READWRITE));
 
-  gst_video_inference_signals[NEW_PREDICTION_SIGNAL] =
-      g_signal_new ("new-prediction", G_TYPE_FROM_CLASS (klass),
-      G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 4, G_TYPE_POINTER,
-      G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
-
   gst_video_inference_signals[NEW_INFERENCE_SIGNAL] =
       g_signal_new ("new-inference", G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 4, G_TYPE_POINTER,
       G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
+
+  gst_video_inference_signals[NEW_INFERENCE_STRING_SIGNAL] =
+      g_signal_new ("new-inference-string", G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_FIRST, 0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_STRING);
 
   klass->start = NULL;
   klass->stop = NULL;
@@ -826,25 +824,23 @@ free_frames:
 }
 
 static gboolean
-video_inference_prepare_postprocess (const GstMetaInfo * meta_info,
-    GstBuffer * buffer, GstVideoInfo * video_info, GstMeta ** out_meta)
+video_inference_prepare_postprocess (GstBuffer * buffer,
+    GstVideoInfo * video_info, GstMeta ** out_meta)
 {
   GstInferenceMeta *imeta = NULL;
 
-  g_return_val_if_fail (meta_info, FALSE);
   g_return_val_if_fail (buffer, FALSE);
   g_return_val_if_fail (video_info, FALSE);
   g_return_val_if_fail (out_meta, FALSE);
 
   g_return_val_if_fail (gst_buffer_is_writable (buffer), FALSE);
-  out_meta[0] = gst_buffer_add_meta (buffer, meta_info, NULL);
 
   /* Create new meta only if the buffer didn't have one */
-  if (!out_meta[1]) {
-    out_meta[1] =
+  if (!*out_meta) {
+    *out_meta =
         gst_buffer_add_meta (buffer, gst_inference_meta_get_info (), NULL);
 
-    imeta = (GstInferenceMeta *) out_meta[1];
+    imeta = (GstInferenceMeta *) *out_meta;
     imeta->prediction->bbox.width = video_info->width;
     imeta->prediction->bbox.height = video_info->height;
   }
@@ -890,7 +886,7 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
   GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstFlowReturn ret = GST_FLOW_OK;
   GstMeta *current_meta = NULL;
-  GstMeta *meta_model[2] = { NULL };
+  GstMeta *meta_model = NULL;
   GstVideoInfo *info_model = NULL;
   GstBuffer *buffer_model = NULL;
   gpointer prediction_data = NULL;
@@ -932,12 +928,12 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
   }
 
   /* Assign already created inferencemeta, no need to create a new one */
-  meta_model[1] = current_meta;
+  meta_model = current_meta;
 
   /* Prepare postprocess */
   info_model = &(pad->info);
-  if (!video_inference_prepare_postprocess (klass->inference_meta_info,
-          buffer_model, info_model, meta_model)) {
+  if (!video_inference_prepare_postprocess (buffer_model, info_model,
+      &meta_model)) {
     ret = GST_FLOW_ERROR;
     goto buffer_free;
   }
@@ -958,7 +954,7 @@ gst_video_inference_process_model (GstVideoInference * self, GstBuffer * buffer,
         "There is no sinkpad for bypass, forwarding model buffer...");
     goto forward_buffer;
   } else {
-    GstInferenceMeta *imeta = (GstInferenceMeta *) meta_model[1];
+    GstInferenceMeta *imeta = (GstInferenceMeta *) meta_model;
     /* Queue buffer */
     GST_LOG_OBJECT (self, "Queue model buffer");
     g_mutex_lock (&priv->mtx_model_queue);
@@ -987,8 +983,8 @@ out:
 
 static void
 video_inference_notify (GstVideoInference * self, GstBuffer * model_buffer,
-    GstMeta * meta_model[2], GstBuffer * bypass_buffer,
-    GstMeta * meta_bypass[2])
+    GstMeta * meta_model, GstBuffer * bypass_buffer,
+    GstMeta * meta_bypass)
 {
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
   GstVideoFrame frame_model;
@@ -996,6 +992,9 @@ video_inference_notify (GstVideoInference * self, GstBuffer * model_buffer,
   GstVideoInfo *info_model = NULL;
   GstVideoInfo *info_bypass = NULL;
   GstMapFlags flags;
+  GstInferenceMeta *imeta = NULL;
+  GstInferencePrediction *pred = NULL;
+  gchar *prediction_string;
 
   g_return_if_fail (model_buffer);
   g_return_if_fail (meta_model);
@@ -1008,13 +1007,21 @@ video_inference_notify (GstVideoInference * self, GstBuffer * model_buffer,
   gst_video_frame_map (&frame_bypass, info_bypass, bypass_buffer, flags);
 
   /* Emit inference signal */
-  g_signal_emit (self, gst_video_inference_signals[NEW_PREDICTION_SIGNAL], 0,
-      meta_model[0], &frame_model, meta_bypass[0], &frame_bypass);
   g_signal_emit (self, gst_video_inference_signals[NEW_INFERENCE_SIGNAL], 0,
-      meta_model[1], &frame_model, meta_bypass[1], &frame_bypass);
+      meta_model, &frame_model, meta_bypass, &frame_bypass);
+
+  /* Parse InferenceMeta from new Inference Model */
+  imeta = (GstInferenceMeta *) meta_model;
+  pred = imeta->prediction;
+  prediction_string = gst_inference_prediction_to_string (pred);
+
+  /* Emit JSON string inference signal */
+  g_signal_emit (self, gst_video_inference_signals[NEW_INFERENCE_STRING_SIGNAL],
+      0, prediction_string);
 
   gst_video_frame_unmap (&frame_model);
   gst_video_frame_unmap (&frame_bypass);
+  g_free (prediction_string);
 }
 
 static GstFlowReturn
@@ -1022,7 +1029,6 @@ gst_video_inference_process_bypass (GstVideoInference * self,
     GstBuffer * buffer, GstVideoInferencePad * pad)
 {
   GstVideoInferencePrivate *priv = GST_VIDEO_INFERENCE_PRIVATE (self);
-  GstVideoInferenceClass *klass = GST_VIDEO_INFERENCE_GET_CLASS (self);
   GstFlowReturn ret = GST_FLOW_OK;
   GstMeta *current_meta = NULL;
   GstBuffer *bypass_buffer = NULL;
@@ -1079,18 +1085,16 @@ gst_video_inference_process_bypass (GstVideoInference * self,
     } else {
       GstInferencePrediction *root_model = NULL;
       GstInferencePrediction *root_bypass = NULL;
-      GstMeta *meta_model[2] = { NULL };
-      GstMeta *meta_bypass[2] = { NULL };
+      GstMeta *meta_model = NULL;
+      GstMeta *meta_bypass = NULL;
       GstVideoInfo *info_model = &(priv->sink_model_data->info);
       GstVideoInfo *info_bypass = &(priv->sink_bypass_data->info);
 
-      /* Get both metas from model buffer */
-      meta_model[0] = gst_buffer_get_meta (model_buffer,
-          klass->inference_meta_info->api);
-      meta_model[1] = gst_buffer_get_meta (model_buffer,
+      /* Get meta from model buffer */
+      meta_model = gst_buffer_get_meta (model_buffer,
           gst_inference_meta_api_get_type ());
 
-      root_model = ((GstInferenceMeta *) meta_model[1])->prediction;
+      root_model = ((GstInferenceMeta *) meta_model)->prediction;
 
       /* If bypass doesn't have meta, just transfer the model meta */
       current_meta = gst_buffer_get_meta (bypass_buffer,
@@ -1116,12 +1120,9 @@ gst_video_inference_process_bypass (GstVideoInference * self,
       /* Transfer meta from model to bypass */
       GST_LOG_OBJECT (self, "Transfering meta from model to bypass");
 
-      meta_bypass[0] =
+      meta_bypass =
           video_inference_transform_meta (model_buffer, info_model,
-          (GstMeta *) meta_model[0], bypass_buffer, info_bypass);
-      meta_bypass[1] =
-          video_inference_transform_meta (model_buffer, info_model,
-          (GstMeta *) meta_model[1], bypass_buffer, info_bypass);
+          (GstMeta *) meta_model, bypass_buffer, info_bypass);
 
       /* Notify prediction */
       video_inference_notify (self, model_buffer, meta_model, bypass_buffer,

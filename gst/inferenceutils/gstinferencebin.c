@@ -414,7 +414,7 @@ gst_inference_bin_build_pipe (GstInferenceBin * self)
       self->arch, self->backend, self->model_location);
 
   if (self->labels) {
-    g_string_append_printf (desc, "labels=%s ", self->labels);
+    g_string_append_printf (desc, "labels=\"%s\" ", self->labels);
   }
 
   if (self->input_layer) {

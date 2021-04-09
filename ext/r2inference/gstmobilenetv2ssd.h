@@ -1,6 +1,6 @@
 /*
  * GStreamer
- * Copyright (C) 2018-2020 RidgeRun <support@ridgerun.com>
+ * Copyright (C) 2021 RidgeRun <support@ridgerun.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,27 +19,16 @@
  *
  */
 
-#ifndef __EMBEDDING_CUSTOM_LOGIC__
-#define __EMBEDDING_CUSTOM_LOGIC__
+#ifndef _GST_MOBILENETV2SSD_H_
+#define _GST_MOBILENETV2SSD_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <gst/r2inference/gstvideoinference.h>
 
-void
-handle_prediction (unsigned char *image,
-                   int width,
-                   int height,
-                   unsigned int size,
-                   double *embeddings,
-                   int num_dimensions,
-                   int verbose,
-                   char **embeddings_list,
-                   char **labels,
-                   int num_embeddings);
+G_BEGIN_DECLS
 
-#ifdef __cplusplus
-}
-#endif
+#define GST_TYPE_MOBILENETV2SSD gst_mobilenetv2ssd_get_type ()
+G_DECLARE_FINAL_TYPE (GstMobilenetv2ssd, gst_mobilenetv2ssd, GST, MOBILENETV2SSD, GstVideoInference)
 
-#endif //__EMBEDDING_CUSTOM_LOGIC__
+G_END_DECLS
+
+#endif /* _GST_MOBILENETV2SSD_H_ */
