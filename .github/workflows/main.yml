@@ -35,10 +35,9 @@ jobs:
       run: |
         CFLAGS="${{ env.CFLAGS }}"
         CXXFLAGS="${{ env.CXXFLAGS }}"
-        NOCONFIGURE=1 ./autogen.sh
-        ./configure --disable-docs --enable-tensorflow
-        make
-        make install
+        meson build --prefix $PREFIX -Denable-tensorflow=true -Denable-docs=disabled
+        ninja -C build
+        ninja -C build install
     - name: Checkout gst-inference repo
       uses: actions/checkout@v2
       with:
