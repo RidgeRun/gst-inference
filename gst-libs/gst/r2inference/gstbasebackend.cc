@@ -214,6 +214,7 @@ gst_base_backend_param_to_spec (r2i::ParameterMeta *param) {
                                   (GParamFlags) gst_base_backend_param_flags (param->flags));
       break;
     }
+#if GST_VERSION_MINOR >= 14
     case (r2i::ParameterMeta::Type::VECTOR): {
       spec = gst_param_spec_array (param->name.c_str(),
                                    param->name.c_str(),
@@ -225,6 +226,7 @@ gst_base_backend_param_to_spec (r2i::ParameterMeta *param) {
                                    (GParamFlags) gst_base_backend_param_flags (param->flags));
       break;
     }
+#endif
     default:
       g_return_val_if_reached (NULL);
   }
