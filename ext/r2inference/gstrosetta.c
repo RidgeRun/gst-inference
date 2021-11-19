@@ -78,13 +78,6 @@ char *concatenate_chars (int maxIndixes[MODEL_OUTPUT_ROWS]);
 static gboolean gst_rosetta_start (GstVideoInference * vi);
 static gboolean gst_rosetta_stop (GstVideoInference * vi);
 
-
-/* pad templates */
-/*#define CAPS								\
-  "video/x-raw, "							\
-  "width=32, "								\
-  "height=100, "							\
-  "format={RGB, RGBx, RGBA, BGR, BGRx, BGRA, xRGB, ARGB, xBGR, ABGR}"*/
 #define CAPS								\
   "video/x-raw, "							\
   "width=100, "								\
