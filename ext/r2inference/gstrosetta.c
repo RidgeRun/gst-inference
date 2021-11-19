@@ -258,7 +258,6 @@ gst_rosetta_postprocess (GstVideoInference * vi,
     GST_ERROR_OBJECT (vi, "Prediction is not part of the Inference Meta");
     return FALSE;
   }
-  //gst_inference_print_predictions (vi, gst_rosetta_debug_category, imeta);
   pred = (const gfloat *) prediction;
   GST_INFO_OBJECT (vi, "Predicting...");
 
