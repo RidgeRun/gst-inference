@@ -61,6 +61,18 @@ gboolean gst_subtract_mean(GstVideoFrame * inframe, GstVideoFrame * outframe, gd
 
 gboolean gst_pixel_to_float(GstVideoFrame * inframe, GstVideoFrame * outframe, gint model_channels);
 
+/**
+ * \brief Normalize the image to match the Rosetta input tensor requirements.
+ * 
+ * \param inframe The input frame
+ * \param outframe The output frame after preprocess
+ * \param mean The mean value of the image
+ * \param offset The value that will be substracted to every pixel
+ * \param model_channels The number of channels of the model
+ */
+gboolean
+gst_normalize_gray_image (GstVideoFrame * inframe, GstVideoFrame * outframe,
+    gdouble mean, gint offset, gint model_channels);
 G_END_DECLS
 
 #endif

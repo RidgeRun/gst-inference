@@ -31,6 +31,9 @@ static void gst_apply_means_std (GstVideoFrame * inframe,
     const gdouble std_r, const gdouble std_g, const gdouble std_b,
     const gint model_channels);
 
+static void gst_apply_gray_normalization (GstVideoFrame * inframe,
+    GstVideoFrame * outframe, gdouble std, gdouble offset);
+
 static void
 gst_apply_means_std (GstVideoFrame * inframe, GstVideoFrame * outframe,
     gint first_index, gint last_index, gint offset, gint channels,
@@ -167,4 +170,44 @@ gst_pixel_to_float (GstVideoFrame * inframe, GstVideoFrame * outframe,
   gst_apply_means_std (inframe, outframe, first_index, last_index, offset,
       channels, mean, mean, mean, std, std, std, model_channels);
   return TRUE;
+}
+
+gboolean
+gst_normalize_gray_image (GstVideoFrame * inframe, GstVideoFrame * outframe,
+    gdouble mean, gint offset, gint model_channels)
+{
+  gint first_index = 0, last_index = 0;
+  g_return_val_if_fail (inframe != NULL, FALSE);
+  g_return_val_if_fail (outframe != NULL, FALSE);
+  if (gst_configure_format_values (inframe, &first_index, &last_index, &offset,
+          &model_channels) == FALSE) {
+    return FALSE;
+  }
+
+  gst_apply_gray_normalization (inframe, outframe, mean, offset);
+
+  return TRUE;
+}
+
+static void
+gst_apply_gray_normalization (GstVideoFrame * inframe, GstVideoFrame * outframe,
+    gdouble mean, gdouble offset)
+{
+  gint i, j, pixel_stride, width, height;
+
+  g_return_if_fail (inframe != NULL);
+  g_return_if_fail (outframe != NULL);
+
+  pixel_stride = GST_VIDEO_FRAME_COMP_STRIDE (inframe, 0);
+  width = GST_VIDEO_FRAME_WIDTH (inframe);
+  height = GST_VIDEO_FRAME_HEIGHT (inframe);
+
+  for (i = 0; i < height; ++i) {
+    for (j = 0; j < width; ++j) {
+
+      ((gfloat *) outframe->data[0])[(i * width + j)] =
+          (((guchar *) inframe->data[0])[(i * pixel_stride +
+                  j)] / mean - offset);
+    }
+  }
 }
