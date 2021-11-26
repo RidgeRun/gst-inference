@@ -23,36 +23,33 @@
  * SECTION:element-rosetta
  *
  * The rosetta element allows the user to infer/execute a pretrained model
- * based on the ResNet architecture on incoming image frames.
+ * based on the ResNet architecture on incoming image frames and extract
+ * the characters from it.
  *
  * <refsect2>
- * <title>Example launch line</title>
- * 
- * Process video frames from the camera using a TinyYolo model.
+ * <title>Source</title>
+ * This element is based on the TensorFlow Lite Hub Rosetta Google
+ * Colaboratory script:
+ * https://tfhub.dev/tulasiram58827/lite-model/rosetta/dr/1
  * </refsect2>
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include "stdio.h"
-
 #include "gstrosetta.h"
-#include "gst/r2inference/gstinferencemeta.h"
-#include <string.h>
-#include "gst/r2inference/gstinferencepreprocess.h"
-#include "gst/r2inference/gstinferencepostprocess.h"
+
 #include "gst/r2inference/gstinferencedebug.h"
+#include "gst/r2inference/gstinferencemeta.h"
+#include "gst/r2inference/gstinferencepostprocess.h"
+#include "gst/r2inference/gstinferencepreprocess.h"
+
+#include <string.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_rosetta_debug_category);
 #define GST_CAT_DEFAULT gst_rosetta_debug_category
 
-#define MODEL_CHANNELS 1
-#define MEAN 127.5
-#define OFFSET -1
-
-
+#define BLANK 0
+#define DEFAULT_MODEL_CHANNELS 1
+#define DEFAULT_DATA_MEAN 127.5
+#define DEFAULT_DATA_OFFSET -1
 #define MODEL_OUTPUT_ROWS 26
 #define MODEL_OUTPUT_COLS 37
 
@@ -72,15 +69,15 @@ gst_rosetta_postprocess (GstVideoInference * vi,
     GstVideoInfo * info_model, gboolean * valid_prediction,
     gchar ** labels_list, gint num_labels);
 
-int get_max_indexes (float row[MODEL_OUTPUT_COLS]);
+gint get_max_indices (gfloat row[MODEL_OUTPUT_COLS]);
 
-char *concatenate_chars (int maxIndixes[MODEL_OUTPUT_ROWS]);
+gchar *concatenate_chars (gint max_indices[MODEL_OUTPUT_ROWS]);
 static gboolean gst_rosetta_start (GstVideoInference * vi);
 static gboolean gst_rosetta_stop (GstVideoInference * vi);
 
 #define CAPS								\
-  "video/x-raw, "							\
-  "width=100, "								\
+  "video/x-raw, "						\
+  "width=100, "							\
   "height=32, "							\
   "format={GRAY8}"
 
@@ -128,10 +125,8 @@ gst_rosetta_class_init (GstRosettaClass * klass)
   gst_element_class_set_static_metadata (GST_ELEMENT_CLASS (klass),
       "Rosetta", "Filter",
       "Infers characters from an incoming image",
-      "Edgar Chaves <edgar.chaves@ridgerun.com>");
-
-  gobject_class->set_property = gst_rosetta_set_property;
-  gobject_class->get_property = gst_rosetta_get_property;
+      "Edgar Chaves <edgar.chaves@ridgerun.com>\n\t\t\t"
+      "Luis Leon <luis.leon@ridgerun.com>\n\t\t\t");
 
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_rosetta_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_rosetta_postprocess);
@@ -143,23 +138,6 @@ gst_rosetta_class_init (GstRosettaClass * klass)
 static void
 gst_rosetta_init (GstRosetta * rosetta)
 {
-  return;
-}
-
-static void
-gst_rosetta_set_property (GObject * object, guint property_id,
-    const GValue * value, GParamSpec * pspec)
-{
-  GstRosetta *rosetta = GST_ROSETTA (object);
-  GST_DEBUG_OBJECT (rosetta, "set_property");
-}
-
-static void
-gst_rosetta_get_property (GObject * object, guint property_id,
-    GValue * value, GParamSpec * pspec)
-{
-  GstRosetta *rosetta = GST_ROSETTA (object);
-  GST_DEBUG_OBJECT (rosetta, "get_property");
 }
 
 static gboolean
@@ -179,44 +157,54 @@ gst_rosetta_preprocess (GstVideoInference * vi,
   width = GST_VIDEO_FRAME_WIDTH (inframe);
   height = GST_VIDEO_FRAME_HEIGHT (inframe);
 
-  GST_LOG_OBJECT (vi, "Input frame dimensions w = %i , h = %i\n", width,
+  GST_LOG_OBJECT (rosetta, "Input frame dimensions w = %i , h = %i", width,
       height);
-
-
-  return gst_normalize_gray_image (inframe, outframe, MEAN, OFFSET,
-      MODEL_CHANNELS);
+  return gst_normalize_gray_image (inframe, outframe, DEFAULT_DATA_MEAN,
+      DEFAULT_DATA_OFFSET, DEFAULT_MODEL_CHANNELS);
 }
 
-int
-get_max_indexes (float row[MODEL_OUTPUT_COLS])
+gint
+get_max_indices (gfloat row[MODEL_OUTPUT_COLS])
 {
-  float largest = row[0];
-  int temp = 0;
+  gfloat largest_probability = row[0];
+  gint temp_max_index = 0;
   for (int i = 0; i < MODEL_OUTPUT_COLS; ++i) {
-    if (largest < row[i]) {
-      largest = row[i];
-      temp = i;
+    if (largest_probability < row[i]) {
+      largest_probability = row[i];
+      temp_max_index = i;
     }
   }
-  return temp;
+  return temp_max_index;
 }
 
-char *
-concatenate_chars (int maxIndixes[MODEL_OUTPUT_ROWS])
+/**
+ * NOTE: After using this function, please free the returned
+ *       gchar with g_free(), due to this function is transfering
+ *       the ownership of the allocated memory.
+ **/
+gchar *
+concatenate_chars (int max_indices[MODEL_OUTPUT_ROWS])
 {
-  int i = 0, counter = 0;
-  char chars[37] =
+  gint i = 0;
+  gint counter = 0;
+  gchar *final_phrase = NULL;
+  const gchar chars[MODEL_OUTPUT_COLS] =
       { '_', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
     'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q',
     'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
   };
-  char *final_phrase =
-      (char *) malloc (sizeof (char) * (MODEL_OUTPUT_ROWS) + 1);
-  memset (final_phrase, ' ', MODEL_OUTPUT_ROWS);
+  //final_phrase = (char *) malloc (sizeof (char) * (MODEL_OUTPUT_ROWS) + 1);
+  //memset (final_phrase, ' ', MODEL_OUTPUT_ROWS);
+  final_phrase = g_strnfill (MODEL_OUTPUT_ROWS + 1, ' ');
 
   for (i = 0; i < MODEL_OUTPUT_ROWS; ++i) {
-    if (maxIndixes[i] != 0 && !(i > 0 && (maxIndixes[i - 1] == maxIndixes[i]))) {
-      final_phrase[counter] = chars[maxIndixes[i]];
+
+    // Checking if the actual max index value is different from '_' character
+    // and also, checking if i is greater than 0, and finally, checking
+    //if the actual max index is equal from the previous one.
+    if (BLANK != max_indices[i] && !(0 < i
+            && (max_indices[i - 1] == max_indices[i]))) {
+      final_phrase[counter] = chars[max_indices[i]];
       ++counter;
     }
   }
@@ -234,9 +222,9 @@ gst_rosetta_postprocess (GstVideoInference * vi,
 {
   GstRosetta *rosetta = NULL;
 
-  int max_indexes[26];
-  float row[MODEL_OUTPUT_COLS];
-  int index = 0;
+  gint max_indices[MODEL_OUTPUT_ROWS];
+  gfloat row[MODEL_OUTPUT_COLS];
+  gint index = 0;
   const gfloat *pred = NULL;
   char *output = NULL;
   GstInferenceMeta *imeta = NULL;
@@ -247,9 +235,7 @@ gst_rosetta_postprocess (GstVideoInference * vi,
   g_return_val_if_fail (meta_model, FALSE);
   g_return_val_if_fail (info_model, FALSE);
 
-  GST_LOG_OBJECT (rosetta, "Postprocess");
-
-  GST_INFO_OBJECT (rosetta, "Rosetta Postprocess");
+  GST_LOG_OBJECT (rosetta, "Rosetta Postprocess");
 
   imeta = (GstInferenceMeta *) meta_model;
   rosetta = GST_ROSETTA (vi);
@@ -259,29 +245,24 @@ gst_rosetta_postprocess (GstVideoInference * vi,
     return FALSE;
   }
   pred = (const gfloat *) prediction;
-  GST_INFO_OBJECT (vi, "Predicting...");
+  GST_LOG_OBJECT (vi, "Predicting...");
 
   for (int j = 0; j < MODEL_OUTPUT_ROWS; ++j) {
     for (int i = 0; i < MODEL_OUTPUT_COLS; ++i) {
       row[i] = pred[index];
-      GST_INFO_OBJECT (vi, "Output tensor %i = %f", i, row[i]);
+      GST_DEBUG_OBJECT (vi, "Output tensor %i = %f", i, row[i]);
       ++index;
     }
-
-
-    max_indexes[j] = get_max_indexes (row);
-
+    max_indices[j] = get_max_indices (row);
   }
-  GST_LOG_OBJECT (vi, "The end");
+  GST_LOG_OBJECT (vi, "Rosetta prediction is done");
 
-  output = concatenate_chars (max_indexes);
+  output = concatenate_chars (max_indices);
 
-  printf ("The phrase is: %s\n", output);
-  GST_LOG_OBJECT (vi, "The prhase is %s", output);
+  GST_LOG_OBJECT (vi, "The phrase is %s", output);
 
-  free (output);
+  g_free (output);
   return TRUE;
-
 }
 
 static gboolean

@@ -193,7 +193,8 @@ static void
 gst_apply_gray_normalization (GstVideoFrame * inframe, GstVideoFrame * outframe,
     gdouble mean, gdouble offset)
 {
-  gint i, j, pixel_stride, width, height;
+  gint i = 0, j = 0, pixel_stride = 0, width = 0, height = 0;
+  const gdouble rcp_mean = 1. / mean;
 
   g_return_if_fail (inframe != NULL);
   g_return_if_fail (outframe != NULL);
@@ -207,7 +208,7 @@ gst_apply_gray_normalization (GstVideoFrame * inframe, GstVideoFrame * outframe,
 
       ((gfloat *) outframe->data[0])[(i * width + j)] =
           (((guchar *) inframe->data[0])[(i * pixel_stride +
-                  j)] / mean - offset);
+                  j)] * rcp_mean - offset);
     }
   }
 }
