@@ -63,8 +63,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov3_debug_category);
 #define MIN_IOU_THRESH 0
 #define DEFAULT_IOU_THRESH 0.40
 /* Number of classes detected by the model*/
-//#define MAX_NUM_CLASSES G_MAXUINT
-#define MAX_NUM_CLASSES 100
+#define MAX_NUM_CLASSES G_MAXUINT
 #define MIN_NUM_CLASSES 1
 #define DEFAULT_NUM_CLASSES 80
 
