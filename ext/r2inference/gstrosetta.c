@@ -54,12 +54,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_rosetta_debug_category);
 #define MODEL_OUTPUT_COLS 37
 
 /* prototypes */
-static void gst_rosetta_set_property (GObject * object, guint property_id,
-    const GValue * value, GParamSpec * pspec);
-
-static void gst_rosetta_get_property (GObject * object, guint property_id,
-    GValue * value, GParamSpec * pspec);
-
 static gboolean gst_rosetta_preprocess (GstVideoInference * vi,
     GstVideoFrame * inframe, GstVideoFrame * outframe);
 
@@ -126,7 +120,7 @@ gst_rosetta_class_init (GstRosettaClass * klass)
       "Rosetta", "Filter",
       "Infers characters from an incoming image",
       "Edgar Chaves <edgar.chaves@ridgerun.com>\n\t\t\t"
-      "Luis Leon <luis.leon@ridgerun.com>\n\t\t\t");
+      "   Luis Leon <luis.leon@ridgerun.com>\n\t\t\t");
 
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_rosetta_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_rosetta_postprocess);
@@ -193,8 +187,8 @@ concatenate_chars (int max_indices[MODEL_OUTPUT_ROWS])
     'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q',
     'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
   };
-  //final_phrase = (char *) malloc (sizeof (char) * (MODEL_OUTPUT_ROWS) + 1);
-  //memset (final_phrase, ' ', MODEL_OUTPUT_ROWS);
+  // Instead of using g_malloc() & memset g_strnfill(), will create
+  // the memory allocation and fill the string with empty spaces.
   final_phrase = g_strnfill (MODEL_OUTPUT_ROWS + 1, ' ');
 
   for (i = 0; i < MODEL_OUTPUT_ROWS; ++i) {
@@ -226,7 +220,7 @@ gst_rosetta_postprocess (GstVideoInference * vi,
   gfloat row[MODEL_OUTPUT_COLS];
   gint index = 0;
   const gfloat *pred = NULL;
-  char *output = NULL;
+  gchar *output = NULL;
   GstInferenceMeta *imeta = NULL;
   GstInferencePrediction *root = NULL;
 
@@ -250,7 +244,6 @@ gst_rosetta_postprocess (GstVideoInference * vi,
   for (int j = 0; j < MODEL_OUTPUT_ROWS; ++j) {
     for (int i = 0; i < MODEL_OUTPUT_COLS; ++i) {
       row[i] = pred[index];
-      GST_DEBUG_OBJECT (vi, "Output tensor %i = %f", i, row[i]);
       ++index;
     }
     max_indices[j] = get_max_indices (row);
