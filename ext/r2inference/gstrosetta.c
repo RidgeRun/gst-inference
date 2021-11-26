@@ -109,7 +109,6 @@ G_DEFINE_TYPE_WITH_CODE (GstRosetta, gst_rosetta,
 static void
 gst_rosetta_class_init (GstRosettaClass * klass)
 {
-  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
   GstVideoInferenceClass *vi_class = GST_VIDEO_INFERENCE_CLASS (klass);
   gst_element_class_add_static_pad_template (element_class,
