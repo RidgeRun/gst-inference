@@ -157,7 +157,7 @@ gst_tinyyolov3_class_init (GstTinyyolov3Class * klass)
       "   Miguel Taylor <miguel.taylor@ridgerun.com> \n\t\t\t"
       "   Greivin Fallas <greivin.fallas@ridgerun.com> \n\t\t\t"
       "   Edgar Chaves <edgar.chaves@ridgerun.com> \n\t\t\t"
-      "   Luis Leon <luis.leon@ridgerun.com> \n\t\t\t");
+      "   Luis Leon <luis.leon@ridgerun.com>");
 
   gobject_class->set_property = gst_tinyyolov3_set_property;
   gobject_class->get_property = gst_tinyyolov3_get_property;
@@ -222,9 +222,15 @@ gst_tinyyolov3_set_property (GObject * object, guint property_id,
           tinyyolov3->iou_thresh);
       break;
     case PROP_NUM_CLASSES:
-      tinyyolov3->num_classes = g_value_get_uint (value);
-      GST_DEBUG_OBJECT (tinyyolov3,
-          "Changed the number of clases to %u", tinyyolov3->num_classes);
+      if (GST_STATE (tinyyolov3) != GST_STATE_NULL) {
+        GST_ERROR_OBJECT (tinyyolov3,
+            "Can't set property if not on NULL state");
+        return;
+      } else {
+        tinyyolov3->num_classes = g_value_get_uint (value);
+        GST_DEBUG_OBJECT (tinyyolov3,
+            "Changed the number of clases to %u", tinyyolov3->num_classes);
+      }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
