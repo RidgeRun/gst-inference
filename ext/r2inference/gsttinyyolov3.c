@@ -62,8 +62,11 @@ GST_DEBUG_CATEGORY_STATIC (gst_tinyyolov3_debug_category);
 #define MAX_IOU_THRESH 1
 #define MIN_IOU_THRESH 0
 #define DEFAULT_IOU_THRESH 0.40
+/* Number of classes detected by the model*/
+#define MAX_NUM_CLASSES G_MAXUINT
+#define MIN_NUM_CLASSES 1
+#define DEFAULT_NUM_CLASSES 80
 
-#define TOTAL_CLASSES 80
 #define TOTAL_BOXES 2535
 
 /* prototypes */
@@ -87,6 +90,7 @@ enum
   PROP_OBJ_THRESH,
   PROP_PROB_THRESH,
   PROP_IOU_THRESH,
+  PROP_NUM_CLASSES,
 };
 
 /* pad templates */
@@ -117,6 +121,7 @@ struct _GstTinyyolov3
   gdouble obj_thresh;
   gdouble prob_thresh;
   gdouble iou_thresh;
+  guint num_classes;
 };
 
 struct _GstTinyyolov3Class
@@ -150,7 +155,9 @@ gst_tinyyolov3_class_init (GstTinyyolov3Class * klass)
       "   Michael Gruner <michael.gruner@ridgerun.com> \n\t\t\t"
       "   Carlos Aguero <carlos.aguero@ridgerun.com> \n\t\t\t"
       "   Miguel Taylor <miguel.taylor@ridgerun.com> \n\t\t\t"
-      "   Greivin Fallas <greivin.fallas@ridgerun.com>");
+      "   Greivin Fallas <greivin.fallas@ridgerun.com> \n\t\t\t"
+      "   Edgar Chaves <edgar.chaves@ridgerun.com> \n\t\t\t"
+      "   Luis Leon <luis.leon@ridgerun.com>");
 
   gobject_class->set_property = gst_tinyyolov3_set_property;
   gobject_class->get_property = gst_tinyyolov3_get_property;
@@ -168,6 +175,11 @@ gst_tinyyolov3_class_init (GstTinyyolov3Class * klass)
           "Intersection over union threshold to merge similar boxes",
           MIN_IOU_THRESH, MAX_IOU_THRESH, DEFAULT_IOU_THRESH,
           G_PARAM_READWRITE));
+  g_object_class_install_property (gobject_class, PROP_NUM_CLASSES,
+      g_param_spec_uint ("number-of-classes", "num-classes",
+          "Number of classes detected by the TinyYOLOv3 model",
+          MIN_NUM_CLASSES, MAX_NUM_CLASSES, DEFAULT_NUM_CLASSES,
+          G_PARAM_READWRITE));
 
   vi_class->start = GST_DEBUG_FUNCPTR (gst_tinyyolov3_start);
   vi_class->stop = GST_DEBUG_FUNCPTR (gst_tinyyolov3_stop);
@@ -181,6 +193,7 @@ gst_tinyyolov3_init (GstTinyyolov3 * tinyyolov3)
   tinyyolov3->obj_thresh = DEFAULT_OBJ_THRESH;
   tinyyolov3->prob_thresh = DEFAULT_PROB_THRESH;
   tinyyolov3->iou_thresh = DEFAULT_IOU_THRESH;
+  tinyyolov3->num_classes = DEFAULT_NUM_CLASSES;
 }
 
 static void
@@ -208,6 +221,16 @@ gst_tinyyolov3_set_property (GObject * object, guint property_id,
           "Changed intersection over union threshold to %lf",
           tinyyolov3->iou_thresh);
       break;
+    case PROP_NUM_CLASSES:
+      if (GST_STATE (tinyyolov3) != GST_STATE_NULL) {
+        GST_ERROR_OBJECT (tinyyolov3,
+            "Can't set property if not on NULL state");
+        return;
+      } else {
+        tinyyolov3->num_classes = g_value_get_uint (value);
+        GST_DEBUG_OBJECT (tinyyolov3,
+            "Changed the number of clases to %u", tinyyolov3->num_classes);
+      }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -231,6 +254,9 @@ gst_tinyyolov3_get_property (GObject * object, guint property_id,
       break;
     case PROP_IOU_THRESH:
       g_value_set_double (value, tinyyolov3->iou_thresh);
+      break;
+    case PROP_NUM_CLASSES:
+      g_value_set_uint (value, tinyyolov3->num_classes);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -274,7 +300,7 @@ gst_tinyyolov3_postprocess (GstVideoInference * vi, const gpointer prediction,
   gst_create_boxes_float (vi, prediction, valid_prediction,
       &boxes, &num_boxes, tinyyolov3->obj_thresh,
       tinyyolov3->prob_thresh, tinyyolov3->iou_thresh, probabilities,
-      TOTAL_CLASSES);
+      tinyyolov3->num_classes);
 
   GST_LOG_OBJECT (tinyyolov3, "Number of predictions: %d", num_boxes);
 
