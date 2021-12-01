@@ -205,7 +205,6 @@ gst_apply_gray_normalization (GstVideoFrame * inframe, GstVideoFrame * outframe,
 
   for (i = 0; i < height; ++i) {
     for (j = 0; j < width; ++j) {
-
       ((gfloat *) outframe->data[0])[(i * width + j)] =
           (((guchar *) inframe->data[0])[(i * pixel_stride +
                   j)] * rcp_mean - offset);

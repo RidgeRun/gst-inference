@@ -41,8 +41,6 @@
 #include "gst/r2inference/gstinferencepostprocess.h"
 #include "gst/r2inference/gstinferencepreprocess.h"
 
-#include <string.h>
-
 GST_DEBUG_CATEGORY_STATIC (gst_rosetta_debug_category);
 #define GST_CAT_DEFAULT gst_rosetta_debug_category
 
@@ -69,7 +67,7 @@ gchar *concatenate_chars (gint max_indices[MODEL_OUTPUT_ROWS]);
 static gboolean gst_rosetta_start (GstVideoInference * vi);
 static gboolean gst_rosetta_stop (GstVideoInference * vi);
 
-#define CAPS								\
+#define CAPS							\
   "video/x-raw, "						\
   "width=100, "							\
   "height=32, "							\
@@ -119,7 +117,7 @@ gst_rosetta_class_init (GstRosettaClass * klass)
       "Rosetta", "Filter",
       "Infers characters from an incoming image",
       "Edgar Chaves <edgar.chaves@ridgerun.com>\n\t\t\t"
-      "   Luis Leon <luis.leon@ridgerun.com>\n\t\t\t");
+      "   Luis Leon <luis.leon@ridgerun.com>");
 
   vi_class->preprocess = GST_DEBUG_FUNCPTR (gst_rosetta_preprocess);
   vi_class->postprocess = GST_DEBUG_FUNCPTR (gst_rosetta_postprocess);
@@ -186,15 +184,17 @@ concatenate_chars (int max_indices[MODEL_OUTPUT_ROWS])
     'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q',
     'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
   };
-  // Instead of using g_malloc() & memset g_strnfill(), will create
-  // the memory allocation and fill the string with empty spaces.
+  /* Instead of using g_malloc() & memset g_strnfill(), will create
+   * the memory allocation and fill the string with empty spaces. 
+   */
   final_phrase = g_strnfill (MODEL_OUTPUT_ROWS + 1, ' ');
 
   for (i = 0; i < MODEL_OUTPUT_ROWS; ++i) {
 
-    // Checking if the actual max index value is different from '_' character
-    // and also, checking if i is greater than 0, and finally, checking
-    //if the actual max index is equal from the previous one.
+    /* Checking if the actual max index value is different from '_' character
+     * and also, checking if i is greater than 0, and finally, checking
+     * if the actual max index is equal from the previous one.
+     */
     if (BLANK != max_indices[i] && !(0 < i
             && (max_indices[i - 1] == max_indices[i]))) {
       final_phrase[counter] = chars[max_indices[i]];
