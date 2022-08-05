@@ -8,7 +8,8 @@ gstinference_sources = [
 	'gstmobilenetv2ssd.c',
 	'gstresnet50v1.c',
 	'gsttinyyolov2.c',
-	'gsttinyyolov3.c'
+	'gsttinyyolov3.c',
+	'gstrosetta.c'
 ]
 
 gstinference = library('gstinference',

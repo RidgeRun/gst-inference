@@ -1,5 +1,5 @@
 project('GStreamer Inference', ['c', 'cpp'], default_options : ['cpp_std=c++11'],
-  version : '0.11.0.1',
+  version : '0.12.0.1',
   meson_version : '>= 0.50',)
 
 project_name = meson.project_name()
@@ -21,7 +21,7 @@ api_version = '1.0'
 
 # Required versions
 gst_req = '>= 1.8.0.1'
-r2i_req = '>= 0.8.0'
+r2i_req = '>= 0.12.0'
 
 # Find external dependencies
 gst_dep         = dependency('gstreamer-1.0',      version : gst_req)
