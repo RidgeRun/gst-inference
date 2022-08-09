@@ -1,5 +1,5 @@
 project('GStreamer Inference', ['c', 'cpp'], default_options : ['cpp_std=c++11'],
-  version : '0.12.0.1',
+  version : '0.12.1.1',
   meson_version : '>= 0.50',)
 
 project_name = meson.project_name()
