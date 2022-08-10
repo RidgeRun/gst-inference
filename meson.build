@@ -1,5 +1,5 @@
 project('GStreamer Inference', ['c', 'cpp'], default_options : ['cpp_std=c++11'],
-  version : '0.12.0.1',
+  version : '0.12.1.1',
   meson_version : '>= 0.50',)
 
 project_name = meson.project_name()
@@ -39,7 +39,7 @@ if not opencv_dep.found()
   opencv_dep = dependency('opencv', version : ['>= 3.2.0', '< 3.5.0'], required : false)
 
   if not opencv_dep.found()
-    opencv_dep = dependency('opencv4', version : ['>= 4.0.0', '< 4.3.0'], required : false)
+    opencv_dep = dependency('opencv4', version : ['>= 4.0.0'], required : false)
     if opencv_dep.found()
         cdata.set('OCV_VERSION_4_0', 1)
     endif
