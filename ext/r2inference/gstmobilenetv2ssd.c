@@ -81,10 +81,10 @@ enum
 };
 
 /* pad templates */
-#define CAPS								\
-  "video/x-raw, "							\
-  "width=300, "								\
-  "height=300, "							\
+#define CAPS                             \
+  "video/x-raw, "                        \
+  "width={ 300, 192 }, "                 \
+  "height={ 300, 192 }, "                \
   "format={RGB, RGBx, RGBA, BGR, BGRx, BGRA, xRGB, ARGB, xBGR, ABGR}"
 
 static GstStaticPadTemplate sink_model_factory =
