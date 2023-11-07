@@ -12,7 +12,7 @@ gstinference_sources = [
 	'gstrosetta.c'
 ]
 
-gstinference = library('gstinference',
+gstinference = library('gstinference-1.0',
   gstinference_sources,
   c_args : c_args,
   include_directories : [configinc, inference_inc_dir],
