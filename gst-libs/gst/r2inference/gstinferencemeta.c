@@ -33,7 +33,7 @@ static gboolean gst_inference_meta_transform (GstBuffer * transbuf,
 GType
 gst_inference_meta_api_get_type (void)
 {
-  static volatile GType type = 0;
+  static GType type = 0;
   static const gchar *tags[] = { GST_META_TAG_VIDEO_STR, NULL
   };
 
