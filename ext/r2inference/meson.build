@@ -17,6 +17,7 @@ gstinference = library('gstinference',
   c_args : c_args,
   include_directories : [configinc, inference_inc_dir],
   dependencies : [gst_base_dep, gst_video_dep, gstinference_dep],
+  version : version_arr[0],
   install : true,
   install_dir : plugins_install_dir,
 )
